@@ -47,6 +47,8 @@ dependencies:
   uuid: ^4.5.1
   audioplayers: ^5.1.0
   http: ^1.1.0
+  googleapis: ^13.1.0
+  googleapis_auth: ^1.5.4
 
 dev_dependencies:
   flutter_test:
