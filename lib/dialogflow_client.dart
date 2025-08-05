@@ -1,100 +1,59 @@
+import 'package:dialog_flowtter/dialog_flowtter.dart';
+import 'package:uuid/uuid.dart';
+
+/// A client for interacting with Dialogflow's detect intent API.
+///
+/// This is a Dart port of the Python implementation found in
+/// `python/dialogflow_client.py`.
 class DialogflowClient {
-  // ...existing code...
+  /// The Dialogflow project identifier.
+  final String projectId;
 
-  // User phrases for voice commands
-  final List<String> userPhrases = [
-    // EXIT / STOP
-    "Exit the app",
-    "Close the application",
-    "Stop running",
-    "Shut down the speed camera app",
-    "Quit",
-    "Terminate",
-    "End application",
+  /// Language code for requests, defaults to English.
+  final String languageCode;
 
-    // ADD POLICE
-    "I saw a police car",
-    "Add a police warning",
-    "There’s a police checkpoint",
-    "Mark police location",
-    "Report police",
-    "Police ahead",
-    "Police trap",
-    "Add police marker",
+  /// Service account credentials used for authentication.
+  final DialogAuthCredentials credentials;
 
-    // POLICE ADD FAIL
-    "Adding police didn't work",
-    "Police marker failed",
-    "Failed to add police marker",
-  ];
+  /// Creates a [DialogflowClient] instance.
+  DialogflowClient({
+    required this.projectId,
+    required this.credentials,
+    this.languageCode = 'en',
+  });
 
-  // Additional user phrases for various scenarios
-  final List<String> additionalPhrases = [
-    // GPS
-    "GPS is off",
-    "Turn on GPS",
-    "I lost GPS signal",
-    "GPS is weak",
-    "GPS is back online",
-    "No GPS",
-    "GPS unavailable",
-    "GPS signal lost",
+  /// Detects the intent of the supplied [text] using Dialogflow.
+  ///
+  /// A new session is created for every request mirroring the behaviour
+  /// of the original Python implementation. On success the fulfilment
+  /// text returned by Dialogflow is provided. On failure a generic
+  /// error message is returned and the error is printed to the console.
+  Future<String> detectIntent(String text) async {
+    final sessionId = const Uuid().v4();
+    try {
+      final dialog = DialogFlowtter(
+        credentials: credentials,
+        projectId: projectId,
+        sessionId: sessionId,
+      );
 
-    // INTERNET / OSM DATA
-    "No internet connection",
-    "The map isn’t loading",
-    "Can't download data",
-    "Why is there no data from the server?",
-    "No map data",
-    "Offline mode",
-    "No connection",
-    "Server not reachable",
+      final queryInput = QueryInput(
+        text: TextInput(
+          text: text,
+          languageCode: languageCode,
+        ),
+      );
 
-    // HAZARD
-    "There’s a hazard ahead",
-    "Danger on the road",
-    "I see something dangerous",
-    "Hazard detected",
-    "Road hazard",
-    "Obstacle ahead",
+      final response = await dialog.detectIntent(queryInput: queryInput);
+      dialog.dispose();
 
-    // SPEED CAMERA WARNINGS
-
-    // Fixed camera distance prompts
-    "Fixed camera 100 meters ahead",
-    "Fixed camera ahead in 100 meters",
-    "There is a fixed camera 100 meters away",
-    "Fixed speed camera 100 meters ahead",
-    "Fixed camera coming up in 100 meters",
-    "Fixed camera 300 meters ahead",
-    "Fixed camera ahead in 300 meters",
-    "There is a fixed camera 300 meters away",
-    "Fixed speed camera 300 meters ahead",
-    "Fixed camera coming up in 300 meters",
-    "Fixed camera 500 meters ahead",
-    "Fixed camera ahead in 500 meters",
-    "There is a fixed camera 500 meters away",
-    "Fixed speed camera 500 meters ahead",
-    "Fixed camera coming up in 500 meters",
-    "Fixed camera 1000 meters ahead",
-    "Fixed camera ahead in 1000 meters",
-    "There is a fixed camera 1000 meters away",
-    "Fixed speed camera 1000 meters ahead",
-    "Fixed camera coming up in 1000 meters",
-
-    // Traffic camera distance prompts
-    "Traffic camera 100 meters ahead",
-    "Traffic camera ahead in 100 meters",
-    "There is a traffic camera 100 meters away",
-  ];
-
-  // Method to process user phrases
-  void processUserPhrase(String phrase) {
-    if (userPhrases.contains(phrase) || additionalPhrases.contains(phrase)) {
-      print("Processing command: $phrase");
-      // Add logic to handle specific commands
-    } else {
-      print("Unknown command: $phrase");
+      return response.text ?? '';
+    } catch (e) {
+      // Mimic behaviour of the Python client by logging the error and
+      // returning a default message.
+      // ignore: avoid_print
+      print('Error during Dialogflow request: $e');
+      return "Sorry, I couldn't process your request.";
     }
   }
 }
