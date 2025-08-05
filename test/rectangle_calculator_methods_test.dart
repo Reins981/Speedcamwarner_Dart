@@ -9,6 +9,7 @@ import 'package:test/test.dart';
 import 'package:workspace/rectangle_calculator.dart';
 import 'package:workspace/linked_list_generator.dart';
 import 'package:workspace/rect.dart';
+import 'package:workspace/tree_generator.dart';
 
 void main() {
   group('RectangleCalculatorThread helpers', () {
@@ -72,9 +73,9 @@ void main() {
         latitudeEnd: 1.0,
         longitudeEnd: 1.0,
       ));
-      final tree = {
-        1: {'name': 'Main St', 'maxspeed': '50', 'highway': 'residential'}
-      };
+      final tree = BinarySearchTree();
+      tree.insert(1, 1,
+          {'name': 'Main St', 'maxspeed': '50', 'highway': 'residential'});
       await calc.triggerCacheLookup(
           latitude: 1.0,
           longitude: 1.0,
@@ -109,7 +110,7 @@ void main() {
         double latitude = 0,
         double longitude = 0,
         DoubleLinkedListNodes? linkedListGenerator,
-        Map<int, Map<String, dynamic>>? treeGenerator,
+        BinarySearchTree? treeGenerator,
         Rect? currentRect,
       }) async {
         called = true;
