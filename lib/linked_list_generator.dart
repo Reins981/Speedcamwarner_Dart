@@ -1,4 +1,5 @@
 import 'dart:math';
+import 'tree_generator.dart';
 
 class Node {
   int id;
@@ -26,7 +27,7 @@ class DoubleLinkedListNodes {
   Node? head;
   Node? tail;
   Node? node;
-  dynamic treeGeneratorInstance;
+  BinarySearchTree? treeGeneratorInstance;
 
   void appendNode(Node newNode) {
     if (head == null) {
@@ -57,17 +58,19 @@ class DoubleLinkedListNodes {
   }
 
   bool _isRoadNameAvailable(int nodeId) {
-    if (treeGeneratorInstance != null) {
-      var way = treeGeneratorInstance[nodeId];
-      if (treeGeneratorInstance.hasRoadNameAttribute(way) ||
-          treeGeneratorInstance.hasRefAttribute(way)) {
+    final tree = treeGeneratorInstance;
+    if (tree != null) {
+      final way = tree[nodeId];
+      if (way != null &&
+          (BinarySearchTree.hasRoadNameAttribute(way) ||
+              BinarySearchTree.hasRefAttribute(way))) {
         return true;
       }
     }
     return false;
   }
 
-  void setTreeGeneratorInstance(dynamic instance) {
+  void setTreeGeneratorInstance(BinarySearchTree? instance) {
     treeGeneratorInstance = instance;
   }
 
