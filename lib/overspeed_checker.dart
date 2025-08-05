@@ -1,5 +1,6 @@
 class OverspeedChecker {
   int? _lastMaxSpeed;
+  int? lastDifference;
 
   void process(int? currentSpeed, Map<String, dynamic> overspeedEntry) {
     if (currentSpeed == null) {
@@ -39,8 +40,10 @@ class OverspeedChecker {
 
   void _processEntry(int value) {
     if (value == 10000) {
+      lastDifference = null;
       print("Resetting overspeed warning.");
     } else {
+      lastDifference = value;
       print("Overspeed by $value units.");
     }
   }

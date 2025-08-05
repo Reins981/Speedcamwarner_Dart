@@ -42,6 +42,11 @@ dependencies:
   google_mlkit_object_detection: ^0.15.0
   path_provider: ^2.1.5
   path: ^1.9.1
+  gpx: ^2.3.0
+  dialog_flowtter: ^0.3.3
+  uuid: ^4.5.1
+  audioplayers: ^5.1.0
+  http: ^1.1.0
 
 dev_dependencies:
   flutter_test:
@@ -64,6 +69,8 @@ flutter:
   # included with your application, so that you can use the icons in
   # the material Icons class.
   uses-material-design: true
+  assets:
+    - python/sounds/
 
   # To add assets to your application, add an assets section, like this:
   # assets:
