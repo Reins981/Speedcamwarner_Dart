@@ -29,6 +29,7 @@ import 'thread_pool.dart';
 import 'road_resolver.dart';
 import 'point.dart';
 import 'linked_list_generator.dart';
+import 'tree_generator.dart';
 import 'package:http/http.dart' as http;
 
 /// Data class representing a single GPS/vector sample.  It contains the
@@ -1339,8 +1340,8 @@ class RectangleCalculatorThread {
       final Rect currentRect = generator[0] as Rect;
       final DoubleLinkedListNodes? linkedListGenerator =
           generator[1] as DoubleLinkedListNodes?;
-      final Map<int, Map<String, dynamic>>? treeGenerator =
-          generator[2] as Map<int, Map<String, dynamic>>?;
+      final BinarySearchTree? treeGenerator =
+          generator[2] as BinarySearchTree?;
 
       if (currentRect.pointInRect(xtile, ytile)) {
         RectangleCalculatorThread.startThreadPoolDataLookup(
@@ -1410,13 +1411,13 @@ class RectangleCalculatorThread {
         double latitude,
         double longitude,
         DoubleLinkedListNodes? linkedListGenerator,
-        Map<int, Map<String, dynamic>>? treeGenerator,
+        BinarySearchTree? treeGenerator,
         Rect? currentRect,
       }) func,
       {double? lat,
       double? lon,
       DoubleLinkedListNodes? linkedList,
-      Map<int, Map<String, dynamic>>? tree,
+      BinarySearchTree? tree,
       Rect? cRect,
       bool waitTillCompleted = true}) async {
     final future = func(
@@ -1453,11 +1454,11 @@ class RectangleCalculatorThread {
   }
 
   static Future<void> startThreadPoolSpeedCamStructure(
-      Future<void> Function(DoubleLinkedListNodes?,
-              Map<int, Map<String, dynamic>>?) func,
+      Future<void> Function(
+              DoubleLinkedListNodes?, BinarySearchTree?) func,
       {int workerThreads = 1,
       DoubleLinkedListNodes? linkedList,
-      Map<int, Map<String, dynamic>>? tree}) async {
+      BinarySearchTree? tree}) async {
     await Future.microtask(() => func(linkedList, tree));
   }
 
@@ -1487,7 +1488,7 @@ class RectangleCalculatorThread {
     double latitude = 0,
     double longitude = 0,
     DoubleLinkedListNodes? linkedListGenerator,
-    Map<int, Map<String, dynamic>>? treeGenerator,
+    BinarySearchTree? treeGenerator,
     Rect? currentRect,
   }) async {
     if (currentRect != null) {
@@ -1499,9 +1500,9 @@ class RectangleCalculatorThread {
     }
     linkedListGenerator.setTreeGeneratorInstance(treeGenerator);
     final node = linkedListGenerator.matchNode(latitude, longitude);
-    if (node != null && treeGenerator != null && treeGenerator.containsKey(node.id)) {
+    if (node != null && treeGenerator != null && treeGenerator.contains(node.id)) {
       final way = treeGenerator[node.id]!;
-      resolveDangersOnTheRoad(way);
+      resolveDangersOnTheRoad(way.tags);
       if (!disableRoadLookup) {
         if (alternativeRoadLookup) {
           final roadName = await getRoadNameViaNominatim(latitude, longitude);
@@ -1510,35 +1511,35 @@ class RectangleCalculatorThread {
                 foundRoadName: true,
                 roadName: roadName,
                 foundCombinedTags: false,
-                roadClass: way['highway']?.toString() ?? 'unclassified',
-                poi: way['poi'] == true,
-                facility: way['facility'] == true);
+                roadClass: way.tags['highway']?.toString() ?? 'unclassified',
+                poi: way.tags['poi'] == true,
+                facility: way.tags['facility'] == true);
           }
-          final maxspeed = resolveMaxSpeed(way);
+          final maxspeed = resolveMaxSpeed(way.tags);
           final status = processMaxSpeed(maxspeed ?? '', maxspeed != null);
           if (status == 'MAX_SPEED_NOT_FOUND') {
             final def = processMaxSpeedForRoadClass(
-                way['highway']?.toString() ?? 'unclassified', null);
+                way.tags['highway']?.toString() ?? 'unclassified', null);
             processMaxSpeed(def, true);
           }
         } else {
-          final resolved = resolveRoadnameAndMaxSpeed(way);
+          final resolved = resolveRoadnameAndMaxSpeed(way.tags);
           processRoadName(
               foundRoadName: resolved.roadName != null,
               roadName: resolved.roadName ?? '',
               foundCombinedTags: false,
-              roadClass: way['highway']?.toString() ?? 'unclassified',
-              poi: way['poi'] == true,
-              facility: way['facility'] == true);
+              roadClass: way.tags['highway']?.toString() ?? 'unclassified',
+              poi: way.tags['poi'] == true,
+              facility: way.tags['facility'] == true);
           processMaxSpeed(resolved.maxSpeed ?? '', resolved.maxSpeed != null,
               roadName: resolved.roadName);
         }
       } else {
-        final maxspeed = resolveMaxSpeed(way);
+        final maxspeed = resolveMaxSpeed(way.tags);
         final status = processMaxSpeed(maxspeed ?? '', maxspeed != null);
         if (status == 'MAX_SPEED_NOT_FOUND') {
           final def = processMaxSpeedForRoadClass(
-              way['highway']?.toString() ?? 'unclassified', null);
+              way.tags['highway']?.toString() ?? 'unclassified', null);
           processMaxSpeed(def, true);
         }
       }
