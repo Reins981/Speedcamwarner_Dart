@@ -38,6 +38,7 @@ dependencies:
   geolocator: ^11.1.0
   flutter_tts: ^4.0.2
   audioplayers: ^5.1.0
+  http: ^1.1.0
 
 dev_dependencies:
   flutter_test:
