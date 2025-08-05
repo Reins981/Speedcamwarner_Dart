@@ -26,6 +26,11 @@ class DoubleLinkedListNodes {
   Node? head;
   Node? tail;
   Node? node;
+  dynamic _treeGenerator;
+
+  void setTreeGeneratorInstance(dynamic generator) {
+    _treeGenerator = generator;
+  }
 
   void appendNode(Node newNode) {
     if (head == null) {
