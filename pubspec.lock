@@ -37,10 +37,10 @@ packages:
     dependency: transitive
     description:
       name: collection
-      sha256: f092b211a4319e98e5ff58223576de6c2803db36221657b46c82574721240687
+      sha256: "2f5709ae4d3d59dd8f7cd309b4e023046b57d8a6c82130785d2b0e5868084e76"
       url: "https://pub.dev"
     source: hosted
-    version: "1.17.2"
+    version: "1.19.1"
   crypto:
     dependency: transitive
     description:
@@ -144,6 +144,14 @@ packages:
       url: "https://pub.dev"
     source: hosted
     version: "0.2.3"
+  gpx:
+    dependency: "direct main"
+    description:
+      name: gpx
+      sha256: "f5b12b86402c639079243600ee2b3afd85cd08d26117fc8885cf48efce471d8e"
+      url: "https://pub.dev"
+    source: hosted
+    version: "2.3.0"
   lints:
     dependency: transitive
     description:
@@ -172,10 +180,10 @@ packages:
     dependency: transitive
     description:
       name: meta
-      sha256: "3c74dbf8763d36539f114c799d8a2d87343b5067e9d796ca22b5eb8437090ee3"
+      sha256: "23f08335362185a5ea2ad3a4e597f1375e78bce8a040df5c600c8d3552ef2394"
       url: "https://pub.dev"
     source: hosted
-    version: "1.9.1"
+    version: "1.17.0"
   path:
     dependency: transitive
     description:
@@ -184,6 +192,14 @@ packages:
       url: "https://pub.dev"
     source: hosted
     version: "1.8.3"
+  petitparser:
+    dependency: transitive
+    description:
+      name: petitparser
+      sha256: "9436fe11f82d7cc1642a8671e5aa4149ffa9ae9116e6cf6dd665fc0653e3825c"
+      url: "https://pub.dev"
+    source: hosted
+    version: "7.0.0"
   plugin_platform_interface:
     dependency: transitive
     description:
@@ -192,6 +208,14 @@ packages:
       url: "https://pub.dev"
     source: hosted
     version: "2.1.8"
+  quiver:
+    dependency: transitive
+    description:
+      name: quiver
+      sha256: "ea0b925899e64ecdfbf9c7becb60d5b50e706ade44a85b2363be2a22d88117d2"
+      url: "https://pub.dev"
+    source: hosted
+    version: "3.2.2"
   sky_engine:
     dependency: transitive
     description: flutter
@@ -285,6 +309,14 @@ packages:
       url: "https://pub.dev"
     source: hosted
     version: "0.1.4-beta"
+  xml:
+    dependency: transitive
+    description:
+      name: xml
+      sha256: "3202a47961c1a0af6097c9f8c1b492d705248ba309e6f7a72410422c05046851"
+      url: "https://pub.dev"
+    source: hosted
+    version: "6.6.0"
 sdks:
   dart: ">=3.1.0 <4.0.0"
   flutter: ">=2.8.0"

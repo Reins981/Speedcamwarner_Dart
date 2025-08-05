@@ -37,6 +37,7 @@ dependencies:
   cupertino_icons: ^1.0.2
   geolocator: ^11.1.0
   flutter_tts: ^4.0.2
+  gpx: ^2.3.0
   dialog_flowtter: ^0.3.3
   uuid: ^4.5.1
   audioplayers: ^5.1.0
