@@ -16,7 +16,20 @@
 // Python threading model.
 
 import 'dart:async';
-import 'dart:math';
+import 'dart:convert';
+import 'dart:io';
+import 'dart:math' as math;
+
+import 'filtered_road_classes.dart';
+import 'most_probable_way.dart';
+import 'rect.dart' show Rect;
+import 'rect.dart' as rect_utils hide Rect;
+import 'overspeed_checker.dart';
+import 'thread_pool.dart';
+import 'road_resolver.dart';
+import 'point.dart';
+import 'linked_list_generator.dart';
+import 'package:http/http.dart' as http;
 
 /// Data class representing a single GPS/vector sample.  It contains the
 /// current longitude/latitude, current speed (in km/h), a bearing angle
@@ -102,6 +115,22 @@ class SpeedCameraEvent {
   }
 }
 
+/// Result object returned by [triggerOsmLookup].  Mirrors the tuple used in the
+/// Python implementation where ``success`` indicates if the request succeeded,
+/// ``status`` contains an optional error state, ``elements`` carries the raw
+/// OSM elements array and ``error`` holds a human readable message.  ``rect``
+/// echoes the queried bounding box so callers can correlate responses.
+class OsmLookupResult {
+  final bool success;
+  final String status;
+  final List<dynamic>? elements;
+  final String? error;
+  final GeoRect rect;
+
+  const OsmLookupResult(
+      this.success, this.status, this.elements, this.error, this.rect);
+}
+
 /// Stub representing a trained predictive model.  In the original Python
 /// application a ``joblib`` model is loaded from disk and passed into
 /// ``predict_speed_camera``.  In a Dart/Flutter environment you would likely
@@ -140,7 +169,8 @@ Future<SpeedCameraEvent?> predictSpeedCamera({
   // roughly 111 km; adjust longitude by cos(lat).
   const cameraDistanceKm = 0.2; // 200 metres
   final deltaLat = cameraDistanceKm / 111.0;
-  final deltaLon = cameraDistanceKm / (111.0 * cos(latitude * pi / 180.0));
+  final deltaLon =
+      cameraDistanceKm / (111.0 * math.cos(latitude * math.pi / 180.0));
   return SpeedCameraEvent(
     latitude: latitude + deltaLat,
     longitude: longitude + deltaLon,
@@ -149,23 +179,52 @@ Future<SpeedCameraEvent?> predictSpeedCamera({
   );
 }
 
-/// Stub that records a newly detected camera to persistent storage (e.g. a
-/// JSON file) and optionally uploads the file to Google Drive.  In the
-/// original code these responsibilities are delegated to the ``ServiceAccount``
-/// module.  Here we emit a log message and return success.  Replace this
-/// function with your own logic if you need to persist cameras to a back‑end
-/// service.
+/// Record a newly detected camera to persistent storage (a JSON file) and
+/// optionally upload that file to Google Drive.  In the original application
+/// these responsibilities are delegated to the ``ServiceAccount`` module.  The
+/// implementation here appends the camera to ``cameras.json`` and leaves the
+/// actual Drive upload as a no-op placeholder.
 Future<bool> uploadCameraToDrive({
   required String name,
   required double latitude,
   required double longitude,
+  String camerasJsonPath = 'python/service_account/cameras.json',
 }) async {
-  // TODO: integrate with your own storage service.  For now just log.
-  // In production you might use the ``googleapis`` package to push data to
-  // Google Drive or Firestore.
-  print('Uploading camera "$name" at ($latitude,$longitude) to Drive');
-  await Future<void>.delayed(const Duration(milliseconds: 50));
-  return true;
+  try {
+    final file = File(camerasJsonPath);
+    Map<String, dynamic> content;
+    if (await file.exists()) {
+      content =
+          jsonDecode(await file.readAsString()) as Map<String, dynamic>;
+    } else {
+      content = {'cameras': []};
+    }
+    final cameras = content['cameras'] as List<dynamic>;
+    final duplicate = cameras.any((cam) {
+      final coords = cam['coordinates'][0];
+      return coords['latitude'] == latitude &&
+          coords['longitude'] == longitude;
+    });
+    if (duplicate) {
+      return false;
+    }
+
+    cameras.add({
+      'name': name,
+      'coordinates': [
+        {'latitude': latitude, 'longitude': longitude}
+      ]
+    });
+
+    final encoder = const JsonEncoder.withIndent('  ');
+    await file.writeAsString(encoder.convert(content));
+
+    // Placeholder for Google Drive upload.  Replace with googleapis integration
+    // if required.  We simply log success here.
+    return true;
+  } catch (_) {
+    return false;
+  }
 }
 
 /// The core class that mirrors the behaviour of ``RectangleCalculatorThread`` in
@@ -184,6 +243,11 @@ class RectangleCalculatorThread {
   final StreamController<GeoRect> _rectangleStreamController =
       StreamController<GeoRect>.broadcast();
 
+  /// The most recently computed rectangle in tile coordinate space.  Stored
+  /// as a [Rect] object for geometric helper methods such as
+  /// [Rect.pointInRect].
+  Rect? lastRect;
+
   /// Controller used to broadcast detected speed camera events.  Multiple
   /// listeners may subscribe and react (e.g. warn the user or annotate a map).
   final StreamController<SpeedCameraEvent> _cameraStreamController =
@@ -191,6 +255,9 @@ class RectangleCalculatorThread {
 
   /// The predictive model used by [predictSpeedCamera].
   final PredictiveModel _predictiveModel;
+
+  /// Helper that tracks the most probable road based on recent updates.
+  final MostProbableWay mostProbableWay;
 
   /// Whether the run loop should continue executing.  Set to ``false`` to
   /// stop processing samples.
@@ -201,9 +268,199 @@ class RectangleCalculatorThread {
   /// layer needs to remain in sync with the calculator.
   int zoom = 17;
 
+  /// Helper used to compute overspeed differences when new max-speed values
+  /// are processed.
+  final OverspeedChecker overspeedChecker = OverspeedChecker();
+
+  /// Last road name resolved by [processRoadName].
+  String? lastRoadName;
+
+  /// Whether combined tags were found for the last processed road name.
+  bool foundCombinedTags = false;
+
+  /// Last max speed value considered by [processMaxSpeed].
+  dynamic lastMaxSpeed;
+
+  /// Current tile and geographic position. These values are updated whenever a
+  /// new vector sample is processed.
+  double xtile = 0.0;
+  double ytile = 0.0;
+  double longitude = 0.0;
+  double latitude = 0.0;
+
+  /// Last observed movement direction.
+  String direction = '';
+
+  /// References to the current and previous rectangles as used by the Python
+  /// implementation for extrapolation checks.
+  Rect matchingRect = Rect(pointList: [0, 0, 0, 0]);
+  Rect? previousRect;
+
+  /// Mapping of rectangle identifiers to their generators. Each entry mirrors
+  /// ``RECT_ATTRIBUTES`` in the original code and stores
+  /// ``[rect, linkedListGenerator, treeGenerator]``.
+  final Map<String, List<dynamic>> rectAttributes = {};
+
+  /// ---------------------------------------------------------------------
+  /// Caching and state management helpers
+
+  final List<SpeedCameraEvent> _cameraCache = [];
+  final Map<String, dynamic> _tileCache = {};
+  final Map<String, dynamic> _speedCache = {};
+  final Map<String, dynamic> _directionCache = {};
+  final Map<String, dynamic> _bearingCache = {};
+  final Map<String, String> _combinedTags = {};
+
+  final ThreadPool _threadPool = ThreadPool();
+
+  // UI related state mirrors the callbacks of the original project.  In this
+  // port the values are simply stored so tests can verify behaviour.
+  int? _kiviMaxspeed;
+  String? _kiviRoadname;
+  double? _camRadius;
+  String? _kiviInfoPage;
+  bool _kiviMaxspeedOnline = false;
+  String? _maxspeedStatus;
+
+  /// If ``true`` points of interest (POIs) are ignored when resolving road
+  /// names and max speed values.
+  bool dismissPois = true;
+
+  /// Configuration flags mirroring the Python implementation.
+  bool disableRoadLookup = false;
+  bool alternativeRoadLookup = false;
+
+  /// Number of distance cameras encountered in the current data set.
+  int numberDistanceCams = 0;
+
+  /// Distance in kilometres used for look‑ahead camera searches.
+  double speedCamLookAheadDistance = 1.0;
+
+  /// Current rectangle angle used for look‑ahead projections.
+  double currentRectAngle = 0.0;
+
+  /// Distance in kilometres used for construction area look‑ahead.
+  double constructionAreaLookaheadDistance = 1.0;
+
+  /// Minimum interval between network lookups to avoid excessive requests.
+  double dosAttackPreventionIntervalDownloads = 30.0;
+
+  /// Disable construction lookups during application start up for this many
+  /// seconds.
+  double constructionAreaStartupTriggerMax = 60.0;
+
+  /// Track the last execution time of look‑ahead routines.
+  final Map<String, double> _lastLookaheadExecution = {};
+
+  /// Whether look‑ahead mode for cameras is active.
+  bool camerasLookAheadMode = false;
+
+  /// Flag indicating that a camera related operation is currently running.
+  bool camInProgress = false;
+
+  /// Cached CCP coordinates and tiles used by [processLookaheadItems] when
+  /// ``previousCcp`` is true.
+  double longitudeCached = 0.0;
+  double latitudeCached = 0.0;
+  double? xtileCached;
+  double? ytileCached;
+
+  /// Rectangles representing the last look‑ahead search areas.
+  Rect? rectSpeedCamLookahead;
+  Rect? rectConstructionAreasLookahead;
+
+  /// Default speed limits per road class (km/h).
+  static const Map<String, int> roadClassesToSpeed = {
+    'trunk': 100,
+    'primary': 100,
+    'unclassified': 70,
+    'secondary': 50,
+    'tertiary': 50,
+    'service': 50,
+    'track': 30,
+    'residential': 30,
+    'bus_guideway': 30,
+    'escape': 30,
+    'bridleway': 30,
+    'living_street': 20,
+    'path': 20,
+    'cycleway': 20,
+    'pedestrian': 10,
+    'footway': 10,
+    'road': 10,
+    'urban': 50,
+  };
+
+  /// Functional road class values mirroring the Python implementation.
+  static const Map<String, int> functionalRoadClasses = {
+    'motorway': 0,
+    '_link': 0,
+    'trunk': 1,
+    'primary': 2,
+    'unclassified': 3,
+    'secondary': 4,
+    'tertiary': 5,
+    'service': 6,
+    'residential': 7,
+    'living_street': 8,
+    'track': 9,
+    'bridleway': 10,
+    'cycleway': 11,
+    'pedestrian': 12,
+    'footway': 13,
+    'path': 14,
+    'bus_guideway': 15,
+    'escape': 16,
+    'road': 17,
+  };
+
+  /// Reverse lookup for functional road classes.
+  static const Map<int, String> functionalRoadClassesReverse = {
+    0: 'motorway',
+    1: 'trunk',
+    2: 'primary',
+    3: 'unclassified',
+    4: 'secondary',
+    5: 'tertiary',
+    6: 'service',
+    7: 'residential',
+    8: 'living_street',
+    9: 'track',
+    10: 'bridleway',
+    11: 'cycleway',
+    12: 'pedestrian',
+    13: 'footway',
+    14: 'path',
+    15: 'bus_guideway',
+    16: 'escape',
+    17: 'road',
+  };
+
   RectangleCalculatorThread({PredictiveModel? model})
-      : _predictiveModel = model ?? PredictiveModel() {
+      : _predictiveModel = model ?? PredictiveModel(),
+        mostProbableWay = MostProbableWay() {
     _start();
+  }
+
+  /// Update run‑time configuration values.  The map [configs] is merged into an
+  /// internal map so repeated calls may override previous values.  Only a small
+  /// subset of options is recognised but the method mirrors the Python
+  /// interface for compatibility.
+  final Map<String, dynamic> _configs = {};
+
+  void setConfigs(Map<String, dynamic> configs) {
+    _configs.addAll(configs);
+  }
+
+  /// Expose a convenience method to push a new sample and trigger processing in
+  /// a single call.  In the Python code this was handled via ``trigger`` and a
+  /// condition variable.
+  void triggerCalculation(VectorData data) => addVectorSample(data);
+
+  /// Remove any cached state allowing the calculator to start fresh.
+  void deleteOldInstances() {
+    cleanupMapContent();
+    _configs.clear();
   }
 
   /// Subscribe to rectangles produced by this calculator.  Each event
@@ -215,6 +472,17 @@ class RectangleCalculatorThread {
   /// Subscribe to speed camera notifications.  These may come from either
   /// predictive analytics (machine learning) or from some external data source.
   Stream<SpeedCameraEvent> get cameras => _cameraStreamController.stream;
+
+  /// Connect a stream of [VectorData] samples (e.g. from [GpsThread]) directly
+  /// to this calculator.  Each incoming vector is forwarded to
+  /// [addVectorSample].
+  void bindVectorStream(Stream<VectorData> stream) {
+    stream.listen(addVectorSample);
+  }
+
+  /// Helper that exposes [FilteredRoadClass.hasValue] for callers that need to
+  /// check whether a particular functional road class should be ignored.
+  bool isFilteredRoadClass(int value) => FilteredRoadClass.hasValue(value);
 
   /// Feed a new sample into the calculator.  The [VectorData] is queued and
   /// processed in order.  This method does not block; processing occurs
@@ -257,10 +525,19 @@ class RectangleCalculatorThread {
   /// rectangle and publishes it.  It also invokes the predictive model to
   /// determine whether a speed camera might exist ahead on the current route.
   Future<void> _processVector(VectorData vector) async {
-    final double longitude = vector.longitude;
-    final double latitude = vector.latitude;
+    longitude = vector.longitude;
+    latitude = vector.latitude;
+    direction = vector.direction;
     final double speedKmH = vector.speed;
     final double bearing = vector.bearing;
+    final tile = longLatToTile(latitude, longitude, zoom);
+    xtile = tile.x;
+    ytile = tile.y;
+
+    // Update most probable way helper with the latest road information. In
+    // this simplified port we treat the [direction] field as the road name.
+    mostProbableWay.addRoadnameToRoadnameList(vector.direction);
+    mostProbableWay.setMostProbableRoad(vector.direction);
 
     // Compute the size of the rectangle based on the current speed.
     // In the original code ``calculate_rectangle_radius`` uses the diagonal
@@ -306,8 +583,8 @@ class RectangleCalculatorThread {
     if (speedKmH <= 0) return 3.0;
     // Baseline 3 km plus 0.05 km per km/h above 50 km/h.  A cap of 10 km is
     // applied to prevent excessive lookahead ranges.
-    final extra = max(0.0, speedKmH - 50.0) * 0.05;
-    return min(3.0 + extra, 10.0);
+    final extra = math.max(0.0, speedKmH - 50.0) * 0.05;
+    return math.min(3.0 + extra, 10.0);
   }
 
   /// Given a centre point and a lookahead distance in kilometres, compute a
@@ -317,18 +594,23 @@ class RectangleCalculatorThread {
   GeoRect _computeBoundingRect(
       double latitude, double longitude, double lookAheadKm) {
     const double earthRadiusKm = 6371.0;
-    final double latRadians = latitude * pi / 180.0;
+    final double latRadians = latitude * math.pi / 180.0;
 
     // Convert distance (km) into degrees latitude/longitude.  One degree
     // latitude spans approximately 111 km.  Longitude scales with cos(lat).
-    final double deltaLat = (lookAheadKm / earthRadiusKm) * (180.0 / pi);
-    final double deltaLon = (lookAheadKm / earthRadiusKm) * (180.0 / pi) /
-        cos(latRadians);
+    final double deltaLat =
+        (lookAheadKm / earthRadiusKm) * (180.0 / math.pi);
+    final double deltaLon =
+        (lookAheadKm / earthRadiusKm) * (180.0 / math.pi) /
+            math.cos(latRadians);
 
     final double minLat = latitude - deltaLat;
     final double maxLat = latitude + deltaLat;
     final double minLon = longitude - deltaLon;
     final double maxLon = longitude + deltaLon;
+    // Store a Rect representation for geometric queries such as
+    // [Rect.pointInRect] or [Rect.pointsCloseToBorder].
+    lastRect = Rect(pointList: [minLon, minLat, maxLon, maxLat]);
     return GeoRect(minLat: minLat, minLon: minLon, maxLat: maxLat, maxLon: maxLon);
   }
 
@@ -337,25 +619,28 @@ class RectangleCalculatorThread {
   /// returned values are fractional; integer parts correspond to tile indices
   /// and fractional parts to pixel offsets within those tiles.  See
   /// https://wiki.openstreetmap.org/wiki/Slippy_map_tilenames for details.
-  Point<double> longLatToTile(double latDeg, double lonDeg, int zoom) {
-    final double latRad = latDeg * pi / 180.0;
-    final double n = pow(2.0, zoom).toDouble();
+  math.Point<double> longLatToTile(double latDeg, double lonDeg, int zoom) {
+    final double latRad = latDeg * math.pi / 180.0;
+    final double n = math.pow(2.0, zoom).toDouble();
     final double xTile = (lonDeg + 180.0) / 360.0 * n;
     final double yTile =
-        (1.0 - log(tan(latRad) + 1.0 / cos(latRad)) / pi) / 2.0 * n;
-    return Point<double>(xTile, yTile);
+        (1.0 - math.log(math.tan(latRad) + 1.0 / math.cos(latRad)) /
+                math.pi) /
+            2.0 * n;
+    return math.Point<double>(xTile, yTile);
   }
 
   /// Convert tile coordinates back into a longitude/latitude pair.  This
   /// corresponds to the ``tile2longlat`` function in the Python code.  The
   /// integer parts of ``xTile`` and ``yTile`` identify the tile index;
   /// fractional parts specify an offset from the tile origin.
-  Point<double> tileToLongLat(double xTile, double yTile, int zoom) {
-    final double n = pow(2.0, zoom).toDouble();
+  math.Point<double> tileToLongLat(double xTile, double yTile, int zoom) {
+    final double n = math.pow(2.0, zoom).toDouble();
     final double lonDeg = xTile / n * 360.0 - 180.0;
-    final double latRad = atan(sinh(pi * (1.0 - 2.0 * yTile / n)));
-    final double latDeg = latRad * 180.0 / pi;
-    return Point<double>(lonDeg, latDeg);
+    final double latRad =
+        math.atan(math.sinh(math.pi * (1.0 - 2.0 * yTile / n)));
+    final double latDeg = latRad * 180.0 / math.pi;
+    return math.Point<double>(lonDeg, latDeg);
   }
 
   /// Format a [DateTime] into HH:MM format.  This helper mirrors the
@@ -380,4 +665,1008 @@ class RectangleCalculatorThread {
     ];
     return names[(dt.weekday - 1) % 7];
   }
+
+  // ---------------------------------------------------------------------------
+  // Additional helper methods ported from the Python implementation
+  // ---------------------------------------------------------------------------
+
+  /// Wrapper around [_start] to mirror the Python ``run`` method.  The
+  /// constructor already launches the processing loop, but this method is kept
+  /// for API parity.
+  void run() => _start();
+
+  /// Replace the current list of known speed cameras.  Each entry is broadcast
+  /// immediately on the camera stream.
+  void updateSpeedCams(List<SpeedCameraEvent> speedCams) {
+    for (final cam in speedCams) {
+      _cameraStreamController.add(cam);
+    }
+  }
+
+  /// Replace the current list of construction areas.
+  List<GeoRect> constructionAreas = [];
+
+  void updateConstructionAreas(List<GeoRect> areas) {
+    constructionAreas = List<GeoRect>.from(areas);
+  }
+
+  /// Reset transient state and clear construction areas.
+  void cleanup() {
+    lastRect = null;
+    constructionAreas = [];
+  }
+
+  /// Track whether a camera upload is currently running.
+  bool _cameraUploadInProgress = false;
+
+  void cameraInProgress(bool state) {
+    _cameraUploadInProgress = state;
+  }
+
+  bool get cameraUploadInProgress => _cameraUploadInProgress;
+
+  /// Placeholder kept for API compatibility; does nothing in the Dart port.
+  void updateMapQueue() {}
+
+  /// Calculate half the diagonal length of a rectangle defined by [width] and
+  /// [height].
+  double calculateRectangleRadius(double width, double height) {
+    return math.sqrt(width * width + height * height) / 2.0;
+  }
+
+  /// Euclidean distance of a point in tile space.
+  double tile2hypotenuse(double xtile, double ytile) {
+    return math.sqrt(xtile * xtile + ytile * ytile);
+  }
+
+  /// Convert tile coordinates to polar coordinates returning ``distance`` and
+  /// ``angle`` (degrees).
+  math.Point<double> tile2polar(double xtile, double ytile) {
+    final double distance = tile2hypotenuse(xtile, ytile);
+    final double angle = math.atan2(ytile, xtile) * 180.0 / math.pi;
+    return math.Point<double>(distance, angle);
+  }
+
+  /// Calculate opposite tile bounds when looking ahead from a given
+  /// ``(xtile, ytile)`` position by [distance] tiles at the specified [angle]
+  /// (in radians).  The behaviour mirrors the intricate branch logic of the
+  /// original Python ``calculatepoints2angle`` helper.
+  List<double> calculatePoints2Angle(
+      double xtile, double ytile, double distance, double angle) {
+    final double xCos = math.cos(angle) * distance;
+    final double ySin = math.sin(angle) * distance;
+
+    double xtileMin;
+    double xtileMax;
+    double ytileMin;
+    double ytileMax;
+
+    if ((angle > 90 && angle <= 120) || (angle > 130 && angle <= 135)) {
+      xtileMin = xtile - xCos;
+      xtileMax = xtile + xCos;
+      ytileMin = ytile + ySin;
+      ytileMax = ytile - ySin;
+    } else if (angle > 120 && angle <= 122) {
+      xtileMin = xtile - xCos;
+      xtileMax = xtile + xCos;
+      ytileMin = ytile - ySin;
+      ytileMax = ytile + ySin;
+    } else if (angle > 122 && angle <= 130) {
+      xtileMin = xtile + xCos;
+      xtileMax = xtile - xCos;
+      ytileMin = ytile - ySin;
+      ytileMax = ytile + ySin;
+    } else {
+      xtileMin = xtile + xCos;
+      xtileMax = xtile - xCos;
+      ytileMin = ytile + ySin;
+      ytileMax = ytile - ySin;
+    }
+    return [xtileMin, xtileMax, ytileMin, ytileMax];
+  }
+
+  /// Shift the left boundary of a rectangle westwards.
+  double decreaseXtileLeft(double xtile, {int factor = 1}) {
+    return xtile - factor.toDouble();
+  }
+
+  /// Shift the right boundary of a rectangle eastwards.
+  double increaseXtileRight(double xtile, {int factor = 1}) {
+    return xtile + factor.toDouble();
+  }
+
+  /// Rotate two tile points around the origin by [angle] radians.  The function
+  /// mirrors the behaviour of ``rotatepoints2angle`` from the Python code and
+  /// returns the rotated coordinates ``[xtileMin, xtileMax, ytileMin, ytileMax]``.
+  List<double> rotatePoints2Angle(double xtileMin, double xtileMax,
+      double ytileMin, double ytileMax, double angle) {
+    final double cosA = math.cos(-angle);
+    final double sinA = math.sin(-angle);
+
+    final double nXMin = cosA * xtileMin - sinA * ytileMin;
+    final double nYMin = sinA * xtileMin + cosA * ytileMin;
+
+    final double nXMax = cosA * xtileMax - sinA * ytileMax;
+    final double nYMax = sinA * xtileMax + cosA * ytileMax;
+
+    return [nXMin, nXMax, nYMin, nYMax];
+  }
+
+  /// In Python the vector was represented as a tuple.  Here the [VectorData]
+  /// object already holds the required sections so the method returns it
+  /// unchanged.
+  VectorData getVectorSections(VectorData vector) => vector;
+
+  /// Build a [Rect] from two opposite corner points.
+  Rect calculateRectangleBorder(math.Point<double> pt1, math.Point<double> pt2) {
+    final minX = math.min(pt1.x, pt2.x);
+    final maxX = math.max(pt1.x, pt2.x);
+    final minY = math.min(pt1.y, pt2.y);
+    final maxY = math.max(pt1.y, pt2.y);
+    return Rect(pointList: [minX, minY, maxX, maxY]);
+  }
+
+  /// Create a GeoJSON polygon from rotated tile bounds.
+  List<math.Point<double>> createGeoJsonTilePolygonAngle(
+      int zoom,
+      double xtileMin,
+      double ytileMin,
+      double xtileMax,
+      double ytileMax,
+      double angle) {
+    final rotated =
+        rotatePoints2Angle(xtileMin, xtileMax, ytileMin, ytileMax, angle);
+    final p1 = tileToLongLat(rotated[0], rotated[2], zoom);
+    final p2 = tileToLongLat(rotated[1], rotated[3], zoom);
+    return [
+      p1,
+      math.Point<double>(p2.x, p1.y),
+      p2,
+      math.Point<double>(p1.x, p2.y),
+      p1,
+    ];
+  }
+
+  /// Create a GeoJSON polygon from unrotated tile bounds.
+  List<math.Point<double>> createGeoJsonTilePolygon(
+      String direction, int zoom, double xtile, double ytile, double size) {
+    final double xtileMax = xtile + size;
+    final double ytileMax = ytile + size;
+    final p1 = tileToLongLat(xtile, ytile, zoom);
+    final p2 = tileToLongLat(xtileMax, ytileMax, zoom);
+    return [
+      p1,
+      math.Point<double>(p2.x, p1.y),
+      p2,
+      math.Point<double>(p1.x, p2.y),
+      p1,
+    ];
+  }
+
+  /// Determine the functional road class value from an OSM highway tag.
+  int? getRoadClassValue(String roadClass) {
+    for (final entry in functionalRoadClasses.entries) {
+      if (roadClass.contains(entry.key)) return entry.value;
+    }
+    return null;
+  }
+
+  /// Return the default speed for an OSM road class. Empty string if none.
+  String getRoadClassSpeed(String roadClass) {
+    for (final entry in roadClassesToSpeed.entries) {
+      if (roadClass.contains(entry.key)) {
+        return entry.value.toString();
+      }
+    }
+    if (roadClass.contains('_link')) return 'RAMP';
+    if (roadClass.contains('urban')) {
+      return roadClassesToSpeed['urban']!.toString();
+    }
+    return '';
+  }
+
+  /// Provide a reverse textual representation for a functional road class.
+  String getRoadClassTxt(int? roadClass) =>
+      functionalRoadClassesReverse[roadClass] ?? 'None';
+
+  /// Check if at least four subsequent position updates resulted in the same
+  /// road class.
+  static bool isRoadClassStable(List<int> roadCandidates, int roadClassValue) {
+    int counter = 0;
+    for (var i = 0; i < roadCandidates.length - 1; i++) {
+      if (roadCandidates[i] == roadCandidates[i + 1] &&
+          roadCandidates[i] == roadClassValue) {
+        counter += 1;
+      }
+    }
+    return counter == 2;
+  }
+
+  /// Handle a newly resolved road name.  Returns ``true`` if the name was
+  /// accepted and stored.
+  bool processRoadName({
+    required bool foundRoadName,
+    required String roadName,
+    required bool foundCombinedTags,
+    required String roadClass,
+    bool poi = false,
+    bool facility = false,
+  }) {
+    if (foundRoadName) {
+      final currentFr = getRoadClassValue(roadClass);
+      if (currentFr != null && isFilteredRoadClass(currentFr)) {
+        return false;
+      }
+      if (poi && dismissPois) return false;
+      roadName = facility.isNotEmpty ? '$facility: $roadName' : roadName;
+      lastRoadName = roadName;
+      this.foundCombinedTags = foundCombinedTags;
+      return true;
+    } else {
+      return lastRoadName != null;
+    }
+  }
+
+  /// Process a max speed entry and update [overspeedChecker].  Returns a
+  /// status string describing the outcome similar to the Python code.
+  String processMaxSpeed(dynamic maxspeed, bool foundMaxspeed,
+      {String? roadName,
+      bool motorway = false,
+      bool resetMaxspeed = false,
+      bool ramp = false,
+      int? currentSpeed}) {
+    if (resetMaxspeed && !dismissPois) {
+      overspeedChecker.process(currentSpeed, {'maxspeed': 10000});
+      lastMaxSpeed = 'POI';
+      return 'MAX_SPEED_IS_POI';
+    }
+
+    if (foundMaxspeed || (maxspeed.toString().isNotEmpty)) {
+      var result = prepareDataForSpeedCheck(maxspeed, motorway: motorway);
+      maxspeed = result['maxspeed'];
+      final bool overspeedReset = result['overspeedReset'];
+      final overspeed = overspeedReset ? 10000 : maxspeed;
+      overspeedChecker.process(currentSpeed, {'maxspeed': overspeed});
+      lastMaxSpeed = maxspeed;
+      return 'MAX_SPEED_FOUND';
+    } else {
+      if (lastMaxSpeed != null && lastRoadName == roadName) {
+        overspeedChecker.process(currentSpeed, {'maxspeed': lastMaxSpeed});
+        lastMaxSpeed = null;
+        return 'LAST_MAX_SPEED_USED';
+      }
+      lastMaxSpeed = null;
+      return 'MAX_SPEED_NOT_FOUND';
+    }
+  }
+
+  /// Prepare a max speed value for overspeed checking. Returns a map with the
+  /// possibly converted speed and a flag whether the overspeed warning should
+  /// be reset.
+  Map<String, dynamic> prepareDataForSpeedCheck(dynamic maxspeed,
+      {bool motorway = false}) {
+    bool overspeedReset = false;
+    try {
+      maxspeed = int.parse(maxspeed.toString());
+    } catch (_) {
+      final String s = maxspeed.toString();
+      if (s.contains('AT:motorway')) {
+        maxspeed = 130;
+      } else if (s.contains('DE:motorway')) {
+        overspeedReset = true;
+      } else if (motorway) {
+        maxspeed = 130;
+      } else if (s.contains('mph')) {
+        // leave mph values as-is
+      } else {
+        overspeedReset = true;
+      }
+    }
+    return {'maxspeed': maxspeed, 'overspeedReset': overspeedReset};
+  }
+
+  /// Public entry point similar to the Python ``process`` method.  Setting
+  /// [updateCcpOnly] skips the predictive camera lookup.
+  Future<void> process(VectorData vector, {bool updateCcpOnly = false}) async {
+    if (updateCcpOnly) {
+      final rect = _computeBoundingRect(
+          vector.latitude, vector.longitude, _computeLookAheadDistance(0));
+      _rectangleStreamController.add(rect);
+    } else {
+      await _processVector(vector);
+    }
+  }
+
+  // ---------------------------------------------------------------------------
+  // Remaining Python ports
+
+  /// Handle offline scenarios by resetting UI hints. Mirrors the lightweight
+  /// Python implementation which clears the road name and, if no maxspeed was
+  /// previously shown, displays a placeholder value.
+  Future<void> processOffline() async {
+    if (lastMaxSpeed == '' || lastMaxSpeed == null) {
+      updateKiviMaxspeed('<<<', color: [1, 0, 0, 3]);
+    }
+    updateKiviRoadname('', false);
+  }
+
+  /// Perform a nominative road name lookup and update UI state accordingly.
+  /// The method is invoked when the current CCP becomes unstable and mirrors
+  /// ``process_look_ahead_interrupts`` from the Python code.
+  Future<void> processLookAheadInterrupts() async {
+    final roadName = await getRoadNameViaNominatim(latitude, longitude);
+    if (roadName != null) {
+      if (roadName.startsWith('ERROR:')) {
+        if (!camInProgress) {
+          updateMaxspeedStatus('ERROR');
+        }
+      } else {
+        processRoadName(
+            foundRoadName: true,
+            roadName: roadName,
+            foundCombinedTags: false,
+            roadClass: 'unclassified');
+      }
+    }
+    if (!camInProgress && await internetAvailable()) {
+      updateKiviMaxspeed('');
+      lastMaxSpeed = '';
+    } else {
+      lastMaxSpeed = 'KEEP';
+    }
+  }
+
+  /// Simplified interrupt handler. Returns ``'look_ahead'`` when look‑ahead
+  /// mode is active, otherwise ``0``.  The rich rectangle update logic from the
+  /// Python version has not been ported.
+  Future<dynamic> processInterrupts() async {
+    if (camerasLookAheadMode) {
+      return 'look_ahead';
+    }
+    return 0;
+  }
+
+  Future<bool> uploadCameraToDriveMethod(
+          String name, double latitude, double longitude) async =>
+      uploadCameraToDrive(
+          name: name, latitude: latitude, longitude: longitude);
+
+  /// Trigger asynchronous look‑ahead downloads for speed cameras and
+  /// construction areas.  ``previousCcp`` reuses cached coordinates from the
+  /// last stable CCP.
+  Future<void> processLookaheadItems(DateTime applicationStartTime,
+      {bool previousCcp = false}) async {
+    double xtile;
+    double ytile;
+    double ccpLon;
+    double ccpLat;
+
+    if (previousCcp) {
+      if (longitudeCached > 0 && latitudeCached > 0 &&
+          xtileCached != null && ytileCached != null) {
+        xtile = xtileCached!;
+        ytile = ytileCached!;
+        ccpLon = longitudeCached;
+        ccpLat = latitudeCached;
+      } else {
+        return;
+      }
+    } else {
+      final p = longLatToTile(latitude, longitude, zoom);
+      xtile = p.x;
+      ytile = p.y;
+      xtileCached = xtile;
+      ytileCached = ytile;
+      longitudeCached = longitude;
+      latitudeCached = latitude;
+      ccpLon = longitude;
+      ccpLat = latitude;
+    }
+
+    // Process predictive cameras
+    await processPredictiveCameras(ccpLon, ccpLat);
+
+    final lookups = [
+      {
+        'rect': rectSpeedCamLookahead,
+        'func': RectangleCalculatorThread.startThreadPoolSpeedCamera,
+        'msg': 'Speed Camera lookahead',
+        'trigger': speedCamLookupAhead
+      },
+      {
+        'rect': rectConstructionAreasLookahead,
+        'func': RectangleCalculatorThread.startThreadPoolConstructionAreas,
+        'msg': 'Construction area lookahead',
+        'trigger': constructionsLookupAhead
+      }
+    ];
+
+    for (final item in lookups) {
+      final Rect? rect = item['rect'] as Rect?;
+      final String msg = item['msg'] as String;
+      final func = item['func'] as Future<void> Function(
+          Future<void> Function(double, double, double, double),
+          int,
+          double,
+          double,
+          double,
+          double);
+      final trigger =
+          item['trigger'] as Future<void> Function(double, double, double, double);
+
+      final now = DateTime.now().millisecondsSinceEpoch / 1000.0;
+      final last = _lastLookaheadExecution[msg] ?? 0;
+      if (now - last < dosAttackPreventionIntervalDownloads) {
+        continue;
+      }
+
+      if (msg == 'Construction area lookahead') {
+        final elapsed =
+            DateTime.now().difference(applicationStartTime).inSeconds;
+        if (elapsed <= constructionAreaStartupTriggerMax) {
+          continue;
+        }
+      }
+
+      if (rect != null) {
+        final inside = rect.pointInRect(xtile, ytile);
+        final close =
+            rect.pointsCloseToBorder(xtile, ytile, lookAhead: true, lookAheadMode: msg);
+        if (inside && !close) {
+          continue;
+        }
+      }
+
+      await func(trigger, 1, xtile, ytile, ccpLon, ccpLat);
+      _lastLookaheadExecution[msg] = now;
+    }
+  }
+
+  /// Process construction area lookup results and append them to the internal
+  /// list.  Only elements with valid latitude/longitude are considered.
+  void processConstructionAreasLookupAheadResults(
+      dynamic data, String lookupType, double ccpLon, double ccpLat) {
+    if (data is! List) return;
+    for (final element in data) {
+      if (element is! Map<String, dynamic>) continue;
+      final lat = (element['lat'] as num?)?.toDouble();
+      final lon = (element['lon'] as num?)?.toDouble();
+      if (lat == null || lon == null) continue;
+      constructionAreas
+          .add(GeoRect(minLat: lat, minLon: lon, maxLat: lat, maxLon: lon));
+    }
+    if (constructionAreas.isNotEmpty) {
+      updateConstructionAreas(constructionAreas);
+      updateMapQueue();
+      updateKiviInfoPage('CONSTRUCTION_AREAS');
+      cleanupMapContent();
+    }
+  }
+
+  Future<SpeedCameraEvent?> processPredictiveCameras(
+          double longitude, double latitude) async =>
+      predictSpeedCamera(
+          model: _predictiveModel,
+          latitude: latitude,
+          longitude: longitude,
+          timeOfDay: _formatTimeOfDay(DateTime.now()),
+          dayOfWeek: _formatDayOfWeek(DateTime.now()));
+
+  Future<void> speedCamLookupAhead(double xtile, double ytile, double ccpLon,
+      double ccpLat, {http.Client? client}) async {
+    final pts =
+        calculatePoints2Angle(xtile, ytile, speedCamLookAheadDistance, 0);
+    final poly = createGeoJsonTilePolygonAngle(
+        zoom, pts[0], pts[2], pts[1], pts[3], currentRectAngle);
+    double minLat = poly[0][0];
+    double maxLat = poly[0][0];
+    double minLon = poly[0][1];
+    double maxLon = poly[0][1];
+    for (final p in poly) {
+      if (p[0] < minLat) minLat = p[0];
+      if (p[0] > maxLat) maxLat = p[0];
+      if (p[1] < minLon) minLon = p[1];
+      if (p[1] > maxLon) maxLon = p[1];
+    }
+    final rect =
+        GeoRect(minLat: minLat, minLon: minLon, maxLat: maxLat, maxLon: maxLon);
+    for (final type in ['camera_ahead', 'distance_cam']) {
+      final result =
+          await triggerOsmLookup(rect, lookupType: type, client: client);
+      if (result.success && result.elements != null) {
+        processSpeedCamLookupAheadResults(
+            result.elements!, type, ccpLon, ccpLat);
+      }
+    }
+  }
+
+  Future<void> constructionsLookupAhead(double xtile, double ytile, double ccpLon,
+      double ccpLat, {http.Client? client}) async {
+    final pts = calculatePoints2Angle(
+        xtile, ytile, constructionAreaLookaheadDistance, currentRectAngle);
+    final poly = createGeoJsonTilePolygonAngle(
+        zoom, pts[0], pts[2], pts[1], pts[3], currentRectAngle);
+    double minLat = poly[0][0];
+    double maxLat = poly[0][0];
+    double minLon = poly[0][1];
+    double maxLon = poly[0][1];
+    for (final p in poly) {
+      if (p[0] < minLat) minLat = p[0];
+      if (p[0] > maxLat) maxLat = p[0];
+      if (p[1] < minLon) minLon = p[1];
+      if (p[1] > maxLon) maxLon = p[1];
+    }
+    final rect =
+        GeoRect(minLat: minLat, minLon: minLon, maxLat: maxLat, maxLon: maxLon);
+    final result = await triggerOsmLookup(rect,
+        lookupType: 'construction_ahead', client: client);
+    if (result.success && result.elements != null) {
+      processConstructionAreasLookupAheadResults(
+          result.elements!, 'construction_ahead', ccpLon, ccpLat);
+    }
+  }
+
+  void processSpeedCamLookupAheadResults(
+      dynamic data, String lookupType, double ccpLon, double ccpLat) {
+    if (data is! List) return;
+    for (final element in data) {
+      if (element is! Map<String, dynamic>) continue;
+      final tags = element['tags'] as Map<String, dynamic>? ?? {};
+      if (lookupType == 'distance_cam') {
+        updateNumberOfDistanceCameras(tags);
+        continue;
+      }
+      if (tags['highway'] == 'speed_camera') {
+        final lat = (element['lat'] as num?)?.toDouble();
+        final lon = (element['lon'] as num?)?.toDouble();
+        if (lat == null || lon == null) continue;
+        final cam = SpeedCameraEvent(
+            latitude: lat,
+            longitude: lon,
+            fixed: true,
+            name: tags['name']?.toString() ?? '');
+        _cameraStreamController.add(cam);
+        _cameraCache.add(cam);
+      }
+    }
+  }
+
+  void resolveDangersOnTheRoad(Map<String, dynamic> way) {
+    final hazard = way['hazard'];
+    if (hazard != null) {
+      _kiviInfoPage = hazard.toString().toUpperCase();
+    } else if (_kiviInfoPage != null && _kiviInfoPage!.isNotEmpty) {
+      _kiviInfoPage = null;
+    }
+
+    if (way.containsKey('waterway')) {
+      _kiviInfoPage = way['waterway'].toString().toUpperCase();
+    }
+  }
+
+  // ---------------------------------------------------------------------------
+  // Caching and geometry helpers
+
+  void updateRectanglePeriphery(Rect rect) {
+    lastRect = rect;
+  }
+
+  void processAllSpeedCameras(List<SpeedCameraEvent> cams) {
+    _cameraCache
+      ..clear()
+      ..addAll(removeDuplicateCameras(cams));
+  }
+
+  List<SpeedCameraEvent> processSpeedCamerasOnTheWay(
+      Point point, double radius) {
+    return _cameraCache
+        .where((c) =>
+            _distance(point.x, point.y, c.longitude, c.latitude) <= radius)
+        .toList();
+  }
+
+  Map<String, SpeedCameraEvent> buildDataStructure(
+      List<SpeedCameraEvent> cams) {
+    final map = <String, SpeedCameraEvent>{};
+    for (final cam in cams) {
+      map['${cam.latitude},${cam.longitude}'] = cam;
+    }
+    return map;
+  }
+
+  List<SpeedCameraEvent> speedCamLookup(Point p) {
+    return processSpeedCamerasOnTheWay(p, 0.01); // approx 1km radius
+  }
+
+  void cleanupMapContent() {
+    _cameraCache.clear();
+    _tileCache.clear();
+    _speedCache.clear();
+    _directionCache.clear();
+    _bearingCache.clear();
+    clearCombinedTags(_combinedTags);
+  }
+
+  List<SpeedCameraEvent> removeDuplicateCameras(
+      List<SpeedCameraEvent> cams) {
+    final seen = <String>{};
+    final result = <SpeedCameraEvent>[];
+    for (final cam in cams) {
+      final key = '${cam.latitude},${cam.longitude}';
+      if (seen.add(key)) result.add(cam);
+    }
+    return result;
+  }
+
+  void updateNumberOfDistanceCameras(Map<String, dynamic> wayTags) {
+    if (wayTags['role'] == 'device') {
+      numberDistanceCams += 1;
+    }
+  }
+
+  void cacheCcp(String key, dynamic value) => _tileCache[key] = value;
+  void cacheTiles(String key, dynamic value) => _tileCache[key] = value;
+  void cacheCspeed(String key, dynamic value) => _speedCache[key] = value;
+  void cacheDirection(String key, dynamic value) =>
+      _directionCache[key] = value;
+  void cacheBearing(String key, dynamic value) => _bearingCache[key] = value;
+
+  double convertCspeed(double speedKmh) => speedKmh / 3.6;
+
+  Point calculateExtrapolatedPosition(
+      Point start, double bearingDeg, double distanceMeters) {
+    final rad = bearingDeg * math.pi / 180.0;
+    final dx = distanceMeters * math.sin(rad) / 111000.0;
+    final dy = distanceMeters * math.cos(rad) / 111000.0;
+    return Point(start.x + dx, start.y + dy);
+  }
+
+  double _distance(
+      double lon1, double lat1, double lon2, double lat2) {
+    final dx = lon1 - lon2;
+    final dy = lat1 - lat2;
+    return math.sqrt(dx * dx + dy * dy);
+  }
+
+  // ---------------------------------------------------------------------------
+  // Rectangle and thread-pool helpers ported from the Python implementation
+
+  /// Iterate through [rectAttributes] and trigger a cache lookup when the
+  /// current tile position lies inside any stored rectangle.
+  void checkSpecificRectangle() {
+    rectAttributes.forEach((key, generator) {
+      if (generator.length < 3) return;
+      final Rect currentRect = generator[0] as Rect;
+      final DoubleLinkedListNodes? linkedListGenerator =
+          generator[1] as DoubleLinkedListNodes?;
+      final Map<int, Map<String, dynamic>>? treeGenerator =
+          generator[2] as Map<int, Map<String, dynamic>>?;
+
+      if (currentRect.pointInRect(xtile, ytile)) {
+        RectangleCalculatorThread.startThreadPoolDataLookup(
+          triggerCacheLookup,
+          lat: latitude,
+          lon: longitude,
+          linkedList: linkedListGenerator,
+          tree: treeGenerator,
+          cRect: currentRect,
+          waitTillCompleted: false,
+        );
+        return;
+      }
+    });
+  }
+
+  /// Determine whether the direction stored in [matchingRect] matches the
+  /// latest heading [direction].
+  bool hasSameDirection() {
+    return matchingRect.getRectangleIdent() == direction;
+  }
+
+  /// Check if the current [matchingRect] represents an extrapolated rectangle.
+  bool isExtrapolatedRectMatching() {
+    return matchingRect.getRectangleString().contains('EXTRAPOLATED');
+  }
+
+  /// Check if the previously processed rectangle was extrapolated.
+  bool isExtrapolatedRectPrevious() {
+    return previousRect != null &&
+        previousRect!.getRectangleString().contains('EXTRAPOLATED');
+  }
+
+  // Geometry wrappers for parity with the Python class ---------------------
+
+  Rect intersectRectangle(Rect a, Rect b) =>
+      rect_utils.intersectRectangle(a, b);
+
+  bool pointInIntersectedRect(Rect a, Rect b, double x, double y) =>
+      rect_utils.pointInIntersectedRect(a, b, x, y);
+
+  Rect extrapolateRectangle(Rect previous, Rect current) =>
+      rect_utils.extrapolateRectangle(previous, current);
+
+  bool checkAllRectangles(Point p, List<Rect> rects) =>
+      rect_utils.checkAllRectangles(p, rects);
+
+  List<Rect> sortRectangles(List<Rect> rects) =>
+      rect_utils.sortRectangles(rects);
+
+  // The following helpers mirror the ``start_thread_pool_*`` family from the
+  // Python implementation. They dispatch asynchronous tasks via Futures to
+  // keep API parity without relying on native threads.
+
+  static Future<void> startThreadPoolConstructionAreas(
+      Future<void> Function(double, double, double, double) func,
+      int workerThreads,
+      double xtile,
+      double ytile,
+      double ccpLon,
+      double ccpLat) async {
+    await Future.microtask(() => func(xtile, ytile, ccpLon, ccpLat));
+  }
+
+  static Future<void> startThreadPoolDataLookup(
+      Future<bool> Function({
+        double latitude,
+        double longitude,
+        DoubleLinkedListNodes? linkedListGenerator,
+        Map<int, Map<String, dynamic>>? treeGenerator,
+        Rect? currentRect,
+      }) func,
+      {double? lat,
+      double? lon,
+      DoubleLinkedListNodes? linkedList,
+      Map<int, Map<String, dynamic>>? tree,
+      Rect? cRect,
+      bool waitTillCompleted = true}) async {
+    final future = func(
+      latitude: lat ?? 0,
+      longitude: lon ?? 0,
+      linkedListGenerator: linkedList,
+      treeGenerator: tree,
+      currentRect: cRect,
+    );
+    if (waitTillCompleted) {
+      await future;
+    }
+  }
+
+  static Future<void> startThreadPoolDataStructure(
+      Future<void> Function({dynamic dataset, Rect? rectPreferred}) func,
+      {int workerThreads = 1,
+      Map<String, List<dynamic>> serverResponses = const {},
+      bool extrapolated = false,
+      bool waitTillCompleted = true}) async {
+    final tasks = <Future>[];
+    serverResponses.forEach((_, dataList) {
+      tasks.add(func(dataset: dataList[2], rectPreferred: dataList[4]));
+    });
+    if (waitTillCompleted) {
+      await Future.wait(tasks);
+    }
+  }
+
+  static Future<void> startThreadPoolProcessLookAheadInterrupts(
+      Future<void> Function() func,
+      {int workerThreads = 1}) async {
+    await Future.microtask(() => func());
+  }
+
+  static Future<void> startThreadPoolSpeedCamStructure(
+      Future<void> Function(DoubleLinkedListNodes?,
+              Map<int, Map<String, dynamic>>?) func,
+      {int workerThreads = 1,
+      DoubleLinkedListNodes? linkedList,
+      Map<int, Map<String, dynamic>>? tree}) async {
+    await Future.microtask(() => func(linkedList, tree));
+  }
+
+  static Future<void> startThreadPoolSpeedCamera(
+      Future<void> Function(double, double, double, double) func,
+      int workerThreads,
+      double xtile,
+      double ytile,
+      double ccpLon,
+      double ccpLat) async {
+    await Future.microtask(() => func(xtile, ytile, ccpLon, ccpLat));
+  }
+
+  static Future<void> startThreadPoolUploadSpeedCameraToDrive(
+      Future<void> Function(String, double, double) func,
+      int workerThreads,
+      String name,
+      double latitude,
+      double longitude) async {
+    await Future.microtask(() => func(name, latitude, longitude));
+  }
+
+  // ---------------------------------------------------------------------------
+  // OSM/network helpers
+
+  Future<bool> triggerCacheLookup({
+    double latitude = 0,
+    double longitude = 0,
+    DoubleLinkedListNodes? linkedListGenerator,
+    Map<int, Map<String, dynamic>>? treeGenerator,
+    Rect? currentRect,
+  }) async {
+    if (currentRect != null) {
+      print('Trigger Cache lookup from current Rect $currentRect');
+    }
+    if (linkedListGenerator == null) {
+      print(' trigger_cache_lookup: linkedListGenerator instance not created!');
+      return false;
+    }
+    linkedListGenerator.setTreeGeneratorInstance(treeGenerator);
+    final node = linkedListGenerator.matchNode(latitude, longitude);
+    if (node != null && treeGenerator != null && treeGenerator.containsKey(node.id)) {
+      final way = treeGenerator[node.id]!;
+      resolveDangersOnTheRoad(way);
+      if (!disableRoadLookup) {
+        if (alternativeRoadLookup) {
+          final roadName = await getRoadNameViaNominatim(latitude, longitude);
+          if (roadName != null) {
+            processRoadName(
+                foundRoadName: true,
+                roadName: roadName,
+                foundCombinedTags: false,
+                roadClass: way['highway']?.toString() ?? 'unclassified',
+                poi: way['poi'] == true,
+                facility: way['facility'] == true);
+          }
+          final maxspeed = resolveMaxSpeed(way);
+          final status = processMaxSpeed(maxspeed ?? '', maxspeed != null);
+          if (status == 'MAX_SPEED_NOT_FOUND') {
+            final def = processMaxSpeedForRoadClass(
+                way['highway']?.toString() ?? 'unclassified', null);
+            processMaxSpeed(def, true);
+          }
+        } else {
+          final resolved = resolveRoadnameAndMaxSpeed(way);
+          processRoadName(
+              foundRoadName: resolved.roadName != null,
+              roadName: resolved.roadName ?? '',
+              foundCombinedTags: false,
+              roadClass: way['highway']?.toString() ?? 'unclassified',
+              poi: way['poi'] == true,
+              facility: way['facility'] == true);
+          processMaxSpeed(resolved.maxSpeed ?? '', resolved.maxSpeed != null,
+              roadName: resolved.roadName);
+        }
+      } else {
+        final maxspeed = resolveMaxSpeed(way);
+        final status = processMaxSpeed(maxspeed ?? '', maxspeed != null);
+        if (status == 'MAX_SPEED_NOT_FOUND') {
+          final def = processMaxSpeedForRoadClass(
+              way['highway']?.toString() ?? 'unclassified', null);
+          processMaxSpeed(def, true);
+        }
+      }
+    }
+    return true;
+  }
+
+  Future<OsmLookupResult> triggerOsmLookup(GeoRect area,
+      {String? lookupType, int? nodeId, http.Client? client}) async {
+    final baseUrl = 'https://overpass-api.de/api/interpreter?data=';
+    final bbox =
+        '(${area.minLat},${area.minLon},${area.maxLat},${area.maxLon})';
+    String query;
+    if (lookupType == 'node' && nodeId != null) {
+      query = '[out:json];node($nodeId);out;';
+    } else {
+      query = '[out:json];(node$bbox;);out;';
+    }
+
+    final uri = Uri.parse(baseUrl + Uri.encodeQueryComponent(query));
+    final http.Client httpClient = client ?? http.Client();
+    final start = DateTime.now();
+
+    try {
+      final resp = await httpClient
+          .get(uri, headers: {'User-Agent': 'speedcamwarner-dart'})
+          .timeout(const Duration(seconds: 15));
+      final duration = DateTime.now().difference(start);
+      reportDownloadTime(duration);
+      if (resp.statusCode == 200) {
+        final data = jsonDecode(resp.body) as Map<String, dynamic>;
+        return OsmLookupResult(true, 'OK', data['elements'] as List<dynamic>?,
+            null, area);
+      } else {
+        await checkWorkerThreadStatus();
+        return OsmLookupResult(
+            false, 'ERROR', null, 'HTTP ${resp.statusCode}', area);
+      }
+    } catch (e) {
+      await checkWorkerThreadStatus();
+      return OsmLookupResult(false, 'NOINET', null, e.toString(), area);
+    } finally {
+      if (client == null) {
+        httpClient.close();
+      }
+    }
+  }
+
+  Future<void> checkWorkerThreadStatus() => _threadPool.checkWorkerThreadStatus();
+
+  void reportDownloadTime(Duration duration) {
+    // Placeholder for logging; no-op in this port.
+  }
+
+  Future<String?> getRoadNameViaNominatim(double lat, double lon) async {
+    final uri = Uri.parse(
+        'https://nominatim.openstreetmap.org/reverse?format=jsonv2&lat=$lat&lon=$lon');
+    try {
+      final resp = await http.get(uri,
+          headers: {'User-Agent': 'speedcamwarner-dart'});
+      if (resp.statusCode == 200) {
+        final data = jsonDecode(resp.body) as Map<String, dynamic>;
+        return data['display_name']?.toString();
+      }
+    } catch (_) {}
+    return null;
+  }
+
+  bool getOsmDataState() => _tileCache.isNotEmpty;
+
+  void fillOsmData(Map<String, dynamic> data) {
+    _tileCache.addAll(data);
+  }
+
+  Future<bool> internetAvailable() async {
+    try {
+      final resp = await http
+          .get(Uri.parse('https://example.com'),
+              headers: {'User-Agent': 'speedcamwarner-dart'})
+          .timeout(const Duration(seconds: 3));
+      return resp.statusCode == 200;
+    } catch (_) {
+      return false;
+    }
+  }
+
+  // ---------------------------------------------------------------------------
+  // UI and status updates
+
+  int? get kiviMaxspeed => _kiviMaxspeed;
+  String? get kiviRoadname => _kiviRoadname;
+  String? get kiviInfoPage => _kiviInfoPage;
+  String? get maxspeedStatus => _maxspeedStatus;
+
+  void updateKiviMaxspeed(dynamic maxspeed, {List<double>? color}) {
+    if (maxspeed == null) {
+      return;
+    }
+    final String text = maxspeed.toString();
+    if (text.isEmpty || text.toUpperCase() == 'CLEANUP') {
+      _kiviMaxspeed = null;
+      return;
+    }
+    if (text.toUpperCase() == 'POI') {
+      _kiviMaxspeed = null;
+      return;
+    }
+    if (maxspeed is num) {
+      _kiviMaxspeed = maxspeed.toInt();
+    } else {
+      _kiviMaxspeed = int.tryParse(text);
+    }
+  }
+
+  void updateKiviRoadname(String? roadname, [bool foundCombinedTags = false]) {
+    if (roadname == null || roadname.isEmpty || roadname == 'cleanup') {
+      _kiviRoadname = '';
+      return;
+    }
+    final parts =
+        roadname.split('/').where((p) => p.isNotEmpty).toList().reversed;
+    _kiviRoadname = parts.join('/');
+    // foundCombinedTags flag kept for parity with Python version.
+    foundCombinedTags;
+  }
+
+  void updateCamRadius(double value) => _camRadius = value;
+  void updateKiviInfoPage(String value) => _kiviInfoPage = value;
+  void updateKiviMaxspeedOnlinecheck(bool value) => _kiviMaxspeedOnline = value;
+  void updateMaxspeedStatus(String value) => _maxspeedStatus = value;
 }
