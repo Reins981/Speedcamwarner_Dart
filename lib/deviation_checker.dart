@@ -1,27 +1,117 @@
 import 'dart:async';
+import 'package:flutter/foundation.dart';
 
-class DeviationChecker {
+import 'logger.dart';
+
+class ThreadCondition {
+  bool terminate;
+  ThreadCondition({this.terminate = false});
+}
+
+class DeviationCheckerThread extends Logger {
   bool firstBearingSetAvailable = false;
   double avBearing = 0.0;
   double avBearingCurrent = 0.0;
   double avBearingPrev = 0.0;
+
+  final ThreadCondition cond;
+  final ThreadCondition condAr;
+  final ValueNotifier<String> avBearingValue;
+  bool isResumed;
+
+  final StreamController<dynamic> _averageAngleController =
+      StreamController<dynamic>();
   final StreamController<String> interruptQueue =
       StreamController<String>.broadcast();
 
-  void process(List<double> currentBearingQueue) {
-    if (currentBearingQueue.isEmpty) {
-      updateAverageBearing('0');
-      return;
-    }
+  bool _running = false;
+  StreamSubscription? _avgSub;
 
+  DeviationCheckerThread({
+    required this.cond,
+    required this.condAr,
+    required this.avBearingValue,
+    this.isResumed = true,
+    StreamController<String>? logViewer,
+  }) : super('DeviationCheckerThread', logViewer: logViewer);
+
+  void addAverageAngleData(dynamic data) {
+    _averageAngleController.add(data);
+  }
+
+  void start() {
+    if (_running) return;
+    _running = true;
+    _avgSub = _averageAngleController.stream.listen((data) {
+      if (_running) {
+        process(data);
+      }
+    });
+    _runLoop();
+  }
+
+  Future<void> _runLoop() async {
+    while (_running && !cond.terminate && !condAr.terminate) {
+      await Future.delayed(const Duration(milliseconds: 50));
+    }
+    cleanup();
+    if (cond.terminate) {
+      interruptQueue.add('TERMINATE');
+    }
+    if (condAr.terminate) {
+      interruptQueue.add('CLEAR');
+    }
+    printLogLine('$runtimeType terminating');
+    await dispose();
+  }
+
+  void cleanup() {
+    firstBearingSetAvailable = false;
+  }
+
+  void process(dynamic currentBearingQueue) {
     calculateAverageBearing(currentBearingQueue);
   }
 
-  void calculateAverageBearing(List<double> currentBearingQueue) {
-    avBearing = currentBearingQueue.reduce((a, b) => a + b);
-    double avBearingFinal = avBearing / currentBearingQueue.length;
+  void calculateAverageBearing(dynamic currentBearingQueue) {
+    avBearing = 0.0;
 
-    updateAverageBearing(avBearingFinal.toStringAsFixed(1));
+    if (currentBearingQueue is num) {
+      if (currentBearingQueue == 0.001) {
+        if (isResumed) {
+          updateAverageBearing('---.-');
+        }
+        return;
+      } else if (currentBearingQueue == 0.002) {
+        printLogLine('Deviation Checker Thread got a termination item');
+        return;
+      } else if (currentBearingQueue == 0.0) {
+        if (isResumed) {
+          updateAverageBearing('0');
+        }
+        return;
+      }
+    } else if (currentBearingQueue == 'TERMINATE') {
+      return;
+    }
+
+    if (currentBearingQueue is! List<double> ||
+        currentBearingQueue.isEmpty) {
+      return;
+    }
+
+    for (final entry in currentBearingQueue) {
+      avBearing += entry;
+    }
+
+    final double avBearingFinal = avBearing / currentBearingQueue.length;
+
+    if (isResumed) {
+      updateAverageBearing(avBearingFinal.toStringAsFixed(1));
+    }
+
+    final double avFirstEntry = currentBearingQueue.first;
+    final double firstAvEntryCurrent = avFirstEntry;
 
     if (!firstBearingSetAvailable) {
       firstBearingSetAvailable = true;
@@ -30,41 +120,39 @@ class DeviationChecker {
       avBearingPrev = avBearingCurrent;
       avBearingCurrent = avBearingFinal;
 
-      double avBearingDiffPositionPairQueues = avBearingCurrent - avBearingPrev;
-      double avBearingDiffCurrentQueue =
-          currentBearingQueue.first - avBearingCurrent;
+      final double avBearingDiffPositionPairQueues =
+          avBearingCurrent - avBearingPrev;
+      final double avBearingDiffCurrentQueue =
+          firstAvEntryCurrent - avBearingCurrent;
 
       if ((-22 <= avBearingDiffPositionPairQueues &&
               avBearingDiffPositionPairQueues <= 22) &&
           (-13 <= avBearingDiffCurrentQueue &&
               avBearingDiffCurrentQueue <= 13)) {
         interruptQueue.add('STABLE');
-        print('CCP is considered STABLE');
+        printLogLine('CCP is considered STABLE');
       } else {
         interruptQueue.add('UNSTABLE');
-        print('Waiting for CCP to become STABLE again');
+        printLogLine('Waiting for CCP to become STABLE again');
       }
     }
   }
 
   void updateAverageBearing(String avBearing) {
-    print('Updated Average Bearing: $avBearing°');
+    Future.microtask(() {
+      avBearingValue.value = '$avBearing°';
+    });
   }
 
-  void dispose() {
-    interruptQueue.close();
-  }
-}
-
-extension DeviationCheckerExtensions on DeviationChecker {
-  Stream<String> get interruptQueueStream => interruptQueue.stream;
-
-  void run() {
-    print('DeviationChecker is running.');
+  Future<void> dispose() async {
+    _running = false;
+    await _avgSub?.cancel();
+    await _averageAngleController.close();
+    await interruptQueue.close();
   }
 
   void terminate() {
-    print('DeviationChecker is terminating.');
-    dispose();
+    cond.terminate = true;
+    condAr.terminate = true;
   }
 }
