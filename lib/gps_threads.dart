@@ -117,7 +117,6 @@ class GPSThread extends StoppableThread {
   final dynamic g;
   final dynamic cv;
   final dynamic cvVector;
-  final dynamic cvVoice;
   final dynamic cvAverageAngle;
   final dynamic voicePromptQueue;
   final dynamic ms;
@@ -173,7 +172,6 @@ class GPSThread extends StoppableThread {
       this.g,
       this.cv,
       this.cvVector,
-      this.cvVoice,
       this.cvAverageAngle,
       this.voicePromptQueue,
       this.ms,
@@ -304,7 +302,7 @@ class GPSThread extends StoppableThread {
         break;
       }
     }
-    voicePromptQueue?.produceGpssignal(cvVoice, 'EXIT_APPLICATION');
+    voicePromptQueue?.produceGpsSignal('EXIT_APPLICATION');
     gpsqueue?.produce(cv, {'EXIT': 1});
     vdata?.setVectorData(
         cvVector, 'vector_data', 0.0, 0.0, 0.0, 0.0, '-', 'EXIT', 0);
@@ -469,9 +467,9 @@ class GPSThread extends StoppableThread {
       gpsqueue?.clearGpsqueue(cv);
       logger.printLogLine('GPS status is $gpsAccuracy');
       if (gpsAccuracy != 'OFF') {
-        voicePromptQueue?.produceGpssignal(cvVoice, 'GPS_LOW');
+        voicePromptQueue?.produceGpsSignal('GPS_LOW');
       } else {
-        voicePromptQueue?.produceGpssignal(cvVoice, 'GPS_OFF');
+        voicePromptQueue?.produceGpsSignal('GPS_OFF');
       }
       g?.offState?.call();
       gpsqueue?.produce(cv, {'---.-': 3});
@@ -495,7 +493,7 @@ class GPSThread extends StoppableThread {
     gpsInaccuracyCounter = 0;
     if (!alreadyOn()) {
       logger.printLogLine('GPS status is ON');
-      voicePromptQueue?.produceGpssignal(cvVoice, 'GPS_ON');
+      voicePromptQueue?.produceGpsSignal('GPS_ON');
       calculator?.updateMaxspeed('');
       g?.onState?.call();
       onState = true;

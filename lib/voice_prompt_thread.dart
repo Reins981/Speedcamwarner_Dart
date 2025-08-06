@@ -3,11 +3,9 @@ import 'package:audioplayers/audioplayers.dart';
 
 import 'voice_prompt_queue.dart';
 
-const String _basePath = 'python/sounds';
-
 /// Port of the Python `VoicePromptThread` used for acoustic warnings.
 class VoicePromptThread {
-  final FlutterTts _flutterTts = FlutterTts();
+  final dynamic flutterTts;
   final AudioPlayer _audioPlayer = AudioPlayer();
   final dynamic voicePromptQueue;
   final dynamic dialogflowClient;
@@ -84,9 +82,6 @@ class VoicePromptThread {
     _lock = true;
     await _audioPlayer.play(AssetSource('$_basePath/$fileName'));
   }
-
-  Future<void> process() async {
-    var voiceEntry = voicePromptQueue.consumeItems();
 
   Future<void> process(String voiceEntry) async {
     while (_lock) {
@@ -247,12 +242,6 @@ class VoicePromptThread {
     try {
       await flutterTts.speak(text);
     } catch (_) {}
-  }
-
-  Future<void> _playSound(String sound) async {
-    // Actual audio playback is platform specific.  For the purposes of the
-    // port we simply print the requested sound file.
-    print('Trigger sound $sound');
   }
 
   /// Map the incoming [voiceEntry] identifier to a sound file within
