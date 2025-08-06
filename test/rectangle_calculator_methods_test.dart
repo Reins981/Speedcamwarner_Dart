@@ -183,29 +183,29 @@ void main() {
     test('resolveDangersOnTheRoad updates info page', () {
       final calc = RectangleCalculatorThread();
       calc.resolveDangersOnTheRoad({'hazard': 'flood'});
-      expect(calc.kiviInfoPage, equals('FLOOD'));
+      expect(calc.infoPage, equals('FLOOD'));
       calc.resolveDangersOnTheRoad({});
-      expect(calc.kiviInfoPage, isNull);
+      expect(calc.infoPage, isNull);
     });
 
-    test('updateKiviMaxspeed and updateKiviRoadname behave as python', () {
+    test('updateMaxspeed and updateRoadname behave as python', () {
       final calc = RectangleCalculatorThread();
-      calc.updateKiviMaxspeed(50);
-      expect(calc.kiviMaxspeed, equals(50));
-      calc.updateKiviMaxspeed('cleanup');
-      expect(calc.kiviMaxspeed, isNull);
-      calc.updateKiviRoadname('Main/Cross');
-      expect(calc.kiviRoadname, equals('Cross/Main'));
-      calc.updateKiviRoadname('cleanup');
-      expect(calc.kiviRoadname, equals(''));
+      calc.updateMaxspeed(50);
+      expect(calc.maxspeed, equals(50));
+      calc.updateMaxspeed('cleanup');
+      expect(calc.maxspeed, isNull);
+      calc.updateRoadname('Main/Cross');
+      expect(calc.roadName, equals('Cross/Main'));
+      calc.updateRoadname('cleanup');
+      expect(calc.roadName, equals(''));
     });
 
     test('processOffline clears road name', () async {
       final calc = RectangleCalculatorThread();
       calc.lastMaxSpeed = '';
-      calc.updateKiviRoadname('Main', false);
+      calc.updateRoadname('Main', false);
       await calc.processOffline();
-      expect(calc.kiviRoadname, equals(''));
+      expect(calc.roadName, equals(''));
     });
 
     test('processLookAheadInterrupts resolves road name', () async {

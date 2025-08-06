@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'dart:io';
 
+import 'package:flutter/foundation.dart';
 import 'package:xml/xml.dart' as xml;
 
 import 'gps_test_data_generator.dart';
@@ -27,29 +28,24 @@ class GPSConsumerThread extends StoppableThread {
   final dynamic mainApp;
   final dynamic resume;
   final dynamic cv;
-  final dynamic curspeed;
-  final dynamic bearing;
   final dynamic gpsqueue;
-  final dynamic speedlayout;
-  final dynamic curvelayout;
   final dynamic cond;
   final Logger logger;
 
-  double backupSpeed = 0;
-  List<double> avSpeedQueue = [];
-  bool startup = true;
-  dynamic connection;
+  // Notifiers that allow a Flutter UI to react to GPS updates without any
+  // Kivy widgets. `speed` publishes the current speed in km/h, `bearingText`
+  // holds the last bearing string and `gpsAccuracy` forwards accuracy updates.
+  final ValueNotifier<double> speed = ValueNotifier<double>(0);
+  final ValueNotifier<String> bearingText = ValueNotifier<String>('');
+  final ValueNotifier<String> gpsAccuracy = ValueNotifier<String>('');
+
   bool displayMiles = false;
 
   GPSConsumerThread(
     this.mainApp,
     this.resume,
     this.cv,
-    this.curspeed,
-    this.bearing,
     this.gpsqueue,
-    this.speedlayout,
-    this.curvelayout,
     this.cond, {
     Logger? logViewer,
   }) : logger = logViewer ?? Logger('GPSConsumerThread');
@@ -74,32 +70,9 @@ class GPSConsumerThread extends StoppableThread {
     stop();
   }
 
-  double calculateAverageSpeed(double speed) {
-    if (avSpeedQueue.length == 3) {
-      double avSpeed =
-          ((avSpeedQueue[0] + avSpeedQueue[1] + avSpeedQueue[2]) / 3);
-      avSpeedQueue.clear();
-      return double.parse(avSpeed.toStringAsFixed(1));
-    }
-    avSpeedQueue.add(speed);
-    return -1;
-  }
-
-  void calculateAvSpeedKivyUpdate(double key) {
-    double avSpeed = calculateAverageSpeed(key);
-    if (avSpeed != -1) {
-      var value = displayMiles ? avSpeed / 1.609344 : avSpeed;
-      curspeed?.text = value.toString();
-      curspeed?.font_size = 250;
-      curspeed?.texture_update?.call();
-    }
-  }
-
-  void speedUpdateKivy(double key) {
+  void speedUpdate(double key) {
     var value = displayMiles ? key / 1.609344 : key;
-    curspeed?.text = value.toStringAsFixed(1);
-    curspeed?.font_size = 250;
-    curspeed?.texture_update?.call();
+    speed.value = value;
   }
 
   void process() {
@@ -109,45 +82,16 @@ class GPSConsumerThread extends StoppableThread {
 
       gpsData?.forEach((key, value) {
         if (value == 3) {
-          if (key == '---.-') {
-            clearAll(key);
-          } else if (key == '...') {
-            inProgress(key);
+          if (key == '---.-' || key == '...') {
+            clearAll();
           } else {
             double floatKey = double.tryParse('$key') ?? 0.0;
-            int intKey = floatKey.round();
-
-            speedUpdateKivy(floatKey);
-
-            if (startup) {
-              speedlayout?.updateAccelLayout(intKey, true, 'ONLINE');
-              backupSpeed = intKey.toDouble();
-              if (floatKey == 0.0) {
-                curvelayout?.checkSpeedDeviation(0.1, true);
-              } else {
-                curvelayout?.checkSpeedDeviation(floatKey, true);
-              }
-              startup = false;
-            } else {
-              if (intKey > backupSpeed) {
-                speedlayout?.updateAccelLayout(intKey, true, 'ONLINE');
-              } else if (intKey < backupSpeed) {
-                speedlayout?.updateAccelLayout(intKey, false, 'ONLINE');
-              }
-              if (floatKey == 0.0) {
-                curvelayout?.checkSpeedDeviation(0.1, false);
-              } else {
-                curvelayout?.checkSpeedDeviation(floatKey, false);
-              }
-              backupSpeed = floatKey;
-            }
+            speedUpdate(floatKey);
           }
         } else if (value == 4) {
-          bearing?.text = key;
-          bearing?.font_size = 100;
-          bearing?.texture_update?.call();
+          bearingText.value = key;
         } else if (value == 5) {
-          speedlayout?.updateGpsAccuracy(key);
+          gpsAccuracy.value = key;
         } else if (value == 1) {
           logger.printLogLine('Exit item received');
         } else {
@@ -159,24 +103,10 @@ class GPSConsumerThread extends StoppableThread {
     }
   }
 
-  void updateCurrentSpeedUi(String key) {
-    if (curspeed?.text != key) {
-      curspeed?.text = key;
-      curspeed?.font_size = 250;
-      curspeed?.texture_update?.call();
-    }
-  }
-
-  void inProgress(String key) {
-    updateCurrentSpeedUi(key);
-  }
-
-  void clearAll(String key) {
-    updateCurrentSpeedUi(key);
-    speedlayout?.updateAccelLayout();
-    speedlayout?.resetOverspeed?.call();
-    speedlayout?.resetBearing?.call();
-    curvelayout?.checkSpeedDeviation(key, false);
+  void clearAll() {
+    speed.value = 0;
+    bearingText.value = '';
+    gpsAccuracy.value = '';
   }
 }
 
@@ -566,7 +496,7 @@ class GPSThread extends StoppableThread {
     if (!alreadyOn()) {
       logger.printLogLine('GPS status is ON');
       voicePromptQueue?.produceGpssignal(cvVoice, 'GPS_ON');
-      calculator?.updateKiviMaxspeed?.call('');
+      calculator?.updateMaxspeed('');
       g?.onState?.call();
       onState = true;
       offState = false;

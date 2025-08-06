@@ -1,6 +1,11 @@
+import 'package:flutter/foundation.dart';
+
 class OverspeedChecker {
   int? _lastMaxSpeed;
-  int? lastDifference;
+
+  /// Notifies listeners when the driver exceeds the allowed speed. `null`
+  /// indicates that the vehicle is within the permitted range.
+  final ValueNotifier<int?> difference = ValueNotifier<int?>(null);
 
   void process(int? currentSpeed, Map<String, dynamic> overspeedEntry) {
     if (currentSpeed == null) {
@@ -40,10 +45,10 @@ class OverspeedChecker {
 
   void _processEntry(int value) {
     if (value == 10000) {
-      lastDifference = null;
+      difference.value = null;
       print("Resetting overspeed warning.");
     } else {
-      lastDifference = value;
+      difference.value = value;
       print("Overspeed by $value units.");
     }
   }
