@@ -47,12 +47,12 @@ dependencies:
   dialog_flowtter: ^0.3.3
   uuid: ^4.5.1
   audioplayers: ^5.1.0
-  http: ^1.1.0
+  http: ^0.13.6
   sqlite3: ^2.4.0
   googleapis: ^13.1.0
-  googleapis_auth: ^1.6.0
-  flutter_map: ^8.2.1
-  flutter_map_marker_popup: ^8.0.1
+  googleapis_auth: ^1.4.1
+  flutter_map: ^4.0.0
+  flutter_map_marker_popup: ^5.0.0
   latlong2: ^0.9.1
 
 dev_dependencies:
