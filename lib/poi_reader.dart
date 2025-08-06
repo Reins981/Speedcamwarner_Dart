@@ -113,7 +113,9 @@ class POIReader extends Logger {
     timer2 = Timer(Duration(seconds: initTimeFromCloud), () {
       unawaited(_updatePoisFromCloud());
       timer2 = Timer.periodic(
-          Duration(seconds: uTimeFromCloud), (_) => unawaited(_updatePoisFromCloud()));
+        Duration(seconds: uTimeFromCloud),
+        (_) => unawaited(_updatePoisFromCloud()),
+      );
     });
   }
 
@@ -131,11 +133,13 @@ class POIReader extends Logger {
   void _execute() {
     if (connection != null) {
       final result = connection!.select(
-          'SELECT a.catId, a.mortonCode from pPoiCategoryTable c '
-          'inner join pPoiAddressTable a on c.catId = a.catId and c.catId between ? and ?',
-          [2014, 2015]);
-      poiRawData =
-          result.map((row) => [row['catId'] as int, row['mortonCode'] as int]).toList();
+        'SELECT a.catId, a.mortonCode from pPoiCategoryTable c '
+        'inner join pPoiAddressTable a on c.catId = a.catId and c.catId between ? and ?',
+        [2014, 2015],
+      );
+      poiRawData = result
+          .map((row) => [row['catId'] as int, row['mortonCode'] as int])
+          .toList();
     } else {
       printLogLine('Could not open database poidata.db3', level: 'WARNING');
       poiRawData = null;
@@ -163,7 +167,9 @@ class POIReader extends Logger {
 
     printLogLine(' Number of fix cams: ${poisConvertedFix.length}');
     printLogLine(' Number of mobile cams: ${poisConvertedMobile.length}');
-    printLogLine('#######################################################################');
+    printLogLine(
+      '#######################################################################',
+    );
   }
 
   // Inverse of Part1By1 – "delete" all odd-indexed bits
@@ -198,7 +204,11 @@ class POIReader extends Logger {
 
   /// Send camera information to the speed‑camera queue for further processing.
   void _propagateCamera(
-      String? name, double longitude, double latitude, String cameraType) {
+    String? name,
+    double longitude,
+    double latitude,
+    String cameraType,
+  ) {
     speedCamQueue.produce(cvSpeedcam, {
       'ccp': ['IGNORE', 'IGNORE'],
       'fix_cam': [cameraType == 'fix_cam', longitude, latitude, true],
@@ -207,13 +217,18 @@ class POIReader extends Logger {
       'mobile_cam': [cameraType == 'mobile_cam', longitude, latitude, true],
       'ccp_node': ['IGNORE', 'IGNORE'],
       'list_tree': [null, null],
-      'name': name ?? ''
+      'name': name ?? '',
     });
   }
 
   /// Prepare an entry for the OSM wrapper (map display of cameras).
-  void _prepareCameraForOsmWrapper(String cameraKey, double lon, double lat,
-      {String? name, String cameraSource = 'cloud'}) {
+  void _prepareCameraForOsmWrapper(
+    String cameraKey,
+    double lon,
+    double lat, {
+    String? name,
+    String cameraSource = 'cloud',
+  }) {
     final entry = [lat, lon, lat, lon, true, null, null, name ?? '---'];
     if (cameraSource == 'cloud') {
       speedCamDict[cameraKey] = entry;
@@ -248,10 +263,12 @@ class POIReader extends Logger {
   }
 
   void _updateOsmWrapper({String cameraSource = 'cloud'}) {
-    final processingDict =
-        cameraSource == 'cloud' ? speedCamDict : speedCamDictDb;
-    final processingList =
-        cameraSource == 'cloud' ? speedCamList : speedCamListDb;
+    final processingDict = cameraSource == 'cloud'
+        ? speedCamDict
+        : speedCamDictDb;
+    final processingList = cameraSource == 'cloud'
+        ? speedCamList
+        : speedCamListDb;
 
     if (processingDict.isNotEmpty) {
       processingList.add(Map<String, List<dynamic>>.from(processingDict));
@@ -269,19 +286,21 @@ class POIReader extends Logger {
   /// Parse and process user cameras from the downloaded JSON file.
   void _processPoisFromCloud() {
     printLogLine("Processing POI's from cloud..");
-    final file = File(FILENAME);
+    final file = File(ServiceAccount.fileName);
     if (!file.existsSync()) {
       printLogLine(
-          "Processing POI's from cloud failed: $FILENAME not found!",
-          level: 'ERROR');
+        "Processing POI's from cloud failed: ${ServiceAccount.fileName} not found!",
+        level: 'ERROR',
+      );
       return;
     }
 
     final userPois = jsonDecode(file.readAsStringSync());
     if (!(userPois is Map) || !userPois.containsKey('cameras')) {
       printLogLine(
-          "Processing POI's from cloud failed: No POI's to process in $FILENAME",
-          level: 'WARNING');
+        "Processing POI's from cloud failed: No POI's to process in ${ServiceAccount.fileName}",
+        level: 'WARNING',
+      );
       return;
     }
 
@@ -298,21 +317,30 @@ class POIReader extends Logger {
         final lat = camera['coordinates'][0]['latitude'];
         final lon = camera['coordinates'][0]['longitude'];
 
-        final userCam =
-            UserCamera(camId, name, (lon as num).toDouble(), (lat as num).toDouble());
+        final userCam = UserCamera(
+          camId,
+          name,
+          (lon as num).toDouble(),
+          (lat as num).toDouble(),
+        );
 
         printLogLine(
-            'Adding and propagating camera from cloud (${userCam.name}, ${userCam.lat}, ${userCam.lon})');
-        _prepareCameraForOsmWrapper('MOBILE$camId', userCam.lon, userCam.lat,
-            name: userCam.name);
+          'Adding and propagating camera from cloud (${userCam.name}, ${userCam.lat}, ${userCam.lon})',
+        );
+        _prepareCameraForOsmWrapper(
+          'MOBILE$camId',
+          userCam.lon,
+          userCam.lat,
+          name: userCam.name,
+        );
         _updateOsmWrapper();
-        _propagateCamera(
-            userCam.name, userCam.lon, userCam.lat, 'mobile_cam');
+        _propagateCamera(userCam.name, userCam.lon, userCam.lat, 'mobile_cam');
         camId += 1;
       } catch (_) {
         printLogLine(
-            'Ignore adding camera $camera from cloud because of missing attributes',
-            level: 'WARNING');
+          'Ignore adding camera $camera from cloud because of missing attributes',
+          level: 'WARNING',
+        );
       }
     }
   }
@@ -321,21 +349,27 @@ class POIReader extends Logger {
   Future<void> _updatePoisFromCloud() async {
     printLogLine("Updating POI's from cloud ..");
     try {
-      final driveClient = await buildDriveFromCredentials();
-      final status = await downloadFileFromGoogleDrive(FILE_ID, driveClient);
+      final driveClient = await ServiceAccount.buildDriveFromCredentials();
+      final status = await ServiceAccount.downloadFileFromGoogleDrive(
+        ServiceAccount.fileId,
+        driveClient,
+      );
       if (status != 'success') {
         printLogLine(
-            'Updating cameras (file_id: $FILE_ID) from service account failed! ($status)',
-            level: 'ERROR');
+          'Updating cameras (file_id: ${ServiceAccount.fileId}) from service account failed! ($status)',
+          level: 'ERROR',
+        );
       } else {
         printLogLine(
-            'Updating cameras (file_id: $FILE_ID) from service account success!');
+          'Updating cameras (file_id: ${ServiceAccount.fileId}) from service account success!',
+        );
         _processPoisFromCloud();
       }
     } catch (e) {
       printLogLine(
-          'Updating cameras (file_id: $FILE_ID) from service account failed! ($e)',
-          level: 'ERROR');
+        'Updating cameras (file_id: ${ServiceAccount.fileId}) from service account failed! ($e)',
+        level: 'ERROR',
+      );
     }
   }
 
@@ -375,7 +409,12 @@ class POIReader extends Logger {
     final ytile = tiles[1];
 
     final polygon = calculator.createGeoJsonTilePolygon(
-        direction, zoom, xtile, ytile, calculator.rectangle_periphery_poi_reader);
+      direction,
+      zoom,
+      xtile,
+      ytile,
+      calculator.rectangle_periphery_poi_reader,
+    );
 
     final lonMin = polygon[0];
     final latMin = polygon[1];
@@ -388,8 +427,10 @@ class POIReader extends Logger {
     poiRect?.setRectangleIdent(direction);
     poiRect?.setRectangleString('POIRECT');
 
-    final rectangleRadius =
-        calculator.calculate_rectangle_radius(poiRect!.rectHeight(), poiRect!.rectWidth());
+    final rectangleRadius = calculator.calculate_rectangle_radius(
+      poiRect!.rectHeight(),
+      poiRect!.rectWidth(),
+    );
     printLogLine(' rectangle POI radius $rectangleRadius');
     calculator.update_cam_radius(rectangleRadius);
 
@@ -423,10 +464,15 @@ class POIReader extends Logger {
       final longitudeCam = camera[0];
       final latitudeCam = camera[1];
       printLogLine(
-          'Adding and propagating fix camera from db ($longitudeCam, $latitudeCam)');
+        'Adding and propagating fix camera from db ($longitudeCam, $latitudeCam)',
+      );
       _propagateCamera(null, longitudeCam, latitudeCam, 'fix_cam');
-      _prepareCameraForOsmWrapper('FIX_DB$i', longitudeCam, latitudeCam,
-          cameraSource: 'db');
+      _prepareCameraForOsmWrapper(
+        'FIX_DB$i',
+        longitudeCam,
+        latitudeCam,
+        cameraSource: 'db',
+      );
     }
 
     for (var i = 0; i < resultPoisMobile.length; i++) {
@@ -434,14 +480,18 @@ class POIReader extends Logger {
       final longitudeCam = camera[0];
       final latitudeCam = camera[1];
       printLogLine(
-          'Adding and propagating mobile camera from db ($longitudeCam, $latitudeCam)');
+        'Adding and propagating mobile camera from db ($longitudeCam, $latitudeCam)',
+      );
       _propagateCamera(null, longitudeCam, latitudeCam, 'mobile_cam');
-      _prepareCameraForOsmWrapper('MOBILE_DB$i', longitudeCam, latitudeCam,
-          cameraSource: 'db');
+      _prepareCameraForOsmWrapper(
+        'MOBILE_DB$i',
+        longitudeCam,
+        latitudeCam,
+        cameraSource: 'db',
+      );
     }
 
     // Inform the OSM wrapper about cameras originating from the database
     _updateOsmWrapper(cameraSource: 'db');
   }
 }
-
