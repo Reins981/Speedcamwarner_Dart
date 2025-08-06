@@ -16,7 +16,6 @@ class SpeedCamWarner {
 
   final dynamic mainApp;
   final dynamic resume;
-  final dynamic cvVoice;
   final dynamic cvSpeedcam;
   final dynamic voicePromptQueue;
   final dynamic speedcamQueue;
@@ -54,7 +53,6 @@ class SpeedCamWarner {
   SpeedCamWarner(
       {required this.mainApp,
       required this.resume,
-      required this.cvVoice,
       required this.cvSpeedcam,
       required this.voicePromptQueue,
       required this.speedcamQueue,
@@ -487,7 +485,7 @@ class SpeedCamWarner {
       print(
           'Leaving Speed Camera with coordinates: (${cam[0]} ${cam[1]}), road name: $camRoadName because of Angle mismatch');
       if (angleMismatchVoice) {
-        voicePromptQueue.produceCameraStatus(cvVoice, 'ANGLE_MISMATCH');
+        voicePromptQueue.produceCameraStatus('ANGLE_MISMATCH');
       }
       return false;
     }
@@ -565,33 +563,31 @@ class SpeedCamWarner {
       if (lastDistance == -1 || lastDistance > 100) {
         if (distance < 50) {
           if (speedcam == 'fix') {
-            voicePromptQueue.produceCameraStatus(cvVoice, 'FIX_NOW');
+            voicePromptQueue.produceCameraStatus('FIX_NOW');
           } else if (speedcam == 'traffic') {
-            voicePromptQueue.produceCameraStatus(cvVoice, 'TRAFFIC_NOW');
+            voicePromptQueue.produceCameraStatus('TRAFFIC_NOW');
           } else if (speedcam == 'mobile') {
             if (!predictive) {
-              voicePromptQueue.produceCameraStatus(cvVoice, 'MOBILE_NOW');
+              voicePromptQueue.produceCameraStatus('MOBILE_NOW');
             } else {
-              voicePromptQueue.produceCameraStatus(
-                  cvVoice, 'MOBILE_PREDICTIVE_NOW');
+              voicePromptQueue.produceCameraStatus('MOBILE_PREDICTIVE_NOW');
             }
           } else {
-            voicePromptQueue.produceCameraStatus(cvVoice, 'DISTANCE_NOW');
+            voicePromptQueue.produceCameraStatus('DISTANCE_NOW');
           }
         } else {
           if (speedcam == 'fix') {
-            voicePromptQueue.produceCameraStatus(cvVoice, 'FIX_100');
+            voicePromptQueue.produceCameraStatus('FIX_100');
           } else if (speedcam == 'traffic') {
-            voicePromptQueue.produceCameraStatus(cvVoice, 'TRAFFIC_100');
+            voicePromptQueue.produceCameraStatus('TRAFFIC_100');
           } else if (speedcam == 'mobile') {
             if (!predictive) {
-              voicePromptQueue.produceCameraStatus(cvVoice, 'MOBILE_100');
+              voicePromptQueue.produceCameraStatus('MOBILE_100');
             } else {
-              voicePromptQueue.produceCameraStatus(
-                  cvVoice, 'MOBILE_PREDICTIVE_100');
+              voicePromptQueue.produceCameraStatus('MOBILE_PREDICTIVE_100');
             }
           } else {
-            voicePromptQueue.produceCameraStatus(cvVoice, 'DISTANCE_100');
+            voicePromptQueue.produceCameraStatus('DISTANCE_100');
           }
         }
 
@@ -640,18 +636,17 @@ class SpeedCamWarner {
       itemQueue[camCoordinates]?[1] = false;
       if (lastDistance == -1 || lastDistance > 300) {
         if (speedcam == 'fix') {
-          voicePromptQueue.produceCameraStatus(cvVoice, 'FIX_300');
+          voicePromptQueue.produceCameraStatus('FIX_300');
         } else if (speedcam == 'traffic') {
-          voicePromptQueue.produceCameraStatus(cvVoice, 'TRAFFIC_300');
+          voicePromptQueue.produceCameraStatus('TRAFFIC_300');
         } else if (speedcam == 'mobile') {
           if (!predictive) {
-            voicePromptQueue.produceCameraStatus(cvVoice, 'MOBILE_300');
+            voicePromptQueue.produceCameraStatus('MOBILE_300');
           } else {
-            voicePromptQueue.produceCameraStatus(
-                cvVoice, 'MOBILE_PREDICTIVE_300');
+            voicePromptQueue.produceCameraStatus('MOBILE_PREDICTIVE_300');
           }
         } else {
-          voicePromptQueue.produceCameraStatus(cvVoice, 'DISTANCE_300');
+          voicePromptQueue.produceCameraStatus('DISTANCE_300');
         }
 
         checkRoadName(linkedList, tree, camCoordinates);
@@ -718,18 +713,17 @@ class SpeedCamWarner {
       itemQueue[camCoordinates]?[1] = false;
       if (lastDistance == -1 || lastDistance > 500) {
         if (speedcam == 'fix') {
-          voicePromptQueue.produceCameraStatus(cvVoice, 'FIX_500');
+          voicePromptQueue.produceCameraStatus('FIX_500');
         } else if (speedcam == 'traffic') {
-          voicePromptQueue.produceCameraStatus(cvVoice, 'TRAFFIC_500');
+          voicePromptQueue.produceCameraStatus('TRAFFIC_500');
         } else if (speedcam == 'mobile') {
           if (!predictive) {
-            voicePromptQueue.produceCameraStatus(cvVoice, 'MOBILE_500');
+            voicePromptQueue.produceCameraStatus('MOBILE_500');
           } else {
-            voicePromptQueue.produceCameraStatus(
-                cvVoice, 'MOBILE_PREDICTIVE_500');
+            voicePromptQueue.produceCameraStatus('MOBILE_PREDICTIVE_500');
           }
         } else {
-          voicePromptQueue.produceCameraStatus(cvVoice, 'DISTANCE_500');
+          voicePromptQueue.produceCameraStatus('DISTANCE_500');
         }
 
         checkRoadName(linkedList, tree, camCoordinates);
@@ -796,7 +790,7 @@ class SpeedCamWarner {
       itemQueue[camCoordinates]?[1] = false;
       if (lastDistance == -1 || lastDistance > 1001) {
         print('$speedcam speed cam ahead with distance ${distance.toInt()} m');
-        voicePromptQueue.produceCameraStatus(cvVoice, 'CAMERA_AHEAD');
+        voicePromptQueue.produceCameraStatus('CAMERA_AHEAD');
         if (resume.isResumed()) {
           updateSpeedcam('CAMERA_AHEAD');
           updateBarWidgetMeters(distance);

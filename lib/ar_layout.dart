@@ -31,7 +31,6 @@ class EdgeDetectState extends State<EdgeDetect> {
   String _cameraDirection = 'back';
 
   VoicePromptQueue voicePromptQueue = VoicePromptQueue();
-  dynamic cvVoice;
   dynamic g;
   dynamic speedL;
   Function(String message)? _logViewer;
@@ -61,10 +60,8 @@ class EdgeDetectState extends State<EdgeDetect> {
     dynamic gps,
     dynamic mainApp,
     VoicePromptQueue voiceQueue,
-    dynamic cvVoice,
     dynamic speedL,
   ) {
-    this.cvVoice = cvVoice;
     voicePromptQueue = voiceQueue;
     g = gps;
     this.speedL = speedL;
@@ -227,7 +224,7 @@ class EdgeDetectState extends State<EdgeDetect> {
   }
 
   void _playArSound() {
-    voicePromptQueue.produceArStatus(cvVoice, 'AR_HUMAN');
+    voicePromptQueue.produceArStatus('AR_HUMAN');
   }
 
   @override
@@ -338,13 +335,12 @@ class _ARLayoutState extends State<ARLayout> {
   void initState() {
     super.initState();
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (widget.initArgs != null && widget.initArgs!.length >= 5) {
+      if (widget.initArgs != null && widget.initArgs!.length >= 4) {
         _edgeKey.currentState?.init(
           widget.initArgs![0],
           widget.initArgs![1],
           widget.initArgs![2],
           widget.initArgs![3],
-          widget.initArgs![4],
         );
       }
     });
@@ -367,7 +363,7 @@ class _ARLayoutState extends State<ARLayout> {
 
   void _connectCamera() {
     final EdgeDetectState? state = _edgeKey.currentState;
-    state?.voicePromptQueue.clearArqueue(state.cvVoice);
+    state?.voicePromptQueue.clearArQueue();
     if (state?.cameraConnected ?? false) {
       state?.disconnectCamera();
       widget.mainApp?.startDeviationCheckerThread();
