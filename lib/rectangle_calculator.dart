@@ -20,6 +20,8 @@ import 'dart:convert';
 import 'dart:io';
 import 'dart:math' as math;
 
+import 'package:flutter/foundation.dart';
+import 'package:latlong2/latlong.dart';
 import 'filtered_road_classes.dart';
 import 'most_probable_way.dart';
 import 'rect.dart' show Rect;
@@ -315,13 +317,28 @@ class RectangleCalculatorThread {
   final ThreadPool _threadPool = ThreadPool();
 
   // UI related state mirrors the callbacks of the original project.  In this
-  // port the values are simply stored so tests can verify behaviour.
-  int? _kiviMaxspeed;
-  String? _kiviRoadname;
-  double? _camRadius;
-  String? _kiviInfoPage;
-  bool _kiviMaxspeedOnline = false;
-  String? _maxspeedStatus;
+  // port the values are exposed via [ValueNotifier] so widgets can listen for
+  // changes and update accordingly.
+  final ValueNotifier<int?> maxspeedNotifier = ValueNotifier<int?>(null);
+  final ValueNotifier<String> roadNameNotifier = ValueNotifier<String>('');
+  final ValueNotifier<double?> camRadiusNotifier =
+      ValueNotifier<double?>(null);
+  final ValueNotifier<String?> infoPageNotifier =
+      ValueNotifier<String?>(null);
+  final ValueNotifier<bool> maxspeedOnlineNotifier =
+      ValueNotifier<bool>(false);
+  final ValueNotifier<String?> maxspeedStatusNotifier =
+      ValueNotifier<String?>(null);
+  final ValueNotifier<double> currentSpeedNotifier =
+      ValueNotifier<double>(0.0);
+  final ValueNotifier<String?> speedCamNotifier =
+      ValueNotifier<String?>(null);
+  final ValueNotifier<double?> speedCamDistanceNotifier =
+      ValueNotifier<double?>(null);
+  final ValueNotifier<String?> cameraRoadNotifier =
+      ValueNotifier<String?>(null);
+  final ValueNotifier<LatLng> positionNotifier =
+      ValueNotifier<LatLng>(const LatLng(0, 0));
 
   /// If ``true`` points of interest (POIs) are ignored when resolving road
   /// names and max speed values.
@@ -531,6 +548,8 @@ class RectangleCalculatorThread {
     direction = vector.direction;
     final double speedKmH = vector.speed;
     final double bearing = vector.bearing;
+    currentSpeedNotifier.value = speedKmH;
+    positionNotifier.value = LatLng(latitude, longitude);
     final tile = longLatToTile(latitude, longitude, zoom);
     xtile = tile.x;
     ytile = tile.y;
@@ -986,9 +1005,9 @@ class RectangleCalculatorThread {
   /// previously shown, displays a placeholder value.
   Future<void> processOffline() async {
     if (lastMaxSpeed == '' || lastMaxSpeed == null) {
-      updateKiviMaxspeed('<<<', color: [1, 0, 0, 3]);
+      updateMaxspeed('<<<', color: [1, 0, 0, 3]);
     }
-    updateKiviRoadname('', false);
+    updateRoadname('', false);
   }
 
   /// Perform a nominative road name lookup and update UI state accordingly.
@@ -1010,7 +1029,7 @@ class RectangleCalculatorThread {
       }
     }
     if (!camInProgress && await internetAvailable()) {
-      updateKiviMaxspeed('');
+      updateMaxspeed('');
       lastMaxSpeed = '';
     } else {
       lastMaxSpeed = 'KEEP';
@@ -1139,7 +1158,7 @@ class RectangleCalculatorThread {
     if (constructionAreas.isNotEmpty) {
       updateConstructionAreas(constructionAreas);
       updateMapQueue();
-      updateKiviInfoPage('CONSTRUCTION_AREAS');
+      updateInfoPage('CONSTRUCTION_AREAS');
       cleanupMapContent();
     }
   }
@@ -1235,13 +1254,14 @@ class RectangleCalculatorThread {
   void resolveDangersOnTheRoad(Map<String, dynamic> way) {
     final hazard = way['hazard'];
     if (hazard != null) {
-      _kiviInfoPage = hazard.toString().toUpperCase();
-    } else if (_kiviInfoPage != null && _kiviInfoPage!.isNotEmpty) {
-      _kiviInfoPage = null;
+      infoPageNotifier.value = hazard.toString().toUpperCase();
+    } else if (infoPageNotifier.value != null &&
+        infoPageNotifier.value!.isNotEmpty) {
+      infoPageNotifier.value = null;
     }
 
     if (way.containsKey('waterway')) {
-      _kiviInfoPage = way['waterway'].toString().toUpperCase();
+      infoPageNotifier.value = way['waterway'].toString().toUpperCase();
     }
   }
 
@@ -1629,45 +1649,57 @@ class RectangleCalculatorThread {
   // ---------------------------------------------------------------------------
   // UI and status updates
 
-  int? get kiviMaxspeed => _kiviMaxspeed;
-  String? get kiviRoadname => _kiviRoadname;
-  String? get kiviInfoPage => _kiviInfoPage;
-  String? get maxspeedStatus => _maxspeedStatus;
+  int? get maxspeed => maxspeedNotifier.value;
+  String? get roadName => roadNameNotifier.value;
+  String? get infoPage => infoPageNotifier.value;
+  String? get maxspeedStatus => maxspeedStatusNotifier.value;
+  String? get speedCamWarning => speedCamNotifier.value;
+  double? get speedCamDistance => speedCamDistanceNotifier.value;
+  String? get cameraRoad => cameraRoadNotifier.value;
 
-  void updateKiviMaxspeed(dynamic maxspeed, {List<double>? color}) {
+  void updateMaxspeed(dynamic maxspeed, {List<double>? color}) {
     if (maxspeed == null) {
       return;
     }
     final String text = maxspeed.toString();
     if (text.isEmpty || text.toUpperCase() == 'CLEANUP') {
-      _kiviMaxspeed = null;
+      maxspeedNotifier.value = null;
       return;
     }
     if (text.toUpperCase() == 'POI') {
-      _kiviMaxspeed = null;
+      maxspeedNotifier.value = null;
       return;
     }
     if (maxspeed is num) {
-      _kiviMaxspeed = maxspeed.toInt();
+      maxspeedNotifier.value = maxspeed.toInt();
     } else {
-      _kiviMaxspeed = int.tryParse(text);
+      maxspeedNotifier.value = int.tryParse(text);
     }
   }
 
-  void updateKiviRoadname(String? roadname, [bool foundCombinedTags = false]) {
+  void updateRoadname(String? roadname, [bool foundCombinedTags = false]) {
     if (roadname == null || roadname.isEmpty || roadname == 'cleanup') {
-      _kiviRoadname = '';
+      roadNameNotifier.value = '';
       return;
     }
     final parts =
         roadname.split('/').where((p) => p.isNotEmpty).toList().reversed;
-    _kiviRoadname = parts.join('/');
+    roadNameNotifier.value = parts.join('/');
     // foundCombinedTags flag kept for parity with Python version.
     foundCombinedTags;
   }
 
-  void updateCamRadius(double value) => _camRadius = value;
-  void updateKiviInfoPage(String value) => _kiviInfoPage = value;
-  void updateKiviMaxspeedOnlinecheck(bool value) => _kiviMaxspeedOnline = value;
-  void updateMaxspeedStatus(String value) => _maxspeedStatus = value;
+  void updateCamRadius(double value) => camRadiusNotifier.value = value;
+  void updateInfoPage(String value) => infoPageNotifier.value = value;
+  void updateMaxspeedOnlinecheck(bool value) =>
+      maxspeedOnlineNotifier.value = value;
+  void updateMaxspeedStatus(String value) =>
+      maxspeedStatusNotifier.value = value;
+
+  void updateSpeedCam(String warning) => speedCamNotifier.value = warning;
+
+  void updateSpeedCamDistance(double? meter) =>
+      speedCamDistanceNotifier.value = meter;
+
+  void updateCameraRoad(String? road) => cameraRoadNotifier.value = road;
 }

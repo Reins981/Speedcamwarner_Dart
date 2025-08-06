@@ -1,0 +1,62 @@
+import 'package:flutter/material.dart';
+
+import '../app_controller.dart';
+import 'ar_page.dart';
+import 'dashboard.dart';
+import 'info_page.dart';
+import 'map_page.dart';
+
+/// Root widget with a bottom navigation bar that switches between the main
+/// screens of the application.  It also manages the [AppController]
+/// lifecycle so backend threads are started and stopped with the UI.
+class HomePage extends StatefulWidget {
+  final AppController controller;
+  const HomePage({super.key, required this.controller});
+
+  @override
+  State<HomePage> createState() => _HomePageState();
+}
+
+class _HomePageState extends State<HomePage> {
+  int _index = 0;
+  late final List<Widget> _pages;
+
+  @override
+  void initState() {
+    super.initState();
+    widget.controller.start();
+    _pages = [
+      DashboardPage(
+        calculator: widget.controller.calculator,
+        arStatus: widget.controller.arStatusNotifier,
+      ),
+      MapPage(calculator: widget.controller.calculator),
+      ArPage(controller: widget.controller),
+      const InfoPage(),
+    ];
+  }
+
+  @override
+  void dispose() {
+    widget.controller.stop();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      body: IndexedStack(index: _index, children: _pages),
+      bottomNavigationBar: BottomNavigationBar(
+        currentIndex: _index,
+        onTap: (i) => setState(() => _index = i),
+        items: const [
+          BottomNavigationBarItem(
+              icon: Icon(Icons.dashboard), label: 'Dashboard'),
+          BottomNavigationBarItem(icon: Icon(Icons.map), label: 'Map'),
+          BottomNavigationBarItem(icon: Icon(Icons.camera_alt), label: 'AR'),
+          BottomNavigationBarItem(icon: Icon(Icons.info_outline), label: 'Info'),
+        ],
+      ),
+    );
+  }
+}

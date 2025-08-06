@@ -307,7 +307,7 @@ class POIReader extends Logger {
     final cameras = userPois['cameras'] as List<dynamic>;
     final numCameras = cameras.length;
     printLogLine('Found $numCameras cameras from cloud!');
-    calculator.update_kivi_info_page(poi_cams_mobile: numCameras);
+    calculator.updateInfoPage('POI_CAMERAS:$numCameras');
     _initialDownloadFinished = true;
 
     var camId = 200000;
@@ -455,12 +455,9 @@ class POIReader extends Logger {
     }
 
     printLogLine(
-      ' fix cameras: ${resultPoisFix.length}, mobile cameras ${resultPoisMobile.length}',
-    );
-    calculator.update_kivi_info_page(
-      resultPoisFix.length,
-      resultPoisMobile.length,
-    );
+        ' fix cameras: ${resultPoisFix.length}, mobile cameras ${resultPoisMobile.length}');
+    calculator.updateInfoPage(
+        'POI_FIX:${resultPoisFix.length};POI_MOBILE:${resultPoisMobile.length}');
 
     for (var i = 0; i < resultPoisFix.length; i++) {
       final camera = resultPoisFix[i];

@@ -14,9 +14,10 @@ import 'voice_prompt_queue.dart';
 
 /// Widget that manages the augmented reality camera preview and detection logic.
 class EdgeDetect extends StatefulWidget {
-  EdgeDetect({super.key, this.aspectRatio = '16:9'});
+  EdgeDetect({super.key, this.aspectRatio = '16:9', this.statusNotifier});
 
   final String aspectRatio;
+  final ValueNotifier<String>? statusNotifier;
 
   @override
   EdgeDetectState createState() => EdgeDetectState();
@@ -194,6 +195,7 @@ class EdgeDetectState extends State<EdgeDetect> {
       _freeflow = false;
       WidgetsBinding.instance.addPostFrameCallback((_) {
         speedL?.updateAr('!!!');
+        widget.statusNotifier?.value = 'HUMAN';
       });
       final int currentTime = DateTime.now().millisecondsSinceEpoch;
       if (currentTime - _lastArSoundTime >=
@@ -210,6 +212,7 @@ class EdgeDetectState extends State<EdgeDetect> {
     } else {
       WidgetsBinding.instance.addPostFrameCallback((_) {
         speedL?.updateAr('OK');
+        widget.statusNotifier?.value = 'FREEFLOW';
       });
       if (!(g?.cameraInProgress() ?? true) && !_freeflow) {
         g?.updateSpeedCamera('FREEFLOW');

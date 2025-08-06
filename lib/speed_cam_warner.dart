@@ -1,6 +1,8 @@
 import 'dart:async';
 import 'dart:math';
 
+import 'rectangle_calculator.dart';
+
 /// Ported from `SpeedCamWarnerThread.py`.
 ///
 /// The class keeps track of speed camera warnings and provides numerous
@@ -22,8 +24,6 @@ class SpeedCamWarner {
   final dynamic overspeedQueue;
   final dynamic osmWrapper;
   final dynamic calculator;
-  final dynamic ms;
-  final dynamic g;
   final dynamic cond;
 
   // runtime state --------------------------------------------------------
@@ -62,8 +62,6 @@ class SpeedCamWarner {
       required this.overspeedQueue,
       required this.osmWrapper,
       required this.calculator,
-      required this.ms,
-      required this.g,
       required this.cond}) {
     setConfigs();
     Timer.periodic(Duration(seconds: traversedCamerasInterval), (_) {
@@ -539,7 +537,7 @@ class SpeedCamWarner {
 
   void triggerFreeFlow() {
     if (resume.isResumed()) {
-      updateKiviSpeedcam('FREEFLOW');
+      updateSpeedcam('FREEFLOW');
       updateBarWidget1000m(color: 2);
       updateBarWidget500m(color: 2);
       updateBarWidget300m(color: 2);
@@ -599,7 +597,7 @@ class SpeedCamWarner {
 
         checkRoadName(linkedList, tree, camCoordinates);
         if (resume.isResumed()) {
-          updateKiviSpeedcam(speedcam);
+          updateSpeedcam(speedcam);
           updateBarWidget100m();
           updateBarWidget300m();
           updateBarWidget500m();
@@ -618,7 +616,7 @@ class SpeedCamWarner {
       } else {
         checkRoadName(linkedList, tree, camCoordinates);
         if (resume.isResumed()) {
-          updateKiviSpeedcam(speedcam);
+          updateSpeedcam(speedcam);
           updateBarWidget100m();
           updateBarWidget300m();
           updateBarWidget500m();
@@ -658,7 +656,7 @@ class SpeedCamWarner {
 
         checkRoadName(linkedList, tree, camCoordinates);
         if (resume.isResumed()) {
-          updateKiviSpeedcam(speedcam);
+          updateSpeedcam(speedcam);
           updateBarWidget100m(color: 2);
           updateBarWidget300m();
           updateBarWidget500m();
@@ -678,7 +676,7 @@ class SpeedCamWarner {
         if (lastDistance == 300) {
           checkRoadName(linkedList, tree, camCoordinates);
           if (resume.isResumed()) {
-            updateKiviSpeedcam(speedcam);
+            updateSpeedcam(speedcam);
             updateBarWidget100m(color: 2);
             updateBarWidget300m();
             updateBarWidget500m();
@@ -736,7 +734,7 @@ class SpeedCamWarner {
 
         checkRoadName(linkedList, tree, camCoordinates);
         if (resume.isResumed()) {
-          updateKiviSpeedcam(speedcam);
+          updateSpeedcam(speedcam);
           updateBarWidget100m(color: 2);
           updateBarWidget300m(color: 2);
           updateBarWidget500m();
@@ -756,7 +754,7 @@ class SpeedCamWarner {
         if (lastDistance == 500) {
           checkRoadName(linkedList, tree, camCoordinates);
           if (resume.isResumed()) {
-            updateKiviSpeedcam(speedcam);
+            updateSpeedcam(speedcam);
             updateBarWidget100m(color: 2);
             updateBarWidget300m(color: 2);
             updateBarWidget500m();
@@ -800,14 +798,14 @@ class SpeedCamWarner {
         print('$speedcam speed cam ahead with distance ${distance.toInt()} m');
         voicePromptQueue.produceCameraStatus(cvVoice, 'CAMERA_AHEAD');
         if (resume.isResumed()) {
-          updateKiviSpeedcam('CAMERA_AHEAD');
+          updateSpeedcam('CAMERA_AHEAD');
           updateBarWidgetMeters(distance);
         }
       } else {
         if (lastDistance == 1001) {
           camInProgress = false;
           if (resume.isResumed()) {
-            updateKiviSpeedcam('CAMERA_AHEAD');
+            updateSpeedcam('CAMERA_AHEAD');
             updateBarWidgetMeters(distance);
           }
           if (itemQueue.containsKey(camCoordinates)) {
@@ -926,84 +924,47 @@ class SpeedCamWarner {
   }
 
   // simple wrappers for UI/gateway updates ------------------------------
-  void updateKiviSpeedcam(String speedcam) {
-    g.update_speed_camera(speedcam);
+  void updateSpeedcam(String speedcam) {
+    calculator.updateSpeedCam(speedcam);
   }
 
-  void updateBarWidget1000m({int color = 1}) {
-    ms.update_bar_widget_1000m(color);
-  }
-
-  void updateBarWidget500m({int color = 1}) {
-    ms.update_bar_widget_500m(color);
-  }
-
-  void updateBarWidget300m({int color = 1}) {
-    ms.update_bar_widget_300m(color);
-  }
-
-  void updateBarWidget100m({int color = 1}) {
-    ms.update_bar_widget_100m(color);
-  }
+  void updateBarWidget1000m({int color = 1}) {}
+  void updateBarWidget500m({int color = 1}) {}
+  void updateBarWidget300m({int color = 1}) {}
+  void updateBarWidget100m({int color = 1}) {}
 
   void updateBarWidgetMeters(dynamic meter) {
-    ms.update_bar_widget_meters(meter);
+    if (meter is num) {
+      calculator.updateSpeedCamDistance(meter.toDouble());
+    } else {
+      calculator.updateSpeedCamDistance(null);
+    }
   }
 
-  void updateCamText({int distance = 0, bool reset = false}) {
-    ms.update_cam_text(distance, reset);
-  }
-
-  bool hasCurrentCamRoad() {
-    return ms.has_current_cam_road();
-  }
+  void updateCamText({int distance = 0, bool reset = false}) {}
 
   void updateCamRoad({String? road, bool reset = false, dynamic color, dynamic sizeHint, String? size}) {
-    if (resume.isResumed()) {
-      ms.update_cam_road(road, reset, color: color, size_hint: sizeHint, size: size);
+    if (reset) {
+      calculator.updateCameraRoad(null);
+    } else {
+      calculator.updateCameraRoad(road);
     }
   }
 
   void updateMaxSpeed({dynamic maxSpeed, bool reset = false}) {
-    if (resume.isResumed()) {
-      if (reset) {
-        if (ms.maxspeed.text != '' && calculator.internet_available()) {
-          var fontSize = 100;
-          ms.maxspeed.text = '';
-          ms.maxspeed.color = [0, 1, .3, .8];
-          ms.maxspeed.font_size = fontSize;
-          ms.maxspeed.texture_update();
+    if (reset || maxSpeed == null) {
+      calculator.updateMaxspeed('');
+      overspeedQueue.produce(cvOverspeed, {'maxspeed': 10000});
+    } else {
+      calculator.updateMaxspeed(maxSpeed);
+      try {
+        if (maxSpeed is String && maxSpeed.contains('mph')) {
+          maxSpeed = int.parse(maxSpeed.replaceAll(' mph', ''));
         }
-      } else {
-        if (maxSpeed != null) {
-          if (ms.maxspeed.text != maxSpeed.toString()) {
-            var fontSize = 250;
-            ms.maxspeed.text = maxSpeed.toString();
-            ms.maxspeed.color = [1, 0, 0, 3];
-            ms.maxspeed.font_size = fontSize;
-            ms.maxspeed.texture_update();
-          }
-        } else {
-          if (ms.maxspeed.text != '') {
-            var fontSize = 100;
-            ms.maxspeed.text = '';
-            ms.maxspeed.color = [0, 1, .3, .8];
-            ms.maxspeed.font_size = fontSize;
-            ms.maxspeed.texture_update();
-          }
-        }
-      }
-      if (reset || maxSpeed == null) {
+        overspeedQueue.produce(
+            cvOverspeed, {'maxspeed': int.parse(maxSpeed.toString())});
+      } catch (_) {
         overspeedQueue.produce(cvOverspeed, {'maxspeed': 10000});
-      } else {
-        try {
-          if (maxSpeed is String && maxSpeed.contains('mph')) {
-            maxSpeed = int.parse(maxSpeed.replaceAll(' mph', ''));
-          }
-          overspeedQueue.produce(cvOverspeed, {'maxspeed': int.parse(maxSpeed.toString())});
-        } catch (_) {
-          overspeedQueue.produce(cvOverspeed, {'maxspeed': 10000});
-        }
       }
     }
   }
@@ -1201,7 +1162,7 @@ class SpeedCamWarner {
       } else if (camAttributes[0] == 'mobile' && calculator.mobile_cams > 0) {
         calculator.mobile_cams -= 1;
       }
-      calculator.update_kivi_info_page();
+      calculator.updateInfoPage('');
     }
   }
 
