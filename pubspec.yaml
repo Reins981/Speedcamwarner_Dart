@@ -19,7 +19,7 @@ publish_to: 'none' # Remove this line if you wish to publish to pub.dev
 version: 1.0.0+1
 
 environment:
-  sdk: '>=3.1.0 <4.0.0'
+  sdk: '>=3.6.0 <4.0.0'
 
 # Dependencies specify other packages that your package needs in order to work.
 # To automatically upgrade your package dependencies to the latest versions
@@ -42,20 +42,18 @@ dependencies:
   google_mlkit_face_detection: ^0.13.1
   google_mlkit_object_detection: ^0.15.0
   path_provider: ^2.1.5
-  path: ^1.9.1
+  path: 1.8.3
   gpx: ^2.3.0
   dialog_flowtter: ^0.3.3
   uuid: ^4.5.1
   audioplayers: ^5.1.0
   http: ^1.1.0
   sqlite3: ^2.4.0
-  googleapis: ^11.0.0
+  googleapis: ^13.1.0
   googleapis_auth: ^1.6.0
   flutter_map: ^8.2.1
   flutter_map_marker_popup: ^8.0.1
   latlong2: ^0.9.1
-  googleapis: ^13.1.0
-  googleapis_auth: ^1.5.4
 
 dev_dependencies:
   flutter_test:
