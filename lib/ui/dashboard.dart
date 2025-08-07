@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 
 import 'package:flutter_map/flutter_map.dart';
 import 'package:latlong2/latlong.dart';
+import 'dart:ui' as ui;
 
 import '../rectangle_calculator.dart';
 
@@ -93,8 +94,7 @@ class _DashboardPageState extends State<DashboardPage> {
           point: LatLng(cam.latitude, cam.longitude),
           width: 40,
           height: 40,
-          builder: (context) =>
-              const Icon(Icons.camera_alt, color: Colors.red),
+          child: const Icon(Icons.camera_alt, color: Colors.red),
         ),
       ];
     });
@@ -136,8 +136,8 @@ class _DashboardPageState extends State<DashboardPage> {
           Expanded(
             child: FlutterMap(
               options: MapOptions(
-                center: _position,
-                zoom: 15,
+                initialCenter: _position,
+                initialZoom: 15,
               ),
               children: [
                 TileLayer(
@@ -258,7 +258,7 @@ class _SpeedChartPainter extends CustomPainter {
       ..color = Colors.blueAccent
       ..strokeWidth = 2
       ..style = PaintingStyle.stroke;
-    final path = Path();
+    final path = ui.Path();
     for (var i = 0; i < history.length; i++) {
       final x = i / (history.length - 1) * size.width;
       final y = size.height -

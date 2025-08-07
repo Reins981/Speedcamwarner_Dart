@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'dart:async';
 import 'deviation_checker.dart';
-import '../libs/ai/ai_predictive_analytics.dart';
+import 'ai/ai_predictive_analytics.dart';
 import 'gps_test_data_generator.dart';
 import 'overspeed_checker.dart';
 import 'rectangle_calculator.dart';

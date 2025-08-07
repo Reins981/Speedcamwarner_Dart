@@ -49,7 +49,10 @@ class GpsTestDataGenerator extends Iterable<Map<String, dynamic>> {
                 'accuracy': _random.nextInt(24) + 2,
                 'latitude': point.lat,
                 'longitude': point.lon,
-                'speed': point.speed ?? (_random.nextInt(26) + 10),
+                // The GPX waypoint model does not expose a dedicated
+                // speed property.  Use a random value instead of the
+                // non-existent getter to keep generation simple.
+                'speed': _random.nextInt(26) + 10,
                 'bearing': _random.nextInt(51) + 200,
               },
             },
