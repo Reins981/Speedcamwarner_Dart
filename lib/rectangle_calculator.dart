@@ -657,8 +657,11 @@ class RectangleCalculatorThread {
   math.Point<double> tileToLongLat(double xTile, double yTile, int zoom) {
     final double n = math.pow(2.0, zoom).toDouble();
     final double lonDeg = xTile / n * 360.0 - 180.0;
+    // ``dart:math`` in some environments lacks a `sinh` implementation.
+    // Provide a small helper so the conversion works without relying on it.
+    double _sinh(double x) => (math.exp(x) - math.exp(-x)) / 2.0;
     final double latRad =
-        math.atan(math.sinh(math.pi * (1.0 - 2.0 * yTile / n)));
+        math.atan(_sinh(math.pi * (1.0 - 2.0 * yTile / n)));
     final double latDeg = latRad * 180.0 / math.pi;
     return math.Point<double>(lonDeg, latDeg);
   }
@@ -666,7 +669,7 @@ class RectangleCalculatorThread {
   /// Format a [DateTime] into HH:MM format.  This helper mirrors the
   /// ``strftime("%H:%M")`` call in the Python code.
   String _formatTimeOfDay(DateTime dt) {
-    final String twoDigits(int n) => n.toString().padLeft(2, '0');
+    String twoDigits(int n) => n.toString().padLeft(2, '0');
     return '${twoDigits(dt.hour)}:${twoDigits(dt.minute)}';
   }
 
@@ -918,7 +921,9 @@ class RectangleCalculatorThread {
         return false;
       }
       if (poi && dismissPois) return false;
-      roadName = facility.isNotEmpty ? '$facility: $roadName' : roadName;
+      if (facility) {
+        roadName = 'facility: $roadName';
+      }
       lastRoadName = roadName;
       this.foundCombinedTags = foundCombinedTags;
       return true;
@@ -1178,15 +1183,15 @@ class RectangleCalculatorThread {
         calculatePoints2Angle(xtile, ytile, speedCamLookAheadDistance, 0);
     final poly = createGeoJsonTilePolygonAngle(
         zoom, pts[0], pts[2], pts[1], pts[3], currentRectAngle);
-    double minLat = poly[0][0];
-    double maxLat = poly[0][0];
-    double minLon = poly[0][1];
-    double maxLon = poly[0][1];
+    double minLat = poly[0].x;
+    double maxLat = poly[0].x;
+    double minLon = poly[0].y;
+    double maxLon = poly[0].y;
     for (final p in poly) {
-      if (p[0] < minLat) minLat = p[0];
-      if (p[0] > maxLat) maxLat = p[0];
-      if (p[1] < minLon) minLon = p[1];
-      if (p[1] > maxLon) maxLon = p[1];
+      if (p.x < minLat) minLat = p.x;
+      if (p.x > maxLat) maxLat = p.x;
+      if (p.y < minLon) minLon = p.y;
+      if (p.y > maxLon) maxLon = p.y;
     }
     final rect =
         GeoRect(minLat: minLat, minLon: minLon, maxLat: maxLat, maxLon: maxLon);
@@ -1206,15 +1211,15 @@ class RectangleCalculatorThread {
         xtile, ytile, constructionAreaLookaheadDistance, currentRectAngle);
     final poly = createGeoJsonTilePolygonAngle(
         zoom, pts[0], pts[2], pts[1], pts[3], currentRectAngle);
-    double minLat = poly[0][0];
-    double maxLat = poly[0][0];
-    double minLon = poly[0][1];
-    double maxLon = poly[0][1];
+    double minLat = poly[0].x;
+    double maxLat = poly[0].x;
+    double minLon = poly[0].y;
+    double maxLon = poly[0].y;
     for (final p in poly) {
-      if (p[0] < minLat) minLat = p[0];
-      if (p[0] > maxLat) maxLat = p[0];
-      if (p[1] < minLon) minLon = p[1];
-      if (p[1] > maxLon) maxLon = p[1];
+      if (p.x < minLat) minLat = p.x;
+      if (p.x > maxLat) maxLat = p.x;
+      if (p.y < minLon) minLon = p.y;
+      if (p.y > maxLon) maxLon = p.y;
     }
     final rect =
         GeoRect(minLat: minLat, minLon: minLon, maxLat: maxLat, maxLon: maxLon);

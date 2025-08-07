@@ -7,6 +7,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/foundation.dart';
 import 'package:google_mlkit_face_detection/google_mlkit_face_detection.dart';
 import 'package:google_mlkit_object_detection/google_mlkit_object_detection.dart';
+import 'package:google_mlkit_commons/google_mlkit_commons.dart';
 import 'package:path/path.dart' as p;
 import 'package:path_provider/path_provider.dart';
 
@@ -157,24 +158,14 @@ class EdgeDetectState extends State<EdgeDetect> {
     final InputImageFormat format =
         InputImageFormatValue.fromRawValue(image.format.raw) ??
             InputImageFormat.nv21;
-    final List<InputImagePlaneMetadata> planeData = image.planes
-        .map(
-          (Plane plane) => InputImagePlaneMetadata(
-            bytesPerRow: plane.bytesPerRow,
-            height: plane.height,
-            width: plane.width,
-          ),
-        )
-        .toList();
-
-    final InputImageData inputImageData = InputImageData(
+    final metadata = InputImageMetadata(
       size: imageSize,
-      imageRotation: rotation,
-      inputImageFormat: format,
-      planeData: planeData,
+      rotation: rotation,
+      format: format,
+      bytesPerRow: image.planes.first.bytesPerRow,
     );
     final InputImage inputImage =
-        InputImage.fromBytes(bytes: bytes, inputImageData: inputImageData);
+        InputImage.fromBytes(bytes: bytes, metadata: metadata);
 
     final List<Face> faces = await _faceDetector!.processImage(inputImage);
     final List<DetectedObject> objects =

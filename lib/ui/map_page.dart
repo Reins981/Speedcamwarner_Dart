@@ -42,7 +42,7 @@ class _MapPageState extends State<MapPage> {
           point: LatLng(cam.latitude, cam.longitude),
           width: 40,
           height: 40,
-          builder: (context) => const Icon(Icons.camera_alt, color: Colors.red),
+          child: const Icon(Icons.camera_alt, color: Colors.red),
         ),
       );
     });
@@ -70,7 +70,7 @@ class _MapPageState extends State<MapPage> {
     return Scaffold(
       appBar: AppBar(title: const Text('Map')),
       body: FlutterMap(
-        options: MapOptions(center: _center, zoom: 15),
+        options: MapOptions(initialCenter: _center, initialZoom: 15),
         children: [
           TileLayer(
             urlTemplate: 'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
