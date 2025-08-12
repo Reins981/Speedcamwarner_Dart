@@ -266,6 +266,13 @@ class RectangleCalculatorThread {
   /// stop processing samples.
   bool _running = true;
 
+  /// Guard to ensure the processing loop is only attached once.  The
+  /// constructor calls [_start] and some external code may invoke [run]
+  /// for API parity.  Without this flag the stream would be listened to
+  /// multiple times which throws a ``Bad state: Stream has already been
+  /// listened to`` exception.
+  bool _started = false;
+
   /// The current zoom level used when converting between tiles and
   /// latitude/longitude.  You may expose this as a public field if your map
   /// layer needs to remain in sync with the calculator.
@@ -526,6 +533,8 @@ class RectangleCalculatorThread {
   /// incoming vector samples and processes them sequentially.  If
   /// [_running] becomes false the loop exits gracefully.
   void _start() {
+    if (_started) return;
+    _started = true;
     // ignore: unawaited_futures
     _vectorStreamController.stream.listen((vector) async {
       if (!_running) return;
