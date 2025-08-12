@@ -56,7 +56,11 @@ class LocationManager {
           locationSettings: LocationSettings(
         accuracy: LocationAccuracy.best,
         distanceFilter: minDistance.round(),
-        timeLimit: Duration(milliseconds: minTime),
+        // Using `timeLimit` here caused the stream to throw a
+        // `TimeoutException` if no location fix was available within the
+        // given duration.  The Python version intended this value to control
+        // the interval between updates, so we omit `timeLimit` to keep the
+        // stream alive until a fix is received.
       ));
     }
 
