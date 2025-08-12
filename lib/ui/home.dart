@@ -1,10 +1,12 @@
 import 'package:flutter/material.dart';
 
 import '../app_controller.dart';
+import 'actions_page.dart';
 import 'ar_page.dart';
 import 'dashboard.dart';
 import 'info_page.dart';
 import 'map_page.dart';
+import 'stats_page.dart';
 
 /// Root widget with a bottom navigation bar that switches between the main
 /// screens of the application.  It also manages the [AppController]
@@ -24,8 +26,8 @@ class _HomePageState extends State<HomePage> {
   @override
   void initState() {
     super.initState();
-    widget.controller.start();
     _pages = [
+      ActionsPage(controller: widget.controller),
       DashboardPage(
         calculator: widget.controller.calculator,
         arStatus: widget.controller.arStatusNotifier,
@@ -33,6 +35,7 @@ class _HomePageState extends State<HomePage> {
       MapPage(calculator: widget.controller.calculator),
       ArPage(controller: widget.controller),
       const InfoPage(),
+      StatsPage(calculator: widget.controller.calculator),
     ];
   }
 
@@ -51,10 +54,14 @@ class _HomePageState extends State<HomePage> {
         onTap: (i) => setState(() => _index = i),
         items: const [
           BottomNavigationBarItem(
+              icon: Icon(Icons.power_settings_new), label: 'Actions'),
+          BottomNavigationBarItem(
               icon: Icon(Icons.dashboard), label: 'Dashboard'),
           BottomNavigationBarItem(icon: Icon(Icons.map), label: 'Map'),
           BottomNavigationBarItem(icon: Icon(Icons.camera_alt), label: 'AR'),
-          BottomNavigationBarItem(icon: Icon(Icons.info_outline), label: 'Info'),
+          BottomNavigationBarItem(
+              icon: Icon(Icons.info_outline), label: 'Info'),
+          BottomNavigationBarItem(icon: Icon(Icons.list), label: 'Stats'),
         ],
       ),
     );
