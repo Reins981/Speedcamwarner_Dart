@@ -2026,8 +2026,9 @@ class RectangleCalculatorThread {
 
     for (var attempt = 1; attempt <= osmRetryMaxAttempts; attempt++) {
       final start = DateTime.now();
+      http.Response? resp;
       try {
-        final resp = await httpClient
+        resp = await httpClient
             .post(
               uri,
               headers: {
@@ -2037,12 +2038,6 @@ class RectangleCalculatorThread {
               body: {'data': query},
             )
             .timeout(osmRequestTimeout);
-        final duration = DateTime.now().difference(start);
-        reportDownloadTime(duration);
-        logger.printLogLine(
-          'triggerOsmLookup HTTP ${resp.statusCode} in ${duration.inMilliseconds}ms',
-          logLevel: 'DEBUG',
-        );
         if (resp.statusCode == 200) {
           final data = jsonDecode(resp.body) as Map<String, dynamic>;
           final elements = data['elements'] as List<dynamic>?;
@@ -2099,6 +2094,14 @@ class RectangleCalculatorThread {
         );
         if (client == null) httpClient.close();
         return OsmLookupResult(false, 'NOINET', null, e.toString(), area);
+      } finally {
+        final duration = DateTime.now().difference(start);
+        reportDownloadTime(duration);
+        final status = resp?.statusCode.toString() ?? 'FAILED';
+        logger.printLogLine(
+          'triggerOsmLookup HTTP $status in ${duration.inMilliseconds}ms',
+          logLevel: 'DEBUG',
+        );
       }
     }
 
