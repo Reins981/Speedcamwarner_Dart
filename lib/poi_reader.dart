@@ -6,6 +6,7 @@ import 'package:sqlite3/sqlite3.dart' as sqlite;
 import 'logger.dart';
 import 'rect.dart';
 import 'service_account.dart';
+import 'rectangle_calculator.dart' show SpeedCameraEvent;
 
 /// Representation of a user contributed camera.
 class UserCamera {
@@ -141,7 +142,7 @@ class POIReader extends Logger {
           .map((row) => [row['catId'] as int, row['mortonCode'] as int])
           .toList();
     } else {
-      printLogLine('Could not open database poidata.db3', level: 'WARNING');
+      printLogLine('Could not open database poidata.db3', logLevel: 'WARNING');
       poiRawData = null;
     }
   }
@@ -219,6 +220,16 @@ class POIReader extends Logger {
       'list_tree': [null, null],
       'name': name ?? '',
     });
+
+    calculator.updateSpeedCams([
+      SpeedCameraEvent(
+        latitude: latitude,
+        longitude: longitude,
+        fixed: cameraType == 'fix_cam',
+        mobile: cameraType == 'mobile_cam',
+        name: name ?? '',
+      ),
+    ]);
   }
 
   /// Prepare an entry for the OSM wrapper (map display of cameras).
@@ -243,7 +254,7 @@ class POIReader extends Logger {
       if (cameraList.length >= 100) {
         printLogLine(
           ' Limit of speed camera list (100) reached! Deleting all speed cameras from source list',
-          level: 'WARNING',
+          logLevel: 'WARNING',
         );
         cameraList.clear();
       }
@@ -263,12 +274,10 @@ class POIReader extends Logger {
   }
 
   void _updateOsmWrapper({String cameraSource = 'cloud'}) {
-    final processingDict = cameraSource == 'cloud'
-        ? speedCamDict
-        : speedCamDictDb;
-    final processingList = cameraSource == 'cloud'
-        ? speedCamList
-        : speedCamListDb;
+    final processingDict =
+        cameraSource == 'cloud' ? speedCamDict : speedCamDictDb;
+    final processingList =
+        cameraSource == 'cloud' ? speedCamList : speedCamListDb;
 
     if (processingDict.isNotEmpty) {
       processingList.add(Map<String, List<dynamic>>.from(processingDict));
@@ -290,7 +299,7 @@ class POIReader extends Logger {
     if (!file.existsSync()) {
       printLogLine(
         "Processing POI's from cloud failed: ${ServiceAccount.fileName} not found!",
-        level: 'ERROR',
+        logLevel: 'ERROR',
       );
       return;
     }
@@ -299,7 +308,7 @@ class POIReader extends Logger {
     if (!(userPois is Map) || !userPois.containsKey('cameras')) {
       printLogLine(
         "Processing POI's from cloud failed: No POI's to process in ${ServiceAccount.fileName}",
-        level: 'WARNING',
+        logLevel: 'WARNING',
       );
       return;
     }
@@ -339,7 +348,7 @@ class POIReader extends Logger {
       } catch (_) {
         printLogLine(
           'Ignore adding camera $camera from cloud because of missing attributes',
-          level: 'WARNING',
+          logLevel: 'WARNING',
         );
       }
     }
@@ -357,7 +366,7 @@ class POIReader extends Logger {
       if (status != 'success') {
         printLogLine(
           'Updating cameras (file_id: ${ServiceAccount.fileId}) from service account failed! ($status)',
-          level: 'ERROR',
+          logLevel: 'ERROR',
         );
       } else {
         printLogLine(
@@ -368,7 +377,7 @@ class POIReader extends Logger {
     } catch (e) {
       printLogLine(
         'Updating cameras (file_id: ${ServiceAccount.fileId}) from service account failed! ($e)',
-        level: 'ERROR',
+        logLevel: 'ERROR',
       );
     }
   }
@@ -455,9 +464,11 @@ class POIReader extends Logger {
     }
 
     printLogLine(
-        ' fix cameras: ${resultPoisFix.length}, mobile cameras ${resultPoisMobile.length}');
+      ' fix cameras: ${resultPoisFix.length}, mobile cameras ${resultPoisMobile.length}',
+    );
     calculator.updateInfoPage(
-        'POI_FIX:${resultPoisFix.length};POI_MOBILE:${resultPoisMobile.length}');
+      'POI_FIX:${resultPoisFix.length};POI_MOBILE:${resultPoisMobile.length}',
+    );
 
     for (var i = 0; i < resultPoisFix.length; i++) {
       final camera = resultPoisFix[i];

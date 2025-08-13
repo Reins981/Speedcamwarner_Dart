@@ -77,7 +77,7 @@ class ServiceAccount {
     if (!checkRateLimit('master_user')) {
       logger.printLogLine(
         "Dismiss Camera upload: Rate limit exceeded for user: 'master_user'",
-        level: 'WARNING',
+        logLevel: 'WARNING',
       );
       return (false, 'RATE_LIMIT_EXCEEDED');
     }
@@ -97,7 +97,7 @@ class ServiceAccount {
     } on FileSystemException {
       logger.printLogLine(
         'addCameraToJson() failed: $fileName not found!',
-        level: 'ERROR',
+        logLevel: 'ERROR',
       );
       return (false, 'CAM_FILE_NOT_FOUND');
     }
@@ -111,7 +111,7 @@ class ServiceAccount {
         logger.printLogLine(
           'Dismiss Camera upload: Duplicate coordinates detected: '
           '($latitude, $longitude)',
-          level: 'WARNING',
+          logLevel: 'WARNING',
         );
         return (false, 'DUPLICATE_COORDINATES');
       }
