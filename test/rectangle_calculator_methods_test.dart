@@ -56,6 +56,7 @@ void main() {
       );
       expect(updated, isTrue);
       expect(calc.lastRoadName, equals('Main St'));
+      expect(calc.roadName, equals('Main St'));
     });
 
     test('processMaxSpeed triggers overspeed checker', () {
@@ -88,6 +89,7 @@ void main() {
         treeGenerator: tree,
       );
       expect(calc.lastRoadName, equals('Main St'));
+      expect(calc.roadName, equals('Main St'));
       expect(calc.lastMaxSpeed, equals(50));
     });
 
@@ -290,6 +292,7 @@ void main() {
       final calc = _TestCalc();
       await calc.processLookAheadInterrupts();
       expect(calc.lastRoadName, equals('Test Road'));
+      expect(calc.roadName, equals('Test Road'));
       expect(calc.lastMaxSpeed, equals(''));
     });
 

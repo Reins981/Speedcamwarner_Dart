@@ -1152,9 +1152,14 @@ class RectangleCalculatorThread {
       }
       lastRoadName = roadName;
       this.foundCombinedTags = foundCombinedTags;
+      updateRoadname(roadName, foundCombinedTags);
       return true;
     } else {
-      return lastRoadName != null;
+      if (lastRoadName != null) {
+        updateRoadname(lastRoadName, this.foundCombinedTags);
+        return true;
+      }
+      return false;
     }
   }
 
