@@ -177,7 +177,13 @@ void main() {
       'speedCamLookupAhead emits cameras and counts distance cams',
       () async {
         final calc = RectangleCalculatorThread();
+        final queries = <String>[];
         final mock = MockClient((req) async {
+          queries.add(
+            Uri.decodeQueryComponent(
+              req.url.queryParameters['data'] ?? '',
+            ),
+          );
           final body = jsonEncode({
             'elements': [
               {
@@ -198,6 +204,9 @@ void main() {
         final sub = calc.cameras.listen(events.add);
         await calc.speedCamLookupAhead(0, 0, 0, 0, client: mock);
         await Future.delayed(const Duration(milliseconds: 10));
+        expect(queries.length, equals(2));
+        expect(queries[0], contains('[highway=speed_camera]'));
+        expect(queries[1], contains('["some_distance_cam_tag"]'));
         expect(events.length, equals(1));
         expect(events.first.name, equals('A'));
         expect(events.first.fixed, isTrue);
