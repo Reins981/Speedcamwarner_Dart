@@ -246,7 +246,7 @@ class _DashboardPageState extends State<DashboardPage> {
     // produce more fine-grained color changes around the neutral (green)
     // point.
     final hue = 240 - (ratio * 240);
-    final color = ui.HSVColor.fromAHSV(1.0, hue, 1.0, 1.0).toColor();
+    final color = HSVColor.fromAHSV(1.0, hue, 1.0, 1.0).toColor();
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
