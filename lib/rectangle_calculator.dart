@@ -274,6 +274,13 @@ class RectangleCalculatorThread {
   /// listened to`` exception.
   bool _started = false;
 
+  /// Guard to ensure the processing loop is only attached once.  The
+  /// constructor calls [_start] and some external code may invoke [run]
+  /// for API parity.  Without this flag the stream would be listened to
+  /// multiple times which throws a ``Bad state: Stream has already been
+  /// listened to`` exception.
+  bool _started = false;
+
   /// The current zoom level used when converting between tiles and
   /// latitude/longitude.  You may expose this as a public field if your map
   /// layer needs to remain in sync with the calculator.
