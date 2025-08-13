@@ -139,17 +139,19 @@ class AppController {
   late final OverspeedChecker overspeedChecker;
 
   /// Calculates deviation of the current course based on recent bearings.
-  late final deviation.DeviationCheckerThread deviationChecker;
+  late deviation.DeviationCheckerThread deviationChecker;
 
   /// Shared queue holding the last bearings for the deviation checker.
   final AverageAngleQueue<List<double>> averageAngleQueue =
       AverageAngleQueue<List<double>>();
 
-  final deviation.ThreadCondition _deviationCond = deviation.ThreadCondition();
-  final deviation.ThreadCondition _deviationCondAr = deviation.ThreadCondition();
+  /// Coordinates thread termination for the deviation checker.
+  deviation.ThreadCondition? _deviationCond;
+  deviation.ThreadCondition? _deviationCondAr;
 
+  /// Publishes the current average bearing to the UI.
   final ValueNotifier<String> averageBearingValue =
-      ValueNotifier<String>('---.-°');
+      ValueNotifier<String>('---.-');
 
   final List<double> _bearingBuffer = <double>[];
 
@@ -175,12 +177,7 @@ class AppController {
   /// Publishes the latest AR detection status so UI widgets can react.
   final ValueNotifier<String> arStatusNotifier = ValueNotifier<String>('Idle');
 
-  /// Monitors bearing deviations while AR mode is inactive.
-  deviation.DeviationCheckerThread? _deviationChecker;
-  deviation.ThreadCondition? _deviationCond;
-  deviation.ThreadCondition? _deviationCondAr;
-  final ValueNotifier<String> _avBearingValue =
-      ValueNotifier<String>('---.-');
+  /// Tracks whether the deviation checker is currently active.
   bool _deviationRunning = false;
 
   bool _running = false;
@@ -242,12 +239,12 @@ class AppController {
     if (_deviationRunning) return;
     _deviationCond = deviation.ThreadCondition();
     _deviationCondAr = deviation.ThreadCondition();
-    _deviationChecker = deviation.DeviationCheckerThread(
+    deviationChecker = deviation.DeviationCheckerThread(
       cond: _deviationCond!,
       condAr: _deviationCondAr!,
-      avBearingValue: _avBearingValue,
+      avBearingValue: averageBearingValue,
     );
-    _deviationChecker!.start();
+    deviationChecker.start();
     _deviationRunning = true;
   }
 
@@ -255,8 +252,7 @@ class AppController {
   void stopDeviationCheckerThread() {
     if (!_deviationRunning) return;
     _deviationCondAr?.terminate = true;
-    _deviationChecker?.addAverageAngleData('TERMINATE');
-    _deviationChecker = null;
+    deviationChecker.addAverageAngleData('TERMINATE');
     _deviationRunning = false;
     deviationChecker.terminate();
     averageAngleQueue.clearAverageAngleData();
