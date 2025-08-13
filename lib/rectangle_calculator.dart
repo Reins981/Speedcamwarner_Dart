@@ -1427,17 +1427,17 @@ class RectangleCalculatorThread {
       pts[2],
       pts[1],
       pts[3],
-      currentRectAngle,
+      currentRectAngle * math.pi / 180.0,
     );
-    double minLat = poly[0].x;
-    double maxLat = poly[0].x;
-    double minLon = poly[0].y;
-    double maxLon = poly[0].y;
+    double minLat = poly[0].y;
+    double maxLat = poly[0].y;
+    double minLon = poly[0].x;
+    double maxLon = poly[0].x;
     for (final p in poly) {
-      if (p.x < minLat) minLat = p.x;
-      if (p.x > maxLat) maxLat = p.x;
-      if (p.y < minLon) minLon = p.y;
-      if (p.y > maxLon) maxLon = p.y;
+      if (p.y < minLat) minLat = p.y;
+      if (p.y > maxLat) maxLat = p.y;
+      if (p.x < minLon) minLon = p.x;
+      if (p.x > maxLon) maxLon = p.x;
     }
     final rect = GeoRect(
       minLat: minLat,
@@ -1476,7 +1476,7 @@ class RectangleCalculatorThread {
       xtile,
       ytile,
       constructionAreaLookaheadDistance,
-      currentRectAngle,
+      currentRectAngle * math.pi / 180.0,
     );
     final poly = createGeoJsonTilePolygonAngle(
       zoom,
@@ -1484,17 +1484,17 @@ class RectangleCalculatorThread {
       pts[2],
       pts[1],
       pts[3],
-      currentRectAngle,
+      currentRectAngle * math.pi / 180.0,
     );
-    double minLat = poly[0].x;
-    double maxLat = poly[0].x;
-    double minLon = poly[0].y;
-    double maxLon = poly[0].y;
+    double minLat = poly[0].y;
+    double maxLat = poly[0].y;
+    double minLon = poly[0].x;
+    double maxLon = poly[0].x;
     for (final p in poly) {
-      if (p.x < minLat) minLat = p.x;
-      if (p.x > maxLat) maxLat = p.x;
-      if (p.y < minLon) minLon = p.y;
-      if (p.y > maxLon) maxLon = p.y;
+      if (p.y < minLat) minLat = p.y;
+      if (p.y > maxLat) maxLat = p.y;
+      if (p.x < minLon) minLon = p.x;
+      if (p.x > maxLon) maxLon = p.x;
     }
     final rect = GeoRect(
       minLat: minLat,
