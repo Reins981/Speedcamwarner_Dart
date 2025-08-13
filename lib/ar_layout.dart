@@ -5,6 +5,7 @@ import 'package:flutter/scheduler.dart';
 import 'package:camera/camera.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/foundation.dart';
+import 'package:flutter/services.dart';
 import 'package:google_mlkit_face_detection/google_mlkit_face_detection.dart';
 import 'package:google_mlkit_object_detection/google_mlkit_object_detection.dart';
 import 'package:google_mlkit_commons/google_mlkit_commons.dart';
@@ -166,13 +167,7 @@ class EdgeDetectState extends State<EdgeDetect> {
         size: imageSize,
         rotation: rotation,
         format: format,
-        planeData: image.planes
-            .map((Plane plane) => InputImagePlaneMetadata(
-                  bytesPerRow: plane.bytesPerRow,
-                  height: plane.height,
-                  width: plane.width,
-                ))
-            .toList(),
+        bytesPerRow: image.planes.first.bytesPerRow,
       );
       final InputImage inputImage =
           InputImage.fromBytes(bytes: bytes, metadata: metadata);
