@@ -60,8 +60,9 @@ class _MapPageState extends State<MapPage> {
         child: Image.asset('images/car.png'),
       );
     });
-    // Recenter the map whenever the GPS position updates
-    _mapController.move(_center, 15);
+    // Recenter the map whenever the GPS position updates while keeping the
+    // current zoom level so the user can zoom out if desired.
+    _mapController.move(_center, _mapController.zoom);
   }
 
   void _onCameraEvent(SpeedCameraEvent cam) {
