@@ -19,6 +19,7 @@ class MapPage extends StatefulWidget {
 class _MapPageState extends State<MapPage> {
   late LatLng _center;
   final List<Marker> _markers = [];
+  final MapController _mapController = MapController();
   StreamSubscription<SpeedCameraEvent>? _camSub;
 
   @override
@@ -30,9 +31,12 @@ class _MapPageState extends State<MapPage> {
   }
 
   void _updatePosition() {
+    final newCenter = widget.calculator.positionNotifier.value;
     setState(() {
-      _center = widget.calculator.positionNotifier.value;
+      _center = newCenter;
     });
+    // Recenter the map whenever the GPS position updates
+    _mapController.move(_center, 15);
   }
 
   void _onCameraEvent(SpeedCameraEvent cam) {
@@ -70,6 +74,7 @@ class _MapPageState extends State<MapPage> {
     return Scaffold(
       appBar: AppBar(title: const Text('Map')),
       body: FlutterMap(
+        mapController: _mapController,
         options: MapOptions(initialCenter: _center, initialZoom: 15),
         children: [
           TileLayer(
