@@ -18,6 +18,19 @@ class _ArPageState extends State<ArPage> {
   final GlobalKey<EdgeDetectState> _arKey = GlobalKey<EdgeDetectState>();
   bool _running = false;
 
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _arKey.currentState?.init(
+        widget.controller.gps,
+        widget.controller,
+        widget.controller.voicePromptQueue,
+        null,
+      );
+    });
+  }
+
   Future<void> _toggleAr() async {
     if (_running) {
       await _arKey.currentState?.disconnectCamera();
