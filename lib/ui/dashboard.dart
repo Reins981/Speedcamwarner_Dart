@@ -242,7 +242,11 @@ class _DashboardPageState extends State<DashboardPage> {
 
   Widget _buildAccelerationBar() {
     final ratio = ((_acceleration + 5) / 10).clamp(0.0, 1.0);
-    final color = Color.lerp(Colors.green, Colors.red, ratio)!;
+    // Use a full hue spectrum so braking (blue) and acceleration (red)
+    // produce more fine-grained color changes around the neutral (green)
+    // point.
+    final hue = 240 - (ratio * 240);
+    final color = ui.HSVColor.fromAHSV(1.0, hue, 1.0, 1.0).toColor();
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
