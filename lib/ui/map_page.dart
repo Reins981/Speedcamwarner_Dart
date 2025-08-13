@@ -142,6 +142,7 @@ class _MapPageState extends State<MapPage> {
     if (cam.fixed) return 'images/fixcamera_map.png';
     if (cam.traffic) return 'images/trafficlightcamera_map.jpg';
     if (cam.mobile) return 'images/mobilecamera_map.jpg';
+    if (cam.predictive) return 'images/camera_ahead.png';
     return 'images/distancecamera_map.jpg';
   }
 }

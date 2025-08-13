@@ -132,7 +132,12 @@ class OsmLookupResult {
   final GeoRect rect;
 
   const OsmLookupResult(
-      this.success, this.status, this.elements, this.error, this.rect);
+    this.success,
+    this.status,
+    this.elements,
+    this.error,
+    this.rect,
+  );
 }
 
 /// Stub representing a trained predictive model.  In the original Python
@@ -198,16 +203,14 @@ Future<bool> uploadCameraToDrive({
     final file = File(camerasJsonPath);
     Map<String, dynamic> content;
     if (await file.exists()) {
-      content =
-          jsonDecode(await file.readAsString()) as Map<String, dynamic>;
+      content = jsonDecode(await file.readAsString()) as Map<String, dynamic>;
     } else {
       content = {'cameras': []};
     }
     final cameras = content['cameras'] as List<dynamic>;
     final duplicate = cameras.any((cam) {
       final coords = cam['coordinates'][0];
-      return coords['latitude'] == latitude &&
-          coords['longitude'] == longitude;
+      return coords['latitude'] == latitude && coords['longitude'] == longitude;
     });
     if (duplicate) {
       return false;
@@ -216,8 +219,8 @@ Future<bool> uploadCameraToDrive({
     cameras.add({
       'name': name,
       'coordinates': [
-        {'latitude': latitude, 'longitude': longitude}
-      ]
+        {'latitude': latitude, 'longitude': longitude},
+      ],
     });
 
     final encoder = const JsonEncoder.withIndent('  ');
@@ -277,6 +280,7 @@ class RectangleCalculatorThread {
   /// multiple times which throws a ``Bad state: Stream has already been
   /// listened to`` exception.
   bool _loopStarted = false;
+
   /// The current zoom level used when converting between tiles and
   /// latitude/longitude.  You may expose this as a public field if your map
   /// layer needs to remain in sync with the calculator.
@@ -332,24 +336,22 @@ class RectangleCalculatorThread {
   // changes and update accordingly.
   final ValueNotifier<int?> maxspeedNotifier = ValueNotifier<int?>(null);
   final ValueNotifier<String> roadNameNotifier = ValueNotifier<String>('');
-  final ValueNotifier<double?> camRadiusNotifier =
-      ValueNotifier<double?>(null);
-  final ValueNotifier<String?> infoPageNotifier =
-      ValueNotifier<String?>(null);
-  final ValueNotifier<bool> maxspeedOnlineNotifier =
-      ValueNotifier<bool>(false);
-  final ValueNotifier<String?> maxspeedStatusNotifier =
-      ValueNotifier<String?>(null);
-  final ValueNotifier<double> currentSpeedNotifier =
-      ValueNotifier<double>(0.0);
-  final ValueNotifier<String?> speedCamNotifier =
-      ValueNotifier<String?>(null);
+  final ValueNotifier<double?> camRadiusNotifier = ValueNotifier<double?>(null);
+  final ValueNotifier<String?> infoPageNotifier = ValueNotifier<String?>(null);
+  final ValueNotifier<bool> maxspeedOnlineNotifier = ValueNotifier<bool>(false);
+  final ValueNotifier<String?> maxspeedStatusNotifier = ValueNotifier<String?>(
+    null,
+  );
+  final ValueNotifier<double> currentSpeedNotifier = ValueNotifier<double>(0.0);
+  final ValueNotifier<String?> speedCamNotifier = ValueNotifier<String?>(null);
   final ValueNotifier<double?> speedCamDistanceNotifier =
       ValueNotifier<double?>(null);
-  final ValueNotifier<String?> cameraRoadNotifier =
-      ValueNotifier<String?>(null);
-  final ValueNotifier<LatLng> positionNotifier =
-      ValueNotifier<LatLng>(const LatLng(0, 0));
+  final ValueNotifier<String?> cameraRoadNotifier = ValueNotifier<String?>(
+    null,
+  );
+  final ValueNotifier<LatLng> positionNotifier = ValueNotifier<LatLng>(
+    const LatLng(0, 0),
+  );
 
   /// If ``true`` points of interest (POIs) are ignored when resolving road
   /// names and max speed values.
@@ -382,7 +384,7 @@ class RectangleCalculatorThread {
   final Map<String, double> _lastLookaheadExecution = {};
 
   /// Whether look‑ahead mode for cameras is active.
-  bool camerasLookAheadMode = false;
+  bool camerasLookAheadMode = true;
 
   /// Flag indicating that a camera related operation is currently running.
   bool camInProgress = false;
@@ -468,9 +470,9 @@ class RectangleCalculatorThread {
   RectangleCalculatorThread({
     PredictiveModel? model,
     VoicePromptQueue? voicePromptQueue,
-  })  : _predictiveModel = model ?? PredictiveModel(),
-        voicePromptQueue = voicePromptQueue ?? VoicePromptQueue(),
-        mostProbableWay = MostProbableWay() {
+  }) : _predictiveModel = model ?? PredictiveModel(),
+       voicePromptQueue = voicePromptQueue ?? VoicePromptQueue(),
+       mostProbableWay = MostProbableWay() {
     _start();
   }
 
@@ -628,17 +630,20 @@ class RectangleCalculatorThread {
   /// (north, south, east, west).  The calculation assumes a spherical Earth
   /// with radius 6371 km and converts the linear distances into degrees.
   GeoRect _computeBoundingRect(
-      double latitude, double longitude, double lookAheadKm) {
+    double latitude,
+    double longitude,
+    double lookAheadKm,
+  ) {
     const double earthRadiusKm = 6371.0;
     final double latRadians = latitude * math.pi / 180.0;
 
     // Convert distance (km) into degrees latitude/longitude.  One degree
     // latitude spans approximately 111 km.  Longitude scales with cos(lat).
-    final double deltaLat =
-        (lookAheadKm / earthRadiusKm) * (180.0 / math.pi);
+    final double deltaLat = (lookAheadKm / earthRadiusKm) * (180.0 / math.pi);
     final double deltaLon =
-        (lookAheadKm / earthRadiusKm) * (180.0 / math.pi) /
-            math.cos(latRadians);
+        (lookAheadKm / earthRadiusKm) *
+        (180.0 / math.pi) /
+        math.cos(latRadians);
 
     final double minLat = latitude - deltaLat;
     final double maxLat = latitude + deltaLat;
@@ -647,7 +652,12 @@ class RectangleCalculatorThread {
     // Store a Rect representation for geometric queries such as
     // [Rect.pointInRect] or [Rect.pointsCloseToBorder].
     lastRect = Rect(pointList: [minLon, minLat, maxLon, maxLat]);
-    return GeoRect(minLat: minLat, minLon: minLon, maxLat: maxLat, maxLon: maxLon);
+    return GeoRect(
+      minLat: minLat,
+      minLon: minLon,
+      maxLat: maxLat,
+      maxLon: maxLon,
+    );
   }
 
   /// Convert a longitude/latitude pair into tile coordinates.  This is
@@ -660,9 +670,9 @@ class RectangleCalculatorThread {
     final double n = math.pow(2.0, zoom).toDouble();
     final double xTile = (lonDeg + 180.0) / 360.0 * n;
     final double yTile =
-        (1.0 - math.log(math.tan(latRad) + 1.0 / math.cos(latRad)) /
-                math.pi) /
-            2.0 * n;
+        (1.0 - math.log(math.tan(latRad) + 1.0 / math.cos(latRad)) / math.pi) /
+        2.0 *
+        n;
     return math.Point<double>(xTile, yTile);
   }
 
@@ -676,8 +686,7 @@ class RectangleCalculatorThread {
     // ``dart:math`` in some environments lacks a `sinh` implementation.
     // Provide a small helper so the conversion works without relying on it.
     double _sinh(double x) => (math.exp(x) - math.exp(-x)) / 2.0;
-    final double latRad =
-        math.atan(_sinh(math.pi * (1.0 - 2.0 * yTile / n)));
+    final double latRad = math.atan(_sinh(math.pi * (1.0 - 2.0 * yTile / n)));
     final double latDeg = latRad * 180.0 / math.pi;
     return math.Point<double>(lonDeg, latDeg);
   }
@@ -700,7 +709,7 @@ class RectangleCalculatorThread {
       'Thursday',
       'Friday',
       'Saturday',
-      'Sunday'
+      'Sunday',
     ];
     return names[(dt.weekday - 1) % 7];
   }
@@ -780,7 +789,11 @@ class RectangleCalculatorThread {
   /// (in radians).  The behaviour mirrors the intricate branch logic of the
   /// original Python ``calculatepoints2angle`` helper.
   List<double> calculatePoints2Angle(
-      double xtile, double ytile, double distance, double angle) {
+    double xtile,
+    double ytile,
+    double distance,
+    double angle,
+  ) {
     final double xCos = math.cos(angle) * distance;
     final double ySin = math.sin(angle) * distance;
 
@@ -826,8 +839,13 @@ class RectangleCalculatorThread {
   /// Rotate two tile points around the origin by [angle] radians.  The function
   /// mirrors the behaviour of ``rotatepoints2angle`` from the Python code and
   /// returns the rotated coordinates ``[xtileMin, xtileMax, ytileMin, ytileMax]``.
-  List<double> rotatePoints2Angle(double xtileMin, double xtileMax,
-      double ytileMin, double ytileMax, double angle) {
+  List<double> rotatePoints2Angle(
+    double xtileMin,
+    double xtileMax,
+    double ytileMin,
+    double ytileMax,
+    double angle,
+  ) {
     final double cosA = math.cos(-angle);
     final double sinA = math.sin(-angle);
 
@@ -846,7 +864,10 @@ class RectangleCalculatorThread {
   VectorData getVectorSections(VectorData vector) => vector;
 
   /// Build a [Rect] from two opposite corner points.
-  Rect calculateRectangleBorder(math.Point<double> pt1, math.Point<double> pt2) {
+  Rect calculateRectangleBorder(
+    math.Point<double> pt1,
+    math.Point<double> pt2,
+  ) {
     final minX = math.min(pt1.x, pt2.x);
     final maxX = math.max(pt1.x, pt2.x);
     final minY = math.min(pt1.y, pt2.y);
@@ -856,14 +877,20 @@ class RectangleCalculatorThread {
 
   /// Create a GeoJSON polygon from rotated tile bounds.
   List<math.Point<double>> createGeoJsonTilePolygonAngle(
-      int zoom,
-      double xtileMin,
-      double ytileMin,
-      double xtileMax,
-      double ytileMax,
-      double angle) {
-    final rotated =
-        rotatePoints2Angle(xtileMin, xtileMax, ytileMin, ytileMax, angle);
+    int zoom,
+    double xtileMin,
+    double ytileMin,
+    double xtileMax,
+    double ytileMax,
+    double angle,
+  ) {
+    final rotated = rotatePoints2Angle(
+      xtileMin,
+      xtileMax,
+      ytileMin,
+      ytileMax,
+      angle,
+    );
     final p1 = tileToLongLat(rotated[0], rotated[2], zoom);
     final p2 = tileToLongLat(rotated[1], rotated[3], zoom);
     return [
@@ -877,7 +904,12 @@ class RectangleCalculatorThread {
 
   /// Create a GeoJSON polygon from unrotated tile bounds.
   List<math.Point<double>> createGeoJsonTilePolygon(
-      String direction, int zoom, double xtile, double ytile, double size) {
+    String direction,
+    int zoom,
+    double xtile,
+    double ytile,
+    double size,
+  ) {
     final double xtileMax = xtile + size;
     final double ytileMax = ytile + size;
     final p1 = tileToLongLat(xtile, ytile, zoom);
@@ -959,12 +991,15 @@ class RectangleCalculatorThread {
 
   /// Process a max speed entry and update [overspeedChecker].  Returns a
   /// status string describing the outcome similar to the Python code.
-  String processMaxSpeed(dynamic maxspeed, bool foundMaxspeed,
-      {String? roadName,
-      bool motorway = false,
-      bool resetMaxspeed = false,
-      bool ramp = false,
-      int? currentSpeed}) {
+  String processMaxSpeed(
+    dynamic maxspeed,
+    bool foundMaxspeed, {
+    String? roadName,
+    bool motorway = false,
+    bool resetMaxspeed = false,
+    bool ramp = false,
+    int? currentSpeed,
+  }) {
     if (resetMaxspeed && !dismissPois) {
       overspeedChecker.process(currentSpeed, {'maxspeed': 10000});
       lastMaxSpeed = 'POI';
@@ -993,8 +1028,10 @@ class RectangleCalculatorThread {
   /// Prepare a max speed value for overspeed checking. Returns a map with the
   /// possibly converted speed and a flag whether the overspeed warning should
   /// be reset.
-  Map<String, dynamic> prepareDataForSpeedCheck(dynamic maxspeed,
-      {bool motorway = false}) {
+  Map<String, dynamic> prepareDataForSpeedCheck(
+    dynamic maxspeed, {
+    bool motorway = false,
+  }) {
     bool overspeedReset = false;
     try {
       maxspeed = int.parse(maxspeed.toString());
@@ -1020,7 +1057,10 @@ class RectangleCalculatorThread {
   Future<void> process(VectorData vector, {bool updateCcpOnly = false}) async {
     if (updateCcpOnly) {
       final rect = _computeBoundingRect(
-          vector.latitude, vector.longitude, _computeLookAheadDistance(0));
+        vector.latitude,
+        vector.longitude,
+        _computeLookAheadDistance(0),
+      );
       _rectangleStreamController.add(rect);
     } else {
       await _processVector(vector);
@@ -1052,10 +1092,11 @@ class RectangleCalculatorThread {
         }
       } else {
         processRoadName(
-            foundRoadName: true,
-            roadName: roadName,
-            foundCombinedTags: false,
-            roadClass: 'unclassified');
+          foundRoadName: true,
+          roadName: roadName,
+          foundCombinedTags: false,
+          roadClass: 'unclassified',
+        );
       }
     }
     if (!camInProgress && await internetAvailable()) {
@@ -1077,23 +1118,29 @@ class RectangleCalculatorThread {
   }
 
   Future<bool> uploadCameraToDriveMethod(
-          String name, double latitude, double longitude) async =>
-      uploadCameraToDrive(
-          name: name, latitude: latitude, longitude: longitude);
+    String name,
+    double latitude,
+    double longitude,
+  ) async =>
+      uploadCameraToDrive(name: name, latitude: latitude, longitude: longitude);
 
   /// Trigger asynchronous look‑ahead downloads for speed cameras and
   /// construction areas.  ``previousCcp`` reuses cached coordinates from the
   /// last stable CCP.
-  Future<void> processLookaheadItems(DateTime applicationStartTime,
-      {bool previousCcp = false}) async {
+  Future<void> processLookaheadItems(
+    DateTime applicationStartTime, {
+    bool previousCcp = false,
+  }) async {
     double xtile;
     double ytile;
     double ccpLon;
     double ccpLat;
 
     if (previousCcp) {
-      if (longitudeCached > 0 && latitudeCached > 0 &&
-          xtileCached != null && ytileCached != null) {
+      if (longitudeCached > 0 &&
+          latitudeCached > 0 &&
+          xtileCached != null &&
+          ytileCached != null) {
         xtile = xtileCached!;
         ytile = ytileCached!;
         ccpLon = longitudeCached;
@@ -1121,28 +1168,32 @@ class RectangleCalculatorThread {
         'rect': rectSpeedCamLookahead,
         'func': RectangleCalculatorThread.startThreadPoolSpeedCamera,
         'msg': 'Speed Camera lookahead',
-        'trigger': speedCamLookupAhead
+        'trigger': speedCamLookupAhead,
       },
       {
         'rect': rectConstructionAreasLookahead,
         'func': RectangleCalculatorThread.startThreadPoolConstructionAreas,
         'msg': 'Construction area lookahead',
-        'trigger': constructionsLookupAhead
-      }
+        'trigger': constructionsLookupAhead,
+      },
     ];
 
     for (final item in lookups) {
       final Rect? rect = item['rect'] as Rect?;
       final String msg = item['msg'] as String;
-      final func = item['func'] as Future<void> Function(
-          Future<void> Function(double, double, double, double),
-          int,
-          double,
-          double,
-          double,
-          double);
+      final func =
+          item['func']
+              as Future<void> Function(
+                Future<void> Function(double, double, double, double),
+                int,
+                double,
+                double,
+                double,
+                double,
+              );
       final trigger =
-          item['trigger'] as Future<void> Function(double, double, double, double);
+          item['trigger']
+              as Future<void> Function(double, double, double, double);
 
       final now = DateTime.now().millisecondsSinceEpoch / 1000.0;
       final last = _lastLookaheadExecution[msg] ?? 0;
@@ -1151,8 +1202,9 @@ class RectangleCalculatorThread {
       }
 
       if (msg == 'Construction area lookahead') {
-        final elapsed =
-            DateTime.now().difference(applicationStartTime).inSeconds;
+        final elapsed = DateTime.now()
+            .difference(applicationStartTime)
+            .inSeconds;
         if (elapsed <= constructionAreaStartupTriggerMax) {
           continue;
         }
@@ -1160,8 +1212,12 @@ class RectangleCalculatorThread {
 
       if (rect != null) {
         final inside = rect.pointInRect(xtile, ytile);
-        final close =
-            rect.pointsCloseToBorder(xtile, ytile, lookAhead: true, lookAheadMode: msg);
+        final close = rect.pointsCloseToBorder(
+          xtile,
+          ytile,
+          lookAhead: true,
+          lookAheadMode: msg,
+        );
         if (inside && !close) {
           continue;
         }
@@ -1175,15 +1231,20 @@ class RectangleCalculatorThread {
   /// Process construction area lookup results and append them to the internal
   /// list.  Only elements with valid latitude/longitude are considered.
   void processConstructionAreasLookupAheadResults(
-      dynamic data, String lookupType, double ccpLon, double ccpLat) {
+    dynamic data,
+    String lookupType,
+    double ccpLon,
+    double ccpLat,
+  ) {
     if (data is! List) return;
     for (final element in data) {
       if (element is! Map<String, dynamic>) continue;
       final lat = (element['lat'] as num?)?.toDouble();
       final lon = (element['lon'] as num?)?.toDouble();
       if (lat == null || lon == null) continue;
-      constructionAreas
-          .add(GeoRect(minLat: lat, minLon: lon, maxLat: lat, maxLon: lon));
+      constructionAreas.add(
+        GeoRect(minLat: lat, minLon: lon, maxLat: lat, maxLon: lon),
+      );
     }
     if (constructionAreas.isNotEmpty) {
       updateConstructionAreas(constructionAreas);
@@ -1194,20 +1255,37 @@ class RectangleCalculatorThread {
   }
 
   Future<SpeedCameraEvent?> processPredictiveCameras(
-          double longitude, double latitude) async =>
-      predictSpeedCamera(
-          model: _predictiveModel,
-          latitude: latitude,
-          longitude: longitude,
-          timeOfDay: _formatTimeOfDay(DateTime.now()),
-          dayOfWeek: _formatDayOfWeek(DateTime.now()));
+    double longitude,
+    double latitude,
+  ) async => predictSpeedCamera(
+    model: _predictiveModel,
+    latitude: latitude,
+    longitude: longitude,
+    timeOfDay: _formatTimeOfDay(DateTime.now()),
+    dayOfWeek: _formatDayOfWeek(DateTime.now()),
+  );
 
-  Future<void> speedCamLookupAhead(double xtile, double ytile, double ccpLon,
-      double ccpLat, {http.Client? client}) async {
-    final pts =
-        calculatePoints2Angle(xtile, ytile, speedCamLookAheadDistance, 0);
+  Future<void> speedCamLookupAhead(
+    double xtile,
+    double ytile,
+    double ccpLon,
+    double ccpLat, {
+    http.Client? client,
+  }) async {
+    final pts = calculatePoints2Angle(
+      xtile,
+      ytile,
+      speedCamLookAheadDistance,
+      0,
+    );
     final poly = createGeoJsonTilePolygonAngle(
-        zoom, pts[0], pts[2], pts[1], pts[3], currentRectAngle);
+      zoom,
+      pts[0],
+      pts[2],
+      pts[1],
+      pts[3],
+      currentRectAngle,
+    );
     double minLat = poly[0].x;
     double maxLat = poly[0].x;
     double minLon = poly[0].y;
@@ -1218,24 +1296,50 @@ class RectangleCalculatorThread {
       if (p.y < minLon) minLon = p.y;
       if (p.y > maxLon) maxLon = p.y;
     }
-    final rect =
-        GeoRect(minLat: minLat, minLon: minLon, maxLat: maxLat, maxLon: maxLon);
+    final rect = GeoRect(
+      minLat: minLat,
+      minLon: minLon,
+      maxLat: maxLat,
+      maxLon: maxLon,
+    );
     for (final type in ['camera_ahead', 'distance_cam']) {
-      final result =
-          await triggerOsmLookup(rect, lookupType: type, client: client);
+      final result = await triggerOsmLookup(
+        rect,
+        lookupType: type,
+        client: client,
+      );
       if (result.success && result.elements != null) {
         processSpeedCamLookupAheadResults(
-            result.elements!, type, ccpLon, ccpLat);
+          result.elements!,
+          type,
+          ccpLon,
+          ccpLat,
+        );
       }
     }
   }
 
-  Future<void> constructionsLookupAhead(double xtile, double ytile, double ccpLon,
-      double ccpLat, {http.Client? client}) async {
+  Future<void> constructionsLookupAhead(
+    double xtile,
+    double ytile,
+    double ccpLon,
+    double ccpLat, {
+    http.Client? client,
+  }) async {
     final pts = calculatePoints2Angle(
-        xtile, ytile, constructionAreaLookaheadDistance, currentRectAngle);
+      xtile,
+      ytile,
+      constructionAreaLookaheadDistance,
+      currentRectAngle,
+    );
     final poly = createGeoJsonTilePolygonAngle(
-        zoom, pts[0], pts[2], pts[1], pts[3], currentRectAngle);
+      zoom,
+      pts[0],
+      pts[2],
+      pts[1],
+      pts[3],
+      currentRectAngle,
+    );
     double minLat = poly[0].x;
     double maxLat = poly[0].x;
     double minLon = poly[0].y;
@@ -1246,19 +1350,35 @@ class RectangleCalculatorThread {
       if (p.y < minLon) minLon = p.y;
       if (p.y > maxLon) maxLon = p.y;
     }
-    final rect =
-        GeoRect(minLat: minLat, minLon: minLon, maxLat: maxLat, maxLon: maxLon);
-    final result = await triggerOsmLookup(rect,
-        lookupType: 'construction_ahead', client: client);
+    final rect = GeoRect(
+      minLat: minLat,
+      minLon: minLon,
+      maxLat: maxLat,
+      maxLon: maxLon,
+    );
+    final result = await triggerOsmLookup(
+      rect,
+      lookupType: 'construction_ahead',
+      client: client,
+    );
     if (result.success && result.elements != null) {
       processConstructionAreasLookupAheadResults(
-          result.elements!, 'construction_ahead', ccpLon, ccpLat);
+        result.elements!,
+        'construction_ahead',
+        ccpLon,
+        ccpLat,
+      );
     }
   }
 
   void processSpeedCamLookupAheadResults(
-      dynamic data, String lookupType, double ccpLon, double ccpLat) {
+    dynamic data,
+    String lookupType,
+    double ccpLon,
+    double ccpLat,
+  ) {
     if (data is! List) return;
+    final List<SpeedCameraEvent> cams = [];
     for (final element in data) {
       if (element is! Map<String, dynamic>) continue;
       final tags = element['tags'] as Map<String, dynamic>? ?? {};
@@ -1271,13 +1391,19 @@ class RectangleCalculatorThread {
         final lon = (element['lon'] as num?)?.toDouble();
         if (lat == null || lon == null) continue;
         final cam = SpeedCameraEvent(
-            latitude: lat,
-            longitude: lon,
-            fixed: true,
-            name: tags['name']?.toString() ?? '');
-        _cameraStreamController.add(cam);
+          latitude: lat,
+          longitude: lon,
+          fixed: true,
+          name: tags['name']?.toString() ?? '',
+        );
         _cameraCache.add(cam);
+        cams.add(cam);
       }
+    }
+    if (cams.isNotEmpty) {
+      updateSpeedCams(cams);
+      updateMapQueue();
+      updateInfoPage('SPEED_CAMERAS');
     }
   }
 
@@ -1309,15 +1435,19 @@ class RectangleCalculatorThread {
   }
 
   List<SpeedCameraEvent> processSpeedCamerasOnTheWay(
-      Point point, double radius) {
+    Point point,
+    double radius,
+  ) {
     return _cameraCache
-        .where((c) =>
-            _distance(point.x, point.y, c.longitude, c.latitude) <= radius)
+        .where(
+          (c) => _distance(point.x, point.y, c.longitude, c.latitude) <= radius,
+        )
         .toList();
   }
 
   Map<String, SpeedCameraEvent> buildDataStructure(
-      List<SpeedCameraEvent> cams) {
+    List<SpeedCameraEvent> cams,
+  ) {
     final map = <String, SpeedCameraEvent>{};
     for (final cam in cams) {
       map['${cam.latitude},${cam.longitude}'] = cam;
@@ -1338,8 +1468,7 @@ class RectangleCalculatorThread {
     clearCombinedTags(_combinedTags);
   }
 
-  List<SpeedCameraEvent> removeDuplicateCameras(
-      List<SpeedCameraEvent> cams) {
+  List<SpeedCameraEvent> removeDuplicateCameras(List<SpeedCameraEvent> cams) {
     final seen = <String>{};
     final result = <SpeedCameraEvent>[];
     for (final cam in cams) {
@@ -1365,15 +1494,17 @@ class RectangleCalculatorThread {
   double convertCspeed(double speedKmh) => speedKmh / 3.6;
 
   Point calculateExtrapolatedPosition(
-      Point start, double bearingDeg, double distanceMeters) {
+    Point start,
+    double bearingDeg,
+    double distanceMeters,
+  ) {
     final rad = bearingDeg * math.pi / 180.0;
     final dx = distanceMeters * math.sin(rad) / 111000.0;
     final dy = distanceMeters * math.cos(rad) / 111000.0;
     return Point(start.x + dx, start.y + dy);
   }
 
-  double _distance(
-      double lon1, double lat1, double lon2, double lat2) {
+  double _distance(double lon1, double lat1, double lon2, double lat2) {
     final dx = lon1 - lon2;
     final dy = lat1 - lat2;
     return math.sqrt(dx * dx + dy * dy);
@@ -1390,8 +1521,7 @@ class RectangleCalculatorThread {
       final Rect currentRect = generator[0] as Rect;
       final DoubleLinkedListNodes? linkedListGenerator =
           generator[1] as DoubleLinkedListNodes?;
-      final BinarySearchTree? treeGenerator =
-          generator[2] as BinarySearchTree?;
+      final BinarySearchTree? treeGenerator = generator[2] as BinarySearchTree?;
 
       if (currentRect.pointInRect(xtile, ytile)) {
         RectangleCalculatorThread.startThreadPoolDataLookup(
@@ -1447,29 +1577,32 @@ class RectangleCalculatorThread {
   // keep API parity without relying on native threads.
 
   static Future<void> startThreadPoolConstructionAreas(
-      Future<void> Function(double, double, double, double) func,
-      int workerThreads,
-      double xtile,
-      double ytile,
-      double ccpLon,
-      double ccpLat) async {
+    Future<void> Function(double, double, double, double) func,
+    int workerThreads,
+    double xtile,
+    double ytile,
+    double ccpLon,
+    double ccpLat,
+  ) async {
     await Future.microtask(() => func(xtile, ytile, ccpLon, ccpLat));
   }
 
   static Future<void> startThreadPoolDataLookup(
-      Future<bool> Function({
-        double latitude,
-        double longitude,
-        DoubleLinkedListNodes? linkedListGenerator,
-        BinarySearchTree? treeGenerator,
-        Rect? currentRect,
-      }) func,
-      {double? lat,
-      double? lon,
-      DoubleLinkedListNodes? linkedList,
-      BinarySearchTree? tree,
-      Rect? cRect,
-      bool waitTillCompleted = true}) async {
+    Future<bool> Function({
+      double latitude,
+      double longitude,
+      DoubleLinkedListNodes? linkedListGenerator,
+      BinarySearchTree? treeGenerator,
+      Rect? currentRect,
+    })
+    func, {
+    double? lat,
+    double? lon,
+    DoubleLinkedListNodes? linkedList,
+    BinarySearchTree? tree,
+    Rect? cRect,
+    bool waitTillCompleted = true,
+  }) async {
     final future = func(
       latitude: lat ?? 0,
       longitude: lon ?? 0,
@@ -1483,11 +1616,12 @@ class RectangleCalculatorThread {
   }
 
   static Future<void> startThreadPoolDataStructure(
-      Future<void> Function({dynamic dataset, Rect? rectPreferred}) func,
-      {int workerThreads = 1,
-      Map<String, List<dynamic>> serverResponses = const {},
-      bool extrapolated = false,
-      bool waitTillCompleted = true}) async {
+    Future<void> Function({dynamic dataset, Rect? rectPreferred}) func, {
+    int workerThreads = 1,
+    Map<String, List<dynamic>> serverResponses = const {},
+    bool extrapolated = false,
+    bool waitTillCompleted = true,
+  }) async {
     final tasks = <Future>[];
     serverResponses.forEach((_, dataList) {
       tasks.add(func(dataset: dataList[2], rectPreferred: dataList[4]));
@@ -1498,36 +1632,39 @@ class RectangleCalculatorThread {
   }
 
   static Future<void> startThreadPoolProcessLookAheadInterrupts(
-      Future<void> Function() func,
-      {int workerThreads = 1}) async {
+    Future<void> Function() func, {
+    int workerThreads = 1,
+  }) async {
     await Future.microtask(() => func());
   }
 
   static Future<void> startThreadPoolSpeedCamStructure(
-      Future<void> Function(
-              DoubleLinkedListNodes?, BinarySearchTree?) func,
-      {int workerThreads = 1,
-      DoubleLinkedListNodes? linkedList,
-      BinarySearchTree? tree}) async {
+    Future<void> Function(DoubleLinkedListNodes?, BinarySearchTree?) func, {
+    int workerThreads = 1,
+    DoubleLinkedListNodes? linkedList,
+    BinarySearchTree? tree,
+  }) async {
     await Future.microtask(() => func(linkedList, tree));
   }
 
   static Future<void> startThreadPoolSpeedCamera(
-      Future<void> Function(double, double, double, double) func,
-      int workerThreads,
-      double xtile,
-      double ytile,
-      double ccpLon,
-      double ccpLat) async {
+    Future<void> Function(double, double, double, double) func,
+    int workerThreads,
+    double xtile,
+    double ytile,
+    double ccpLon,
+    double ccpLat,
+  ) async {
     await Future.microtask(() => func(xtile, ytile, ccpLon, ccpLat));
   }
 
   static Future<void> startThreadPoolUploadSpeedCameraToDrive(
-      Future<void> Function(String, double, double) func,
-      int workerThreads,
-      String name,
-      double latitude,
-      double longitude) async {
+    Future<void> Function(String, double, double) func,
+    int workerThreads,
+    String name,
+    double latitude,
+    double longitude,
+  ) async {
     await Future.microtask(() => func(name, latitude, longitude));
   }
 
@@ -1550,7 +1687,9 @@ class RectangleCalculatorThread {
     }
     linkedListGenerator.setTreeGeneratorInstance(treeGenerator);
     final node = linkedListGenerator.matchNode(latitude, longitude);
-    if (node != null && treeGenerator != null && treeGenerator.contains(node.id)) {
+    if (node != null &&
+        treeGenerator != null &&
+        treeGenerator.contains(node.id)) {
       final way = treeGenerator[node.id]!;
       resolveDangersOnTheRoad(way.tags);
       if (!disableRoadLookup) {
@@ -1558,38 +1697,47 @@ class RectangleCalculatorThread {
           final roadName = await getRoadNameViaNominatim(latitude, longitude);
           if (roadName != null) {
             processRoadName(
-                foundRoadName: true,
-                roadName: roadName,
-                foundCombinedTags: false,
-                roadClass: way.tags['highway']?.toString() ?? 'unclassified',
-                poi: way.tags['poi'] == true,
-                facility: way.tags['facility'] == true);
+              foundRoadName: true,
+              roadName: roadName,
+              foundCombinedTags: false,
+              roadClass: way.tags['highway']?.toString() ?? 'unclassified',
+              poi: way.tags['poi'] == true,
+              facility: way.tags['facility'] == true,
+            );
           }
           final maxspeed = resolveMaxSpeed(way.tags);
           final status = processMaxSpeed(maxspeed ?? '', maxspeed != null);
           if (status == 'MAX_SPEED_NOT_FOUND') {
             final def = processMaxSpeedForRoadClass(
-                way.tags['highway']?.toString() ?? 'unclassified', null);
+              way.tags['highway']?.toString() ?? 'unclassified',
+              null,
+            );
             processMaxSpeed(def, true);
           }
         } else {
           final resolved = resolveRoadnameAndMaxSpeed(way.tags);
           processRoadName(
-              foundRoadName: resolved.roadName != null,
-              roadName: resolved.roadName ?? '',
-              foundCombinedTags: false,
-              roadClass: way.tags['highway']?.toString() ?? 'unclassified',
-              poi: way.tags['poi'] == true,
-              facility: way.tags['facility'] == true);
-          processMaxSpeed(resolved.maxSpeed ?? '', resolved.maxSpeed != null,
-              roadName: resolved.roadName);
+            foundRoadName: resolved.roadName != null,
+            roadName: resolved.roadName ?? '',
+            foundCombinedTags: false,
+            roadClass: way.tags['highway']?.toString() ?? 'unclassified',
+            poi: way.tags['poi'] == true,
+            facility: way.tags['facility'] == true,
+          );
+          processMaxSpeed(
+            resolved.maxSpeed ?? '',
+            resolved.maxSpeed != null,
+            roadName: resolved.roadName,
+          );
         }
       } else {
         final maxspeed = resolveMaxSpeed(way.tags);
         final status = processMaxSpeed(maxspeed ?? '', maxspeed != null);
         if (status == 'MAX_SPEED_NOT_FOUND') {
           final def = processMaxSpeedForRoadClass(
-              way.tags['highway']?.toString() ?? 'unclassified', null);
+            way.tags['highway']?.toString() ?? 'unclassified',
+            null,
+          );
           processMaxSpeed(def, true);
         }
       }
@@ -1597,8 +1745,12 @@ class RectangleCalculatorThread {
     return true;
   }
 
-  Future<OsmLookupResult> triggerOsmLookup(GeoRect area,
-      {String? lookupType, int? nodeId, http.Client? client}) async {
+  Future<OsmLookupResult> triggerOsmLookup(
+    GeoRect area, {
+    String? lookupType,
+    int? nodeId,
+    http.Client? client,
+  }) async {
     final baseUrl = 'https://overpass-api.de/api/interpreter?data=';
     final bbox =
         '(${area.minLat},${area.minLon},${area.maxLat},${area.maxLon})';
@@ -1621,12 +1773,22 @@ class RectangleCalculatorThread {
       reportDownloadTime(duration);
       if (resp.statusCode == 200) {
         final data = jsonDecode(resp.body) as Map<String, dynamic>;
-        return OsmLookupResult(true, 'OK', data['elements'] as List<dynamic>?,
-            null, area);
+        return OsmLookupResult(
+          true,
+          'OK',
+          data['elements'] as List<dynamic>?,
+          null,
+          area,
+        );
       } else {
         await checkWorkerThreadStatus();
         return OsmLookupResult(
-            false, 'ERROR', null, 'HTTP ${resp.statusCode}', area);
+          false,
+          'ERROR',
+          null,
+          'HTTP ${resp.statusCode}',
+          area,
+        );
       }
     } catch (e) {
       await checkWorkerThreadStatus();
@@ -1638,7 +1800,8 @@ class RectangleCalculatorThread {
     }
   }
 
-  Future<void> checkWorkerThreadStatus() => _threadPool.checkWorkerThreadStatus();
+  Future<void> checkWorkerThreadStatus() =>
+      _threadPool.checkWorkerThreadStatus();
 
   void reportDownloadTime(Duration duration) {
     // Placeholder for logging; no-op in this port.
@@ -1646,10 +1809,13 @@ class RectangleCalculatorThread {
 
   Future<String?> getRoadNameViaNominatim(double lat, double lon) async {
     final uri = Uri.parse(
-        'https://nominatim.openstreetmap.org/reverse?format=jsonv2&lat=$lat&lon=$lon');
+      'https://nominatim.openstreetmap.org/reverse?format=jsonv2&lat=$lat&lon=$lon',
+    );
     try {
-      final resp = await http.get(uri,
-          headers: {'User-Agent': 'speedcamwarner-dart'});
+      final resp = await http.get(
+        uri,
+        headers: {'User-Agent': 'speedcamwarner-dart'},
+      );
       if (resp.statusCode == 200) {
         final data = jsonDecode(resp.body) as Map<String, dynamic>;
         return data['display_name']?.toString();
@@ -1667,8 +1833,10 @@ class RectangleCalculatorThread {
   Future<bool> internetAvailable() async {
     try {
       final resp = await http
-          .get(Uri.parse('https://example.com'),
-              headers: {'User-Agent': 'speedcamwarner-dart'})
+          .get(
+            Uri.parse('https://example.com'),
+            headers: {'User-Agent': 'speedcamwarner-dart'},
+          )
           .timeout(const Duration(seconds: 3));
       return resp.statusCode == 200;
     } catch (_) {
@@ -1712,8 +1880,11 @@ class RectangleCalculatorThread {
       roadNameNotifier.value = '';
       return;
     }
-    final parts =
-        roadname.split('/').where((p) => p.isNotEmpty).toList().reversed;
+    final parts = roadname
+        .split('/')
+        .where((p) => p.isNotEmpty)
+        .toList()
+        .reversed;
     roadNameNotifier.value = parts.join('/');
     // foundCombinedTags flag kept for parity with Python version.
     foundCombinedTags;

@@ -37,8 +37,7 @@ void main() {
     });
 
     test('createGeoJsonTilePolygonAngle', () {
-      final poly =
-          calc.createGeoJsonTilePolygonAngle(1, 0, 0, 1, 1, 45.0);
+      final poly = calc.createGeoJsonTilePolygonAngle(1, 0, 0, 1, 1, 45.0);
       expect(poly.length, equals(5));
     });
 
@@ -50,10 +49,11 @@ void main() {
 
     test('processRoadName updates lastRoadName', () {
       final updated = calc.processRoadName(
-          foundRoadName: true,
-          roadName: 'Main St',
-          foundCombinedTags: false,
-          roadClass: 'primary');
+        foundRoadName: true,
+        roadName: 'Main St',
+        foundCombinedTags: false,
+        roadClass: 'primary',
+      );
       expect(updated, isTrue);
       expect(calc.lastRoadName, equals('Main St'));
     });
@@ -66,21 +66,27 @@ void main() {
 
     test('triggerCacheLookup sets road name and max speed', () async {
       final linked = DoubleLinkedListNodes();
-      linked.appendNode(Node(
-        id: 1,
-        latitudeStart: 1.0,
-        longitudeStart: 1.0,
-        latitudeEnd: 1.0,
-        longitudeEnd: 1.0,
-      ));
+      linked.appendNode(
+        Node(
+          id: 1,
+          latitudeStart: 1.0,
+          longitudeStart: 1.0,
+          latitudeEnd: 1.0,
+          longitudeEnd: 1.0,
+        ),
+      );
       final tree = BinarySearchTree();
-      tree.insert(1, 1,
-          {'name': 'Main St', 'maxspeed': '50', 'highway': 'residential'});
+      tree.insert(1, 1, {
+        'name': 'Main St',
+        'maxspeed': '50',
+        'highway': 'residential',
+      });
       await calc.triggerCacheLookup(
-          latitude: 1.0,
-          longitude: 1.0,
-          linkedListGenerator: linked,
-          treeGenerator: tree);
+        latitude: 1.0,
+        longitude: 1.0,
+        linkedListGenerator: linked,
+        treeGenerator: tree,
+      );
       expect(calc.lastRoadName, equals('Main St'));
       expect(calc.lastMaxSpeed, equals(50));
     });
@@ -117,21 +123,28 @@ void main() {
         return true;
       }
 
-      await RectangleCalculatorThread.startThreadPoolDataLookup(dummy,
-          lat: 1, lon: 2, waitTillCompleted: true);
+      await RectangleCalculatorThread.startThreadPoolDataLookup(
+        dummy,
+        lat: 1,
+        lon: 2,
+        waitTillCompleted: true,
+      );
       expect(called, isTrue);
     });
 
     test('triggerOsmLookup returns elements', () async {
       final mock = MockClient((req) async {
-        final body = jsonEncode({'elements': [
-          {'id': 1}
-        ]});
+        final body = jsonEncode({
+          'elements': [
+            {'id': 1},
+          ],
+        });
         return http.Response(body, 200);
       });
       final result = await calc.triggerOsmLookup(
-          const GeoRect(minLat: 0, minLon: 0, maxLat: 1, maxLon: 1),
-          client: mock);
+        const GeoRect(minLat: 0, minLon: 0, maxLat: 1, maxLon: 1),
+        client: mock,
+      );
       expect(result.success, isTrue);
       expect(result.elements, isNotNull);
       expect(result.elements!.length, equals(1));
@@ -142,43 +155,57 @@ void main() {
       final path = '${dir.path}/cameras.json';
       await File(path).writeAsString(jsonEncode({'cameras': []}));
       final ok = await uploadCameraToDrive(
-          name: 'Test', latitude: 1.0, longitude: 2.0, camerasJsonPath: path);
+        name: 'Test',
+        latitude: 1.0,
+        longitude: 2.0,
+        camerasJsonPath: path,
+      );
       expect(ok, isTrue);
       final decoded =
           jsonDecode(await File(path).readAsString()) as Map<String, dynamic>;
       expect((decoded['cameras'] as List).length, equals(1));
       final dup = await uploadCameraToDrive(
-          name: 'Test', latitude: 1.0, longitude: 2.0, camerasJsonPath: path);
+        name: 'Test',
+        latitude: 1.0,
+        longitude: 2.0,
+        camerasJsonPath: path,
+      );
       expect(dup, isFalse);
     });
 
-    test('speedCamLookupAhead emits cameras and counts distance cams', () async {
-      final calc = RectangleCalculatorThread();
-      final mock = MockClient((req) async {
-        final body = jsonEncode({
-          'elements': [
-            {
-              'lat': 1.0,
-              'lon': 2.0,
-              'tags': {'highway': 'speed_camera', 'name': 'A'}
-            },
-            {
-              'lat': 3.0,
-              'lon': 4.0,
-              'tags': {'role': 'device'}
-            }
-          ]
+    test(
+      'speedCamLookupAhead emits cameras and counts distance cams',
+      () async {
+        final calc = RectangleCalculatorThread();
+        final mock = MockClient((req) async {
+          final body = jsonEncode({
+            'elements': [
+              {
+                'lat': 1.0,
+                'lon': 2.0,
+                'tags': {'highway': 'speed_camera', 'name': 'A'},
+              },
+              {
+                'lat': 3.0,
+                'lon': 4.0,
+                'tags': {'role': 'device'},
+              },
+            ],
+          });
+          return http.Response(body, 200);
         });
-        return http.Response(body, 200);
-      });
-      final events = <SpeedCameraEvent>[];
-      final sub = calc.cameras.listen(events.add);
-      await calc.speedCamLookupAhead(0, 0, 0, 0, client: mock);
-      await Future.delayed(const Duration(milliseconds: 10));
-      expect(events.length, equals(1));
-      expect(calc.numberDistanceCams, equals(1));
-      await sub.cancel();
-    });
+        final events = <SpeedCameraEvent>[];
+        final sub = calc.cameras.listen(events.add);
+        await calc.speedCamLookupAhead(0, 0, 0, 0, client: mock);
+        await Future.delayed(const Duration(milliseconds: 10));
+        expect(events.length, equals(1));
+        expect(events.first.name, equals('A'));
+        expect(events.first.fixed, isTrue);
+        expect(calc.numberDistanceCams, equals(1));
+        expect(calc.infoPage, equals('SPEED_CAMERAS'));
+        await sub.cancel();
+      },
+    );
 
     test('resolveDangersOnTheRoad updates info page', () {
       final calc = RectangleCalculatorThread();
@@ -225,13 +252,18 @@ void main() {
 
     test('processConstructionAreasLookupAheadResults stores areas', () {
       final calc = RectangleCalculatorThread();
-      calc.processConstructionAreasLookupAheadResults([
-        {
-          'lat': 1.0,
-          'lon': 2.0,
-          'tags': {'construction': 'yes'}
-        }
-      ], 'construction_ahead', 0, 0);
+      calc.processConstructionAreasLookupAheadResults(
+        [
+          {
+            'lat': 1.0,
+            'lon': 2.0,
+            'tags': {'construction': 'yes'},
+          },
+        ],
+        'construction_ahead',
+        0,
+        0,
+      );
       expect(calc.constructionAreas.isNotEmpty, isTrue);
     });
   });
@@ -250,21 +282,29 @@ class _TestCalc extends RectangleCalculatorThread {
 
   @override
   Future<void> speedCamLookupAhead(
-      double xtile, double ytile, double lon, double lat,
-      {http.Client? client}) async {
+    double xtile,
+    double ytile,
+    double lon,
+    double lat, {
+    http.Client? client,
+  }) async {
     speedCalled = true;
   }
 
   @override
   Future<void> constructionsLookupAhead(
-      double xtile, double ytile, double lon, double lat,
-      {http.Client? client}) async {
+    double xtile,
+    double ytile,
+    double lon,
+    double lat, {
+    http.Client? client,
+  }) async {
     constructionCalled = true;
   }
 
   @override
   Future<SpeedCameraEvent?> processPredictiveCameras(
-          double longitude, double latitude) async =>
-      null;
+    double longitude,
+    double latitude,
+  ) async => null;
 }
-
