@@ -718,9 +718,14 @@ class RectangleCalculatorThread {
     final double maxLat = latitude + deltaLat;
     final double minLon = longitude - deltaLon;
     final double maxLon = longitude + deltaLon;
-    // Store a Rect representation for geometric queries such as
-    // [Rect.pointInRect] or [Rect.pointsCloseToBorder].
-    lastRect = Rect(pointList: [minLon, minLat, maxLon, maxLat]);
+    // Store a Rect representation in tile coordinates for geometric queries
+    // such as [Rect.pointInRect] or [Rect.pointsCloseToBorder].
+    final minTile = longLatToTile(minLat, minLon, zoom);
+    final maxTile = longLatToTile(maxLat, maxLon, zoom);
+    lastRect = Rect(
+      pt1: Point(minTile.x, minTile.y),
+      pt2: Point(maxTile.x, maxTile.y),
+    );
     return GeoRect(
       minLat: minLat,
       minLon: minLon,
