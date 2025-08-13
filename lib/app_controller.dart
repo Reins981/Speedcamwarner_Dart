@@ -15,6 +15,7 @@ import 'overspeed_thread.dart' as overspeed;
 import 'overspeed_checker.dart';
 import 'config.dart';
 import 'thread_base.dart';
+import 'deviation_checker.dart' as deviation;
 
 /// Central place that wires up background modules and manages their
 /// lifecycles.  The original Python project spawned numerous threads; in
@@ -40,6 +41,13 @@ class AppController {
     gps.stream.listen((vector) {
       calculator.addVectorSample(vector);
       gpsProducer.update(vector);
+      _bearingBuffer.add(vector.bearing);
+      if (_bearingBuffer.length == 5) {
+        final data = List<double>.from(_bearingBuffer);
+        averageAngleQueue.produce(data);
+        deviationChecker.addAverageAngleData(data);
+        _bearingBuffer.clear();
+      }
     });
     poiReader = POIReader(
       speedCamQueue,
@@ -64,6 +72,12 @@ class AppController {
           AppConfig.get<bool>('accusticWarner.ai_voice_prompts') ?? false,
     );
     unawaited(voiceThread.run());
+
+    deviationChecker = deviation.DeviationCheckerThread(
+      cond: _deviationCond,
+      condAr: _deviationCondAr,
+      avBearingValue: averageBearingValue,
+    );
   }
 
   /// Handles GPS sampling.
@@ -89,6 +103,21 @@ class AppController {
 
   /// Publishes the current overspeed difference to the UI.
   late final OverspeedChecker overspeedChecker;
+
+  /// Calculates deviation of the current course based on recent bearings.
+  late final deviation.DeviationCheckerThread deviationChecker;
+
+  /// Shared queue holding the last bearings for the deviation checker.
+  final AverageAngleQueue<List<double>> averageAngleQueue =
+      AverageAngleQueue<List<double>>();
+
+  final deviation.ThreadCondition _deviationCond = deviation.ThreadCondition();
+  final deviation.ThreadCondition _deviationCondAr = deviation.ThreadCondition();
+
+  final ValueNotifier<String> averageBearingValue =
+      ValueNotifier<String>('---.-°');
+
+  final List<double> _bearingBuffer = <double>[];
 
   /// Supplies direction and coordinates for POI queries.
   final GpsProducer gpsProducer = GpsProducer();
@@ -125,6 +154,7 @@ class AppController {
     );
     gps.start(source: locationManager.stream);
     calculator.run();
+    deviationChecker.start();
     _running = true;
   }
 
@@ -138,6 +168,9 @@ class AppController {
     camWarner.cond.setTerminateState(true);
     voiceThread.stop();
     await overspeedThread.stop();
+    deviationChecker.terminate();
+    averageAngleQueue.clearAverageAngleData();
+    _bearingBuffer.clear();
     _running = false;
   }
 
@@ -151,6 +184,9 @@ class AppController {
     poiReader.stopTimer();
     camWarner.cond.setTerminateState(true);
     voiceThread.stop();
+    deviationChecker.terminate();
+    averageAngleQueue.clearAverageAngleData();
+    _bearingBuffer.clear();
   }
 }
 
