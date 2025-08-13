@@ -1996,7 +1996,6 @@ class RectangleCalculatorThread {
       logLevel: 'DEBUG',
     );
 
-    final baseUrl = 'https://overpass-api.de/api/interpreter?data=';
     final bbox =
         '(${area.minLat},${area.minLon},${area.maxLat},${area.maxLon})';
     String query;
@@ -2011,16 +2010,24 @@ class RectangleCalculatorThread {
     }
     logger.printLogLine('triggerOsmLookup query: $query', logLevel: 'DEBUG');
 
-    final uri = Uri.parse(baseUrl + Uri.encodeQueryComponent(query));
+    // Build the request URI using Uri.https so that the query string is
+    // encoded correctly on all platforms.  The previous string
+    // concatenation could produce invalid URLs on some systems which in
+    // turn caused the Overpass API request to fail silently.
+    final uri =
+        Uri.https('overpass-api.de', '/api/interpreter', {'data': query});
     logger.printLogLine('triggerOsmLookup uri: $uri', logLevel: 'DEBUG');
     final http.Client httpClient = client ?? http.Client();
 
     for (var attempt = 1; attempt <= osmRetryMaxAttempts; attempt++) {
       final start = DateTime.now();
       try {
-        final resp = await httpClient.get(uri, headers: {
-          'User-Agent': 'speedcamwarner-dart'
-        }).timeout(const Duration(seconds: 15));
+        final resp = await httpClient
+            .get(uri, headers: {
+              'User-Agent': 'speedcamwarner-dart',
+              'Accept': 'application/json',
+            })
+            .timeout(const Duration(seconds: 15));
         final duration = DateTime.now().difference(start);
         reportDownloadTime(duration);
         logger.printLogLine(
