@@ -109,11 +109,9 @@ class AppController {
     );
     unawaited(voiceThread.run());
 
-    deviationChecker = deviation.DeviationCheckerThread(
-      cond: _deviationCond,
-      condAr: _deviationCondAr,
-      avBearingValue: averageBearingValue,
-    );
+    // Start the deviation checker by default so it can be paused during AR
+    // sessions and restarted afterwards.
+    startDeviationCheckerThread();
   }
 
   /// Handles GPS sampling.
@@ -177,6 +175,14 @@ class AppController {
   /// Publishes the latest AR detection status so UI widgets can react.
   final ValueNotifier<String> arStatusNotifier = ValueNotifier<String>('Idle');
 
+  /// Monitors bearing deviations while AR mode is inactive.
+  deviation.DeviationCheckerThread? _deviationChecker;
+  deviation.ThreadCondition? _deviationCond;
+  deviation.ThreadCondition? _deviationCondAr;
+  final ValueNotifier<String> _avBearingValue =
+      ValueNotifier<String>('---.-');
+  bool _deviationRunning = false;
+
   bool _running = false;
 
   /// Start background services if not already running.
@@ -210,6 +216,7 @@ class AppController {
     camWarner.cond.setTerminateState(true);
     voiceThread.stop();
     await overspeedThread.stop();
+    stopDeviationCheckerThread();
     await osmThread.stop();
     deviationChecker.terminate();
     averageAngleQueue.clearAverageAngleData();
@@ -227,6 +234,30 @@ class AppController {
     poiReader.stopTimer();
     camWarner.cond.setTerminateState(true);
     voiceThread.stop();
+    stopDeviationCheckerThread();
+  }
+
+  /// Start the [DeviationCheckerThread] if it isn't already running.
+  void startDeviationCheckerThread() {
+    if (_deviationRunning) return;
+    _deviationCond = deviation.ThreadCondition();
+    _deviationCondAr = deviation.ThreadCondition();
+    _deviationChecker = deviation.DeviationCheckerThread(
+      cond: _deviationCond!,
+      condAr: _deviationCondAr!,
+      avBearingValue: _avBearingValue,
+    );
+    _deviationChecker!.start();
+    _deviationRunning = true;
+  }
+
+  /// Stop the [DeviationCheckerThread] if currently active.
+  void stopDeviationCheckerThread() {
+    if (!_deviationRunning) return;
+    _deviationCondAr?.terminate = true;
+    _deviationChecker?.addAverageAngleData('TERMINATE');
+    _deviationChecker = null;
+    _deviationRunning = false;
     deviationChecker.terminate();
     averageAngleQueue.clearAverageAngleData();
     _bearingBuffer.clear();

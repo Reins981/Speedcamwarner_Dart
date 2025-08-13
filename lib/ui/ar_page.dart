@@ -3,9 +3,11 @@ import 'package:flutter/material.dart';
 import '../ar_layout.dart';
 import '../app_controller.dart';
 
-/// Page that exposes the augmented reality camera view.  The heavy lifting is
-/// performed by [EdgeDetect]; this widget merely offers start/stop controls.
-class ArPage extends StatefulWidget {
+/// Page that displays the augmented reality layout.
+///
+/// The heavy lifting is handled by [ARLayout]; this widget simply wires the
+/// [AppController] into it so the AR view can manage background threads.
+class ArPage extends StatelessWidget {
   final AppController controller;
   final VoidCallback onReturn;
   const ArPage({super.key, required this.controller, required this.onReturn});
@@ -48,31 +50,8 @@ class _ArPageState extends State<ArPage> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(
-        title: const Text('AR View'),
-        leading: _running
-            ? IconButton(
-                icon: const Icon(Icons.arrow_back),
-                onPressed: widget.onReturn,
-              )
-            : null,
-      ),
-      body: Stack(
-        children: [
-          Positioned.fill(
-              child: EdgeDetect(
-            key: _arKey,
-            statusNotifier: widget.controller.arStatusNotifier,
-          )),
-          if (!_running)
-            const Center(child: Text('Camera stopped')),
-        ],
-      ),
-      floatingActionButton: FloatingActionButton(
-        onPressed: _toggleAr,
-        tooltip: _running ? 'Stop AR' : 'Start AR',
-        child: Icon(_running ? Icons.stop : Icons.play_arrow),
-      ),
+      body: ARLayout(mainApp: controller),
     );
   }
 }
+
