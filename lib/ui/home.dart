@@ -38,7 +38,10 @@ class _HomePageState extends State<HomePage> {
         arStatus: widget.controller.arStatusNotifier,
       ),
       MapPage(calculator: widget.controller.calculator),
-      ArPage(controller: widget.controller),
+      ArPage(
+        controller: widget.controller,
+        onReturn: _showMain,
+      ),
       InfoPage(calculator: widget.controller.calculator),
       StatsPage(calculator: widget.controller.calculator),
     ];
