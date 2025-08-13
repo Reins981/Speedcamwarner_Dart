@@ -357,9 +357,11 @@ class RectangleCalculatorThread {
   final ValueNotifier<String> roadNameNotifier = ValueNotifier<String>('');
   final ValueNotifier<double?> camRadiusNotifier = ValueNotifier<double?>(null);
   final ValueNotifier<String?> infoPageNotifier = ValueNotifier<String?>(null);
+
   /// Tracks the number of construction areas discovered so far.
-  final ValueNotifier<int> constructionAreaCountNotifier =
-      ValueNotifier<int>(0);
+  final ValueNotifier<int> constructionAreaCountNotifier = ValueNotifier<int>(
+    0,
+  );
   final ValueNotifier<bool> maxspeedOnlineNotifier = ValueNotifier<bool>(false);
   final ValueNotifier<String?> maxspeedStatusNotifier = ValueNotifier<String?>(
     null,
@@ -391,6 +393,20 @@ class RectangleCalculatorThread {
 
   /// Current rectangle angle used for look‑ahead projections.
   double currentRectAngle = 0.0;
+
+  /// Size of the rectangle used by the legacy POI reader. The original
+  /// implementation exposed a full lookup table keyed by driving direction.
+  /// Only a single constant value is required for the Dart port, therefore we
+  /// keep a simple scalar here.
+  double rectangle_periphery_poi_reader = 20.0;
+
+  /// Counters tracking how many cameras of each type are currently known. They
+  /// mirror similarly named attributes in the Python implementation and are
+  /// mutated by [SpeedCamWarner].
+  int fix_cams = 0;
+  int traffic_cams = 0;
+  int distance_cams = 0;
+  int mobile_cams = 0;
 
   /// Distance in kilometres used for construction area look‑ahead.
   double constructionAreaLookaheadDistance = 1.0;
@@ -495,11 +511,11 @@ class RectangleCalculatorThread {
     SpeedCamQueue<Map<String, dynamic>>? speedCamQueue,
     OverspeedChecker? overspeedChecker,
     this.overspeedThread,
-  })  : _predictiveModel = model ?? PredictiveModel(),
-        voicePromptQueue = voicePromptQueue ?? VoicePromptQueue(),
-        speedCamQueue = speedCamQueue,
-        mostProbableWay = MostProbableWay(),
-        overspeedChecker = overspeedChecker ?? OverspeedChecker() {
+  }) : _predictiveModel = model ?? PredictiveModel(),
+       voicePromptQueue = voicePromptQueue ?? VoicePromptQueue(),
+       speedCamQueue = speedCamQueue,
+       mostProbableWay = MostProbableWay(),
+       overspeedChecker = overspeedChecker ?? OverspeedChecker() {
     _start();
   }
 
@@ -593,7 +609,8 @@ class RectangleCalculatorThread {
   /// determine whether a speed camera might exist ahead on the current route.
   Future<void> _processVector(VectorData vector) async {
     logger.printLogLine(
-        'Processing vector lon:${vector.longitude}, lat:${vector.latitude}, speed:${vector.speed}, bearing:${vector.bearing}');
+      'Processing vector lon:${vector.longitude}, lat:${vector.latitude}, speed:${vector.speed}, bearing:${vector.bearing}',
+    );
     longitude = vector.longitude;
     latitude = vector.latitude;
     direction = vector.direction;
@@ -639,7 +656,8 @@ class RectangleCalculatorThread {
     );
     if (predicted != null) {
       logger.printLogLine(
-          'Predictive camera detected at ${predicted.latitude}, ${predicted.longitude}');
+        'Predictive camera detected at ${predicted.latitude}, ${predicted.longitude}',
+      );
       // If a camera was predicted ahead, publish it on the camera stream and
       // optionally record it to persistent storage.
       _cameraStreamController.add(predicted);
@@ -741,6 +759,37 @@ class RectangleCalculatorThread {
     final double latRad = math.atan(_sinh(math.pi * (1.0 - 2.0 * yTile / n)));
     final double latDeg = latRad * 180.0 / math.pi;
     return math.Point<double>(lonDeg, latDeg);
+  }
+
+  /// Legacy wrappers providing backwards compatibility with the original
+  /// function names used throughout the project.  The original Python code
+  /// exposed ``longlat2tile``/``tile2longlat``; some callers still reference
+  /// these identifiers.  Keep small convenience wrappers to avoid touching the
+  /// call sites.
+  List<double> longlat2tile(double latDeg, double lonDeg, int zoom) {
+    final pt = longLatToTile(latDeg, lonDeg, zoom);
+    return [pt.x, pt.y];
+  }
+
+  List<double> tile2longlat(double xTile, double yTile, int zoom) {
+    final pt = tileToLongLat(xTile, yTile, zoom);
+    return [pt.x, pt.y];
+  }
+
+  /// Construct a [Rect] from two corner points expressed in tile coordinates.
+  Rect calculate_rectangle_border(List<double> pt1, List<double> pt2) {
+    return Rect(pt1: Point(pt1[0], pt1[1]), pt2: Point(pt2[0], pt2[1]));
+  }
+
+  /// Calculate the radius (half of the diagonal) of a rectangle with the given
+  /// [height] and [width].
+  double calculate_rectangle_radius(double height, double width) {
+    return math.sqrt(math.pow(height, 2) + math.pow(width, 2)) / 2.0;
+  }
+
+  /// Update the current camera radius and notify listeners.
+  void update_cam_radius(double radius) {
+    camRadiusNotifier.value = radius;
   }
 
   /// Format a [DateTime] into HH:MM format.  This helper mirrors the
@@ -1331,7 +1380,8 @@ class RectangleCalculatorThread {
       updateMapQueue();
       updateInfoPage('CONSTRUCTION_AREAS:${constructionAreas.length}');
       logger.printLogLine(
-          'Total construction areas: ${constructionAreas.length}');
+        'Total construction areas: ${constructionAreas.length}',
+      );
       cleanupMapContent();
     }
   }
@@ -1486,7 +1536,9 @@ class RectangleCalculatorThread {
       }
     }
     if (cams.isNotEmpty) {
-      logger.printLogLine('Found ${cams.length} cameras from $lookupType lookup');
+      logger.printLogLine(
+        'Found ${cams.length} cameras from $lookupType lookup',
+      );
       updateSpeedCams(cams);
       updateMapQueue();
       updateInfoPage('SPEED_CAMERAS');

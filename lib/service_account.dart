@@ -133,7 +133,7 @@ class ServiceAccount {
     final driveApi = drive.DriveApi(client);
     final fname = uploadFileName ?? fileName;
     try {
-      final file = await driveApi.files.get(id, $fields: 'parents');
+      final drive.File file = await driveApi.files.get(id, $fields: 'parents');
       final currentParents = (file.parents ?? []).join(',');
       final media = drive.Media(
         File(fname).openRead(),
@@ -165,10 +165,12 @@ class ServiceAccount {
   ) async {
     final api = drive.DriveApi(client);
     try {
-      final media = await api.files.get(
-        fileId,
-        downloadOptions: drive.DownloadOptions.fullMedia,
-      );
+      final drive.Media media =
+          await api.files.get(
+                fileId,
+                downloadOptions: drive.DownloadOptions.fullMedia,
+              )
+              as drive.Media;
       final data = await media.stream.fold<List<int>>(
         [],
         (buffer, bytes) => buffer..addAll(bytes),

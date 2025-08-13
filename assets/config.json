@@ -1,0 +1,96 @@
+{
+  "main": {
+    "poi_distance": 50
+  },
+  "calculator": {
+    "max_download_time": 20,
+    "osm_timeout": 20,
+    "osm_timeout_motorway": 30,
+    "dos_attack_prevention_interval_downloads": 30,
+    "speed_cam_look_ahead_distance": 300,
+    "construction_area_lookahead_distance": 30,
+    "construction_area_startup_trigger_max": 60,
+    "initial_rect_distance": 3,
+    "speed_influence_on_rect_boundary": 110,
+    "current_rect_angle": 90,
+    "fallback_rect_angle": 123,
+    "zoom": 17,
+    "max_cross_roads": 3,
+    "disable_road_lookup": false,
+    "cameras_look_ahead_mode": true,
+    "alternative_road_lookup": true,
+    "use_only_one_extrapolated_rect": false,
+    "consider_backup_rects": true,
+    "dismiss_pois": true,
+    "enable_ordered_rects_extrapolated": true,
+    "max_number_extrapolated_rects": 6,
+    "maxspeed_countries": {
+      "AT:motorway": 130,
+      "DE:motorway": "UNLIMITED",
+      "motorway_general": 130
+    },
+    "road_classes_to_speed": {
+      "trunk": 100,
+      "primary": 100,
+      "unclassified": 70,
+      "secondary": 50,
+      "tertiary": 50,
+      "service": 50,
+      "track": 30,
+      "residential": 30,
+      "bus_guideway": 30,
+      "escape": 30,
+      "bridleway": 30,
+      "living_street": 20,
+      "path": 20,
+      "cycleway": 20,
+      "pedestrian": 10,
+      "footway": 10,
+      "road": 10,
+      "urban": 50
+    }
+  },
+  "sql": {
+    "u_time_from_cloud": 60,
+    "init_time_from_cloud": 10,
+    "u_time_from_db": 30
+  },
+  "speedCamWarner": {
+    "enable_inside_relevant_angle_feature": true,
+    "emergency_angle_distance": 150,
+    "delete_cameras_outside_lookahead_rectangle": true,
+    "max_absolute_distance": 300000,
+    "max_storage_time": 28800,
+    "traversed_cameras_interval": 3,
+    "max_dismiss_counter": 5,
+    "max_distance_to_future_camera": 5000,
+    "baseurl": "http://overpass-api.de/api/interpreter?",
+    "querystring1": "data=[out:json];",
+    "querystring2": "way[\"highway\"~\".\"](around:5,",
+    "querystring3": "50.7528080,2.0377858",
+    "querystring4": ");out geom;"
+  },
+  "accusticWarner": {
+    "ai_voice_prompts": true
+  },
+  "gpsConsumer": {
+    "display_miles": false
+  },
+  "gpsThread": {
+    "gps_test_data": true,
+    "max_gps_entries": 50000,
+    "gpx_file": "python/gpx/Weekend_Karntner_5SeenTour.gpx",
+    "gps_treshold": 40,
+    "gps_inaccuracy_treshold": 4,
+    "recording": false
+  },
+  "osmWrapper": {
+    "draw_rects": true
+  },
+  "osmWrapperPorted": {
+    "draw_rects": true
+  },
+  "logger": {
+    "always_log_to_stdout": false
+  }
+}

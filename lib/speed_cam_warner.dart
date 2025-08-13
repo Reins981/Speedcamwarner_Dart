@@ -4,6 +4,7 @@ import 'dart:math';
 import 'rectangle_calculator.dart';
 import 'thread_base.dart';
 import 'voice_prompt_queue.dart';
+import 'config.dart';
 
 /// Ported from `SpeedCamWarnerThread.py`.
 ///
@@ -64,8 +65,42 @@ class SpeedCamWarner {
 
   // ----------------------------------------------------------------------
   void setConfigs() {
-    // Settings are already defined above as default values.  Keep a backup of
-    // the storage time for later restoration.
+    enableInsideRelevantAngleFeature =
+        AppConfig.get<bool>(
+          'speedCamWarner.enable_inside_relevant_angle_feature',
+        ) ??
+        enableInsideRelevantAngleFeature;
+    emergencyAngleDistance =
+        (AppConfig.get<num>('speedCamWarner.emergency_angle_distance') ??
+                emergencyAngleDistance)
+            .toDouble();
+    deleteCamerasOutsideLookaheadRectangle =
+        AppConfig.get<bool>(
+          'speedCamWarner.delete_cameras_outside_lookahead_rectangle',
+        ) ??
+        deleteCamerasOutsideLookaheadRectangle;
+    maxAbsoluteDistance =
+        (AppConfig.get<num>('speedCamWarner.max_absolute_distance') ??
+                maxAbsoluteDistance)
+            .toDouble();
+    maxStorageTime =
+        (AppConfig.get<num>('speedCamWarner.max_storage_time') ??
+                maxStorageTime)
+            .toDouble();
+    traversedCamerasInterval =
+        (AppConfig.get<num>('speedCamWarner.traversed_cameras_interval') ??
+                traversedCamerasInterval)
+            .toInt();
+    maxDismissCounter =
+        (AppConfig.get<num>('speedCamWarner.max_dismiss_counter') ??
+                maxDismissCounter)
+            .toInt();
+    maxDistanceToFutureCamera =
+        (AppConfig.get<num>('speedCamWarner.max_distance_to_future_camera') ??
+                maxDistanceToFutureCamera)
+            .toInt();
+
+    // Keep a backup of the storage time for later restoration.
     maxStorageTimeBackup = maxStorageTime;
   }
 
@@ -103,13 +138,15 @@ class SpeedCamWarner {
       var enforcement = item['fix_cam'][3];
       if (!enforcement) {
         print(
-            'Fix Cam with ${item['fix_cam'][1]} ${item['fix_cam'][2]} is not an enforcement camera. Skipping..');
+          'Fix Cam with ${item['fix_cam'][1]} ${item['fix_cam'][2]} is not an enforcement camera. Skipping..',
+        );
         return null;
       }
 
       if (isAlreadyAdded([item['fix_cam'][1], item['fix_cam'][2]])) {
         print(
-            'Cam with ${item['fix_cam'][1]} ${item['fix_cam'][2]} already added. Skip processing..');
+          'Cam with ${item['fix_cam'][1]} ${item['fix_cam'][2]} already added. Skip processing..',
+        );
         return null;
       } else {
         print('Add new fix cam (${item['fix_cam'][1]}, ${item['fix_cam'][2]})');
@@ -139,10 +176,9 @@ class SpeedCamWarner {
           maxSpeed,
           newCam,
           previousLife,
-          predictive
+          predictive,
         ];
-        insertedSpeedcams
-            .add([item['fix_cam'][1], item['fix_cam'][2]]);
+        insertedSpeedcams.add([item['fix_cam'][1], item['fix_cam'][2]]);
         updateSpeedcam('fix');
       }
     }
@@ -152,16 +188,20 @@ class SpeedCamWarner {
       var enforcement = item['traffic_cam'][3];
       if (!enforcement) {
         print(
-            'Traffic Cam with ${item['traffic_cam'][1]} ${item['traffic_cam'][2]} is not an enforcement camera. Skipping..');
+          'Traffic Cam with ${item['traffic_cam'][1]} ${item['traffic_cam'][2]} is not an enforcement camera. Skipping..',
+        );
         return null;
       }
 
       if (isAlreadyAdded([item['traffic_cam'][1], item['traffic_cam'][2]])) {
         print(
-            'Cam with ${item['traffic_cam'][1]} ${item['traffic_cam'][2]} already added. Skip processing..');
+          'Cam with ${item['traffic_cam'][1]} ${item['traffic_cam'][2]} already added. Skip processing..',
+        );
         return null;
       } else {
-        print('Add new traffic cam (${item['traffic_cam'][1]}, ${item['traffic_cam'][2]})');
+        print(
+          'Add new traffic cam (${item['traffic_cam'][1]}, ${item['traffic_cam'][2]})',
+        );
         camCoordinates = [item['traffic_cam'][1], item['traffic_cam'][2]];
         ccpNodeCoordinates = [item['ccp_node'][0], item['ccp_node'][1]];
         var linkedList = item['list_tree'][0];
@@ -188,10 +228,9 @@ class SpeedCamWarner {
           maxSpeed,
           newCam,
           previousLife,
-          predictive
+          predictive,
         ];
-        insertedSpeedcams
-            .add([item['traffic_cam'][1], item['traffic_cam'][2]]);
+        insertedSpeedcams.add([item['traffic_cam'][1], item['traffic_cam'][2]]);
         updateSpeedcam('traffic');
       }
     }
@@ -201,16 +240,20 @@ class SpeedCamWarner {
       var enforcement = item['distance_cam'][3];
       if (!enforcement) {
         print(
-            'Distance Cam with ${item['distance_cam'][1]} ${item['distance_cam'][2]} is not an enforcement camera. Skipping..');
+          'Distance Cam with ${item['distance_cam'][1]} ${item['distance_cam'][2]} is not an enforcement camera. Skipping..',
+        );
         return null;
       }
 
       if (isAlreadyAdded([item['distance_cam'][1], item['distance_cam'][2]])) {
         print(
-            'Cam with ${item['distance_cam'][1]} ${item['distance_cam'][2]} already added. Skip processing..');
+          'Cam with ${item['distance_cam'][1]} ${item['distance_cam'][2]} already added. Skip processing..',
+        );
         return null;
       } else {
-        print('Add new distance cam (${item['distance_cam'][1]}, ${item['distance_cam'][2]})');
+        print(
+          'Add new distance cam (${item['distance_cam'][1]}, ${item['distance_cam'][2]})',
+        );
         camCoordinates = [item['distance_cam'][1], item['distance_cam'][2]];
         ccpNodeCoordinates = [item['ccp_node'][0], item['ccp_node'][1]];
         var linkedList = item['list_tree'][0];
@@ -237,10 +280,12 @@ class SpeedCamWarner {
           maxSpeed,
           newCam,
           previousLife,
-          predictive
+          predictive,
         ];
-        insertedSpeedcams
-            .add([item['distance_cam'][1], item['distance_cam'][2]]);
+        insertedSpeedcams.add([
+          item['distance_cam'][1],
+          item['distance_cam'][2],
+        ]);
         updateSpeedcam('distance');
       }
     }
@@ -250,16 +295,20 @@ class SpeedCamWarner {
       var enforcement = item['mobile_cam'][3];
       if (!enforcement) {
         print(
-            'Mobile Cam with ${item['mobile_cam'][1]} ${item['mobile_cam'][2]} is not an enforcement camera. Skipping..');
+          'Mobile Cam with ${item['mobile_cam'][1]} ${item['mobile_cam'][2]} is not an enforcement camera. Skipping..',
+        );
         return null;
       }
 
       if (isAlreadyAdded([item['mobile_cam'][1], item['mobile_cam'][2]])) {
         print(
-            'Cam with ${item['mobile_cam'][1]} ${item['mobile_cam'][2]} already added. Skip processing..');
+          'Cam with ${item['mobile_cam'][1]} ${item['mobile_cam'][2]} already added. Skip processing..',
+        );
         return null;
       } else {
-        print('Add new mobile cam (${item['mobile_cam'][1]}, ${item['mobile_cam'][2]})');
+        print(
+          'Add new mobile cam (${item['mobile_cam'][1]}, ${item['mobile_cam'][2]})',
+        );
         camCoordinates = [item['mobile_cam'][1], item['mobile_cam'][2]];
         ccpNodeCoordinates = [item['ccp_node'][0], item['ccp_node'][1]];
         var linkedList = item['list_tree'][0];
@@ -286,10 +335,9 @@ class SpeedCamWarner {
           maxSpeed,
           newCam,
           previousLife,
-          predictive
+          predictive,
         ];
-        insertedSpeedcams
-            .add([item['mobile_cam'][1], item['mobile_cam'][2]]);
+        insertedSpeedcams.add([item['mobile_cam'][1], item['mobile_cam'][2]]);
         updateSpeedcam('mobile');
       }
     }
@@ -302,22 +350,28 @@ class SpeedCamWarner {
     for (var entry in itemQueueBackup.entries.toList()) {
       var cam = entry.key;
       var camAttributes = entry.value;
-      var currentDistance =
-          checkDistanceBetweenTwoPoints(cam, [longitude, latitude]);
+      var currentDistance = checkDistanceBetweenTwoPoints(cam, [
+        longitude,
+        latitude,
+      ]);
       if (itemQueueBackup.containsKey(cam)) {
         var startTime = DateTime.now().millisecondsSinceEpoch / 1000.0;
         camAttributes[6] = startTime;
         var lastDistance = camAttributes[8];
         if (currentDistance < lastDistance) {
           print(
-              'Reinserting ${camAttributes[0]} camera $cam with new distance $currentDistance meters and start time $startTime seconds');
+            'Reinserting ${camAttributes[0]} camera $cam with new distance $currentDistance meters and start time $startTime seconds',
+          );
           itemQueue[cam] = camAttributes;
-          itemQueue[cam][1] = false;
-          itemQueue[cam][5] = -1;
-          itemQueue[cam][6] = startTime;
-          itemQueue[cam][8] = currentDistance;
-          itemQueue[cam][11] = true;
-          itemQueue[cam][12] = 'was_backup';
+          final queue = itemQueue[cam];
+          if (queue != null) {
+            queue[1] = false;
+            queue[5] = -1;
+            queue[6] = startTime;
+            queue[8] = currentDistance;
+            queue[11] = true;
+            queue[12] = 'was_backup';
+          }
           startTimes[cam] = startTime;
           itemQueueBackup.remove(cam);
         }
@@ -332,15 +386,18 @@ class SpeedCamWarner {
     }
 
     // sort based on last distance
-    itemQueue = Map.fromEntries(itemQueue.entries.toList()
-      ..sort((a, b) => (a.value.last as num).compareTo(b.value.last as num)));
+    itemQueue = Map.fromEntries(
+      itemQueue.entries.toList()
+        ..sort((a, b) => (a.value.last as num).compareTo(b.value.last as num)),
+    );
 
     for (var entry in itemQueue.entries.toList()) {
       var cam = entry.key;
       var camAttributes = entry.value;
       var distance = camAttributes.last;
       print(
-          'Initial Distance to speed cam (${cam[0]}, ${cam[1]}, ${camAttributes[0]}): $distance meters , last distance: ${camAttributes[5]}, storage_time: ${camAttributes[6]} seconds, predictive: ${camAttributes[13]}');
+        'Initial Distance to speed cam (${cam[0]}, ${cam[1]}, ${camAttributes[0]}): $distance meters , last distance: ${camAttributes[5]}, storage_time: ${camAttributes[6]} seconds, predictive: ${camAttributes[13]}',
+      );
 
       if (distance < 0 || camAttributes[1] == true) {
         camsToDelete.add(cam);
@@ -351,14 +408,15 @@ class SpeedCamWarner {
         updateCalculatorCams(camAttributes);
       } else {
         if (startTimes.containsKey(cam) && itemQueue.containsKey(cam)) {
-          if (itemQueue[cam][12] == 'was_backup') {
-            itemQueue[cam][12] = 'is_standard';
+          final queue = itemQueue[cam];
+          if (queue != null && queue[12] == 'was_backup') {
+            queue[12] = 'is_standard';
           } else {
             var startTime =
                 DateTime.now().millisecondsSinceEpoch / 1000.0 -
-                    startTimes[cam]!;
-            itemQueue[cam][6] = startTime;
-            itemQueue[cam][11] = false;
+                startTimes[cam]!;
+            queue?[6] = startTime;
+            queue?[11] = false;
           }
 
           if (camAttributes[1] == 'to_be_stored') {
@@ -408,13 +466,13 @@ class SpeedCamWarner {
           nextCamRoad = '${nextCamRoad.substring(0, 20)}...';
         }
         nextCamDistance = '${itemQueue[nextCam]?[8] ?? ''}';
-        nextCamDistanceAsInt =
-            int.tryParse(nextCamDistance.split('.')[0]) ?? 0;
+        nextCamDistanceAsInt = int.tryParse(nextCamDistance.split('.')[0]) ?? 0;
         processNextCam = true;
       } catch (_) {}
     }
 
     var attributes = itemQueue[cam];
+    if (attributes == null) return null;
     var newCam = attributes[11];
     var camRoadName = attributes[7];
     var linkedList = attributes[3];
@@ -425,26 +483,31 @@ class SpeedCamWarner {
     var speedcamType = attributes[0];
     var distance = attributes[8];
 
-    if (!matchCameraAgainstAngle(cam, distance, camRoadName,
-        angleMismatchVoice: angleMismatchVoice)) {
-      itemQueue[cam][5] = lastDistance;
+    if (!matchCameraAgainstAngle(
+      cam,
+      distance,
+      camRoadName,
+      angleMismatchVoice: angleMismatchVoice,
+    )) {
+      itemQueue[cam]?[5] = lastDistance;
       return null;
     }
 
     triggerSpeedCamUpdate(
-        distance: distance,
-        camCoordinates: cam,
-        speedcam: speedcamType,
-        ccpNode: attributes[2],
-        linkedList: linkedList,
-        tree: tree,
-        lastDistance: lastDistance,
-        maxSpeed: maxSpeed,
-        predictive: predictive,
-        nextCamRoad: nextCamRoad,
-        nextCamDistance: nextCamDistance,
-        nextCamDistanceAsInt: nextCamDistanceAsInt,
-        processNextCam: processNextCam);
+      distance: distance,
+      camCoordinates: cam,
+      speedcam: speedcamType,
+      ccpNode: attributes[2],
+      linkedList: linkedList,
+      tree: tree,
+      lastDistance: lastDistance,
+      maxSpeed: maxSpeed,
+      predictive: predictive,
+      nextCamRoad: nextCamRoad,
+      nextCamDistance: nextCamDistance,
+      nextCamDistanceAsInt: nextCamDistanceAsInt,
+      processNextCam: processNextCam,
+    );
 
     return null;
   }
@@ -461,24 +524,29 @@ class SpeedCamWarner {
     }
   }
 
-  bool matchCameraAgainstAngle(dynamic cam, double currentDistanceToCam,
-      dynamic camRoadName,
-      {bool angleMismatchVoice = false}) {
+  bool matchCameraAgainstAngle(
+    dynamic cam,
+    double currentDistanceToCam,
+    dynamic camRoadName, {
+    bool angleMismatchVoice = false,
+  }) {
     if (!insideRelevantAngle(cam, currentDistanceToCam)) {
       camInProgress = false;
       triggerFreeFlow();
       if (dismissCounter <= maxDismissCounter) {
         updateCamRoad(
-            road: 'DISMISS\n$camRoadName',
-            color: [0, 1, .3, .8],
-            size: '26sp');
+          road: 'DISMISS\n$camRoadName',
+          color: [0, 1, .3, .8],
+          size: '26sp',
+        );
         dismissCounter += 1;
       } else {
         updateCamRoad(reset: true);
       }
       updateMaxSpeed(reset: true);
       print(
-          'Leaving Speed Camera with coordinates: (${cam[0]} ${cam[1]}), road name: $camRoadName because of Angle mismatch');
+        'Leaving Speed Camera with coordinates: (${cam[0]} ${cam[1]}), road name: $camRoadName because of Angle mismatch',
+      );
       if (angleMismatchVoice) {
         voicePromptQueue.produceCameraStatus('ANGLE_MISMATCH');
       }
@@ -497,7 +565,8 @@ class SpeedCamWarner {
       var startTime =
           DateTime.now().millisecondsSinceEpoch / 1000.0 - cpCamQueue[cam]![6];
       print(
-          'Backup camera $cam with last distance $distance km and start time $startTime seconds');
+        'Backup camera $cam with last distance $distance km and start time $startTime seconds',
+      );
     } catch (e) {
       print('Backup of camera $cam with last distance $distance km failed!');
     }
@@ -509,8 +578,7 @@ class SpeedCamWarner {
         itemQueue.remove(cam);
         startTimes.remove(cam);
       } catch (_) {
-        print(
-            'Failed to delete camera $cam, camera already deleted');
+        print('Failed to delete camera $cam, camera already deleted');
       }
     }
     camsToDelete.clear();
@@ -539,20 +607,21 @@ class SpeedCamWarner {
     }
   }
 
-  void triggerSpeedCamUpdate(
-      {required double distance,
-      required dynamic camCoordinates,
-      required String speedcam,
-      required dynamic ccpNode,
-      required dynamic linkedList,
-      required dynamic tree,
-      required double lastDistance,
-      dynamic maxSpeed,
-      bool predictive = false,
-      String nextCamRoad = '',
-      String nextCamDistance = '',
-      int nextCamDistanceAsInt = 0,
-      bool processNextCam = false}) {
+  void triggerSpeedCamUpdate({
+    required double distance,
+    required dynamic camCoordinates,
+    required String speedcam,
+    required dynamic ccpNode,
+    required dynamic linkedList,
+    required dynamic tree,
+    required double lastDistance,
+    dynamic maxSpeed,
+    bool predictive = false,
+    String nextCamRoad = '',
+    String nextCamDistance = '',
+    int nextCamDistanceAsInt = 0,
+    bool processNextCam = false,
+  }) {
     if (distance >= 0 && distance <= 100) {
       camInProgress = true;
       if (lastDistance == -1 || lastDistance > 100) {
@@ -690,10 +759,11 @@ class SpeedCamWarner {
           } else {
             if (nextCamDistanceAsInt <= maxDistanceToFutureCamera) {
               updateCamRoad(
-                  road: '$nextCamDistance\n$nextCamRoad',
-                  color: [1, .9, 0, 2],
-                  sizeHint: [1.0, 0.4],
-                  size: '26sp');
+                road: '$nextCamDistance\n$nextCamRoad',
+                color: [1, .9, 0, 2],
+                sizeHint: [1.0, 0.4],
+                size: '26sp',
+              );
             } else {
               updateCamRoad(reset: true);
             }
@@ -767,10 +837,11 @@ class SpeedCamWarner {
           } else {
             if (nextCamDistanceAsInt <= maxDistanceToFutureCamera) {
               updateCamRoad(
-                  road: '$nextCamDistance\n$nextCamRoad',
-                  color: [1, .9, 0, 2],
-                  sizeHint: [1.0, 0.4],
-                  size: '26sp');
+                road: '$nextCamDistance\n$nextCamRoad',
+                color: [1, .9, 0, 2],
+                sizeHint: [1.0, 0.4],
+                size: '26sp',
+              );
             } else {
               updateCamRoad(reset: true);
             }
@@ -812,10 +883,11 @@ class SpeedCamWarner {
           } else {
             if (nextCamDistanceAsInt <= maxDistanceToFutureCamera) {
               updateCamRoad(
-                  road: '$nextCamDistance\n$nextCamRoad',
-                  color: [1, .9, 0, 2],
-                  sizeHint: [1.0, 0.4],
-                  size: '26sp');
+                road: '$nextCamDistance\n$nextCamRoad',
+                color: [1, .9, 0, 2],
+                sizeHint: [1.0, 0.4],
+                size: '26sp',
+              );
             } else {
               updateCamRoad(reset: true);
             }
@@ -832,10 +904,11 @@ class SpeedCamWarner {
         } else {
           if (nextCamDistanceAsInt <= maxDistanceToFutureCamera) {
             updateCamRoad(
-                road: '$nextCamDistance\n$nextCamRoad',
-                color: [1, .9, 0, 2],
-                sizeHint: [1.0, 0.4],
-                size: '26sp');
+              road: '$nextCamDistance\n$nextCamRoad',
+              color: [1, .9, 0, 2],
+              sizeHint: [1.0, 0.4],
+              size: '26sp',
+            );
           } else {
             updateCamRoad(reset: true);
           }
@@ -845,7 +918,8 @@ class SpeedCamWarner {
         return;
       }
       print(
-          '$speedcam speed cam OUTSIDE relevant radius -> distance ${distance.toInt()} m');
+        '$speedcam speed cam OUTSIDE relevant radius -> distance ${distance.toInt()} m',
+      );
       camInProgress = false;
       triggerFreeFlow();
       if (!processNextCam) {
@@ -853,10 +927,11 @@ class SpeedCamWarner {
       } else {
         if (nextCamDistanceAsInt <= maxDistanceToFutureCamera) {
           updateCamRoad(
-              road: '$nextCamDistance\n$nextCamRoad',
-              color: [1, .9, 0, 2],
-              sizeHint: [1.0, 0.4],
-              size: '26sp');
+            road: '$nextCamDistance\n$nextCamRoad',
+            color: [1, .9, 0, 2],
+            sizeHint: [1.0, 0.4],
+            size: '26sp',
+          );
         } else {
           updateCamRoad(reset: true);
         }
@@ -877,7 +952,9 @@ class SpeedCamWarner {
   }
 
   // tuple like return for sortPois
-  ({dynamic item1, List<dynamic>? item2}) sortPois(List<List<dynamic>> camList) {
+  ({dynamic item1, List<dynamic>? item2}) sortPois(
+    List<List<dynamic>> camList,
+  ) {
     if (camList.isNotEmpty) {
       camList.sort((a, b) => (a[1] as num).compareTo(b[1] as num));
       var attr = camList.first;
@@ -892,7 +969,8 @@ class SpeedCamWarner {
       itemQueue[camCoordinates]?[7];
     } catch (_) {
       print(
-          'Check road name for speed cam with coords $camCoordinates failed. Speed cameras had been deleted already');
+        'Check road name for speed cam with coords $camCoordinates failed. Speed cameras had been deleted already',
+      );
       return;
     }
 
@@ -936,7 +1014,13 @@ class SpeedCamWarner {
 
   void updateCamText({int distance = 0, bool reset = false}) {}
 
-  void updateCamRoad({String? road, bool reset = false, dynamic color, dynamic sizeHint, String? size}) {
+  void updateCamRoad({
+    String? road,
+    bool reset = false,
+    dynamic color,
+    dynamic sizeHint,
+    String? size,
+  }) {
     if (reset) {
       calculator.updateCameraRoad(null);
     } else {
@@ -961,7 +1045,8 @@ class SpeedCamWarner {
     var radius = 6371; // km
     var dlat = _degToRad(lat2 - lat1);
     var dlon = _degToRad(lon2 - lon1);
-    var a = pow(sin(dlat / 2), 2) +
+    var a =
+        pow(sin(dlat / 2), 2) +
         cos(_degToRad(lat1)) * cos(_degToRad(lat2)) * pow(sin(dlon / 2), 2);
     var c = 2 * atan2(sqrt(a), sqrt(1 - a));
     var d = radius * c;
@@ -977,7 +1062,8 @@ class SpeedCamWarner {
       var lon2 = _degToRad(double.parse(pt2[0].toString()));
       var dlon = lon2 - lon1;
       var dlat = lat2 - lat1;
-      var a = pow(sin(dlat / 2), 2) + cos(lat1) * cos(lat2) * pow(sin(dlon / 2), 2);
+      var a =
+          pow(sin(dlat / 2), 2) + cos(lat1) * cos(lat2) * pow(sin(dlon / 2), 2);
       var c = 2 * atan2(sqrt(a), sqrt(1 - a));
       var distance = R * c;
       return double.parse((distance * 1000).toStringAsFixed(3));
@@ -1004,23 +1090,28 @@ class SpeedCamWarner {
 
   bool insideRelevantAngle(dynamic cam, double distanceToCamera) {
     try {
-      var camDirection = itemQueue[cam][9];
-      var camType = itemQueue[cam][0];
+      var entry = itemQueue[cam];
+      if (entry == null) return false;
+      var camDirection = entry[9];
+      var camType = entry[0];
       if (distanceToCamera < emergencyAngleDistance) {
         print(
-            "Emergency report triggered for Speed Camera '$camType' ($cam): Distance: $distanceToCamera m < $emergencyAngleDistance m");
+          "Emergency report triggered for Speed Camera '$camType' ($cam): Distance: $distanceToCamera m < $emergencyAngleDistance m",
+        );
         return true;
-    }
+      }
       if (ccpBearing != null && camDirection != null) {
         var directionCcp = calculateDirection(ccpBearing!);
         if (directionCcp == null) return true;
-        var directions =
-            camDirection.map((d) => calculateDirection(d as double)).toList();
+        var directions = camDirection
+            .map((d) => calculateDirection(d as double))
+            .toList();
         if (directions.contains(directionCcp)) {
           return true;
         } else {
           print(
-              "Speed Camera '$camType' ($cam): CCP bearing angle: $ccpBearing, Expected camera angle: $camDirection");
+            "Speed Camera '$camType' ($cam): CCP bearing angle: $ccpBearing, Expected camera angle: $camDirection",
+          );
           return false;
         }
       }
@@ -1050,7 +1141,9 @@ class SpeedCamWarner {
     var rectangle = calculator.rectSpeedCamLookahead;
     if (rectangle == null) return 0;
     return calculator.calculateRectangleRadius(
-        rectangle.rectHeight(), rectangle.rectWidth());
+      rectangle.rectHeight(),
+      rectangle.rectWidth(),
+    );
   }
 
   void deletePassedCameras() {
@@ -1063,24 +1156,29 @@ class SpeedCamWarner {
         if (deleteCamerasOutsideLookaheadRectangle &&
             !cameraInsideCameraRectangle(cam)) {
           print(
-              'Deleting obsolete camera: $cam (camera is outside current camera rectangle with radius ${calculateCameraRectangleRadius()} km)');
+            'Deleting obsolete camera: $cam (camera is outside current camera rectangle with radius ${calculateCameraRectangleRadius()} km)',
+          );
           deleteObsoleteCamera(cam, camAttributes);
           osmWrapper?.remove_marker_from_map(cam[0], cam[1]);
         } else {
           if (camAttributes[2][0] == 'IGNORE' ||
               camAttributes[2][1] == 'IGNORE') {
-            var distance = checkDistanceBetweenTwoPoints(
-                cam, [longitude, latitude]);
+            var distance = checkDistanceBetweenTwoPoints(cam, [
+              longitude,
+              latitude,
+            ]);
             if (distance.abs() >= maxAbsoluteDistance) {
               print(
-                  'Deleting obsolete camera: $cam (max distance $maxAbsoluteDistance m < current distance ${distance.abs()} m)');
+                'Deleting obsolete camera: $cam (max distance $maxAbsoluteDistance m < current distance ${distance.abs()} m)',
+              );
               deleteObsoleteCamera(cam, camAttributes);
               osmWrapper?.remove_marker_from_map(cam[0], cam[1]);
             } else {
               if (camAttributes[6] > maxStorageTime) {
                 if (camAttributes[11] == false) {
                   print(
-                      'Deleting obsolete camera: $cam because of storage time (max: $maxStorageTime seconds, current: ${camAttributes[6]})');
+                    'Deleting obsolete camera: $cam because of storage time (max: $maxStorageTime seconds, current: ${camAttributes[6]})',
+                  );
                   deleteObsoleteCamera(cam, camAttributes);
                   osmWrapper?.remove_marker_from_map(cam[0], cam[1]);
                 } else {
@@ -1091,11 +1189,14 @@ class SpeedCamWarner {
           } else {
             var distance =
                 checkDistanceBetweenTwoPoints(cam, camAttributes[2]) -
-                    checkDistanceBetweenTwoPoints(
-                        [longitude, latitude], camAttributes[2]);
+                checkDistanceBetweenTwoPoints([
+                  longitude,
+                  latitude,
+                ], camAttributes[2]);
             if (distance < 0 && distance.abs() >= maxAbsoluteDistance) {
               print(
-                  'Deleting obsolete camera: $cam (max distance $maxAbsoluteDistance m < current distance ${distance.abs()} m)');
+                'Deleting obsolete camera: $cam (max distance $maxAbsoluteDistance m < current distance ${distance.abs()} m)',
+              );
               deleteObsoleteCamera(cam, camAttributes);
               osmWrapper?.remove_marker_from_map(cam[0], cam[1]);
             } else {
@@ -1104,7 +1205,8 @@ class SpeedCamWarner {
                   camAttributes[6] > maxStorageTime) {
                 if (camAttributes[11] == false) {
                   print(
-                      'Deleting obsolete camera: $cam because of storage time (max: $maxStorageTime seconds, current: ${camAttributes[6]})');
+                    'Deleting obsolete camera: $cam because of storage time (max: $maxStorageTime seconds, current: ${camAttributes[6]})',
+                  );
                   deleteObsoleteCamera(cam, camAttributes);
                   osmWrapper?.remove_marker_from_map(cam[0], cam[1]);
                 } else {
@@ -1133,8 +1235,7 @@ class SpeedCamWarner {
   }
 
   void updateCalculatorCams(List<dynamic> camAttributes) {
-    if (calculator != null &&
-        calculator is RectangleCalculatorThread) {
+    if (calculator != null && calculator is RectangleCalculatorThread) {
       if (camAttributes[0] == 'fix' && calculator.fix_cams > 0) {
         calculator.fix_cams -= 1;
       } else if (camAttributes[0] == 'traffic' && calculator.traffic_cams > 0) {
