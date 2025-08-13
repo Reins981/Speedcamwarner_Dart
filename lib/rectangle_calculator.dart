@@ -845,35 +845,76 @@ class RectangleCalculatorThread {
     _running = false;
   }
 
-  /// Replace the current list of known speed cameras.  Each entry is broadcast
-  /// immediately on the camera stream.
-  void updateSpeedCams(List<SpeedCameraEvent> speedCams) {
-    for (final cam in speedCams) {
-      _cameraStreamController.add(cam);
-      logger.printLogLine('Emitting camera event: $cam');
-      speedCamQueue?.produce({
-        'bearing': 0.0,
-        'stable_ccp': true,
-        'ccp': ['IGNORE', 'IGNORE'],
-        'fix_cam': [cam.fixed, cam.longitude, cam.latitude, true],
-        'traffic_cam': [cam.traffic, cam.longitude, cam.latitude, true],
-        'distance_cam': [cam.distance, cam.longitude, cam.latitude, true],
-        'mobile_cam': [cam.mobile, cam.longitude, cam.latitude, true],
-        'ccp_node': ['IGNORE', 'IGNORE'],
-        'list_tree': [null, null],
-        'name': cam.name,
-        'maxspeed': 0,
-        'direction': '',
-      });
+  /// Replace the current list of known speed cameras and emit them in batches
+  /// to avoid blocking the UI. Duplicate cameras are discarded based on their
+  /// coordinates.  Each camera is forwarded to the legacy speed cam warner
+  /// queue so the original thread can react to newly discovered cameras.
+  Future<void> updateSpeedCams(
+    List<SpeedCameraEvent> speedCams, {
+    int batchSize = 10,
+  }) async {
+    final cams = removeDuplicateCameras(speedCams);
+    for (var i = 0; i < cams.length; i += batchSize) {
+      final batch = cams.sublist(i, math.min(i + batchSize, cams.length));
+      logger.printLogLine('Emitting camera batch of ${batch.length} items');
+      for (final cam in batch) {
+        _cameraStreamController.add(cam);
+        logger.printLogLine('Emitting camera event: $cam');
+        speedCamQueue?.produce({
+          'bearing': 0.0,
+          'stable_ccp': true,
+          'ccp': ['IGNORE', 'IGNORE'],
+          'fix_cam': [cam.fixed, cam.longitude, cam.latitude, true],
+          'traffic_cam': [cam.traffic, cam.longitude, cam.latitude, true],
+          'distance_cam': [cam.distance, cam.longitude, cam.latitude, true],
+          'mobile_cam': [cam.mobile, cam.longitude, cam.latitude, true],
+          'ccp_node': ['IGNORE', 'IGNORE'],
+          'list_tree': [null, null],
+          'name': cam.name,
+          'maxspeed': 0,
+          'direction': '',
+        });
+      }
+      if (i + batchSize < cams.length) {
+        await Future.delayed(const Duration(milliseconds: 10));
+      }
     }
   }
 
-  /// Replace the current list of construction areas.
-  List<GeoRect> constructionAreas = [];
+  /// Cache used to avoid adding duplicate construction areas.
+  final Set<String> _constructionCache = {};
 
-  void updateConstructionAreas(List<GeoRect> areas) {
-    constructionAreas = List<GeoRect>.from(areas);
+  /// Replace the current list of construction areas and emit them in batches
+  /// similar to [updateSpeedCams].
+  Future<void> updateConstructionAreas(
+    List<GeoRect> areas, {
+    int batchSize = 10,
+  }) async {
+    final newAreas = <GeoRect>[];
+    for (final area in areas) {
+      final key = '${area.minLat},${area.minLon},${area.maxLat},${area.maxLon}';
+      if (_constructionCache.add(key)) {
+        newAreas.add(area);
+      }
+    }
+    if (newAreas.isEmpty) return;
+
+    constructionAreas.addAll(newAreas);
     constructionAreaCountNotifier.value = constructionAreas.length;
+
+    for (var i = 0; i < newAreas.length; i += batchSize) {
+      final batch =
+          newAreas.sublist(i, math.min(i + batchSize, newAreas.length));
+      logger.printLogLine(
+        'Emitting construction area batch of ${batch.length} items',
+      );
+      for (final area in batch) {
+        _constructionStreamController.add(area);
+      }
+      if (i + batchSize < newAreas.length) {
+        await Future.delayed(const Duration(milliseconds: 10));
+      }
+    }
   }
 
   /// Reset transient state and clear construction areas.
@@ -1380,6 +1421,7 @@ class RectangleCalculatorThread {
     double ccpLat,
   ) {
     if (data is! List) return;
+    final newAreas = <GeoRect>[];
     for (final element in data) {
       if (element is! Map<String, dynamic>) continue;
       final lat = (element['lat'] as num?)?.toDouble();
@@ -1387,16 +1429,14 @@ class RectangleCalculatorThread {
       if (lat == null || lon == null) continue;
       final rect = GeoRect(minLat: lat, minLon: lon, maxLat: lat, maxLon: lon);
       logger.printLogLine('Adding construction area at ($lat, $lon)');
-      constructionAreas.add(rect);
-      _constructionStreamController.add(rect);
+      newAreas.add(rect);
     }
-    if (constructionAreas.isNotEmpty) {
-      updateConstructionAreas(constructionAreas);
+    if (newAreas.isNotEmpty) {
+      final total = constructionAreas.length + newAreas.length;
+      unawaited(updateConstructionAreas(newAreas));
       updateMapQueue();
-      updateInfoPage('CONSTRUCTION_AREAS:${constructionAreas.length}');
-      logger.printLogLine(
-        'Total construction areas: ${constructionAreas.length}',
-      );
+      updateInfoPage('CONSTRUCTION_AREAS:$total');
+      logger.printLogLine('Total construction areas: $total');
       cleanupMapContent();
     }
   }
@@ -1563,7 +1603,7 @@ class RectangleCalculatorThread {
       logger.printLogLine(
         'Found ${cams.length} cameras from $lookupType lookup',
       );
-      updateSpeedCams(cams);
+      unawaited(updateSpeedCams(cams));
       updateMapQueue();
       updateInfoPage('SPEED_CAMERAS');
     }

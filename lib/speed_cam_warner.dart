@@ -5,6 +5,7 @@ import 'rectangle_calculator.dart';
 import 'thread_base.dart';
 import 'voice_prompt_queue.dart';
 import 'config.dart';
+import 'logger.dart';
 
 /// Ported from `SpeedCamWarnerThread.py`.
 ///
@@ -37,6 +38,8 @@ class SpeedCamWarner {
   int dismissCounter = 0;
   dynamic currentCamPointer;
   bool maxStorageTimeIncreased = false;
+
+  final Logger logger = Logger('SpeedCamWarner');
 
   /// Items older than this are considered out-of-date and discarded.
   static const Duration _staleThreshold = Duration(seconds: 2);
@@ -109,16 +112,18 @@ class SpeedCamWarner {
 
   // ------------------------------ threading -----------------------------
   Future<void> run() async {
-    print('SpeedCamWarner thread started');
+    logger.printLogLine('SpeedCamWarner thread started');
     while (!(cond.terminate ?? false)) {
       var status = await process();
       if (status == 'EXIT') break;
     }
-    print('SpeedCamWarner terminating');
+    logger.printLogLine('SpeedCamWarner terminating');
   }
 
   Future<String?> process() async {
+    logger.printLogLine('Waiting for speedcam queue item');
     final envelope = await speedcamQueue.consume();
+    logger.printLogLine('Processing speedcam queue item');
     if (DateTime.now().difference(envelope.timestamp) > _staleThreshold) {
       // Skip stale updates that may arrive out of order.
       return null;
@@ -159,6 +164,9 @@ class SpeedCamWarner {
         return null;
       } else {
         print('Add new fix cam (${item['fix_cam'][1]}, ${item['fix_cam'][2]})');
+        logger.printLogLine(
+          'Add new fix cam (${item['fix_cam'][1]}, ${item['fix_cam'][2]})',
+        );
         camCoordinates = [item['fix_cam'][1], item['fix_cam'][2]];
         ccpNodeCoordinates = [item['ccp_node'][0], item['ccp_node'][1]];
         var linkedList = item['list_tree'][0];
@@ -211,6 +219,9 @@ class SpeedCamWarner {
         print(
           'Add new traffic cam (${item['traffic_cam'][1]}, ${item['traffic_cam'][2]})',
         );
+        logger.printLogLine(
+          'Add new traffic cam (${item['traffic_cam'][1]}, ${item['traffic_cam'][2]})',
+        );
         camCoordinates = [item['traffic_cam'][1], item['traffic_cam'][2]];
         ccpNodeCoordinates = [item['ccp_node'][0], item['ccp_node'][1]];
         var linkedList = item['list_tree'][0];
@@ -261,6 +272,9 @@ class SpeedCamWarner {
         return null;
       } else {
         print(
+          'Add new distance cam (${item['distance_cam'][1]}, ${item['distance_cam'][2]})',
+        );
+        logger.printLogLine(
           'Add new distance cam (${item['distance_cam'][1]}, ${item['distance_cam'][2]})',
         );
         camCoordinates = [item['distance_cam'][1], item['distance_cam'][2]];
@@ -316,6 +330,9 @@ class SpeedCamWarner {
         return null;
       } else {
         print(
+          'Add new mobile cam (${item['mobile_cam'][1]}, ${item['mobile_cam'][2]})',
+        );
+        logger.printLogLine(
           'Add new mobile cam (${item['mobile_cam'][1]}, ${item['mobile_cam'][2]})',
         );
         camCoordinates = [item['mobile_cam'][1], item['mobile_cam'][2]];
@@ -602,7 +619,11 @@ class SpeedCamWarner {
   }
 
   bool isAlreadyAdded(dynamic camCoordinates) {
-    return insertedSpeedcams.contains(camCoordinates);
+    final exists = insertedSpeedcams.contains(camCoordinates);
+    if (exists) {
+      logger.printLogLine('Duplicate camera ignored: $camCoordinates');
+    }
+    return exists;
   }
 
   void triggerFreeFlow() {

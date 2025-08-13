@@ -65,6 +65,10 @@ class _MapPageState extends State<MapPage> {
   }
 
   void _onCameraEvent(SpeedCameraEvent cam) {
+    final exists = _markerData.values.any(
+      (c) => c.latitude == cam.latitude && c.longitude == cam.longitude,
+    );
+    if (exists) return;
     final marker = Marker(
       point: LatLng(cam.latitude, cam.longitude),
       width: 40,
@@ -78,6 +82,14 @@ class _MapPageState extends State<MapPage> {
   }
 
   void _onConstructionArea(GeoRect area) {
+    final exists = _constructionData.values.any(
+      (r) =>
+          r.minLat == area.minLat &&
+          r.minLon == area.minLon &&
+          r.maxLat == area.maxLat &&
+          r.maxLon == area.maxLon,
+    );
+    if (exists) return;
     final marker = Marker(
       point: LatLng(area.minLat, area.minLon),
       width: 40,
@@ -117,7 +129,7 @@ class _MapPageState extends State<MapPage> {
       mobile: true,
       name: 'User camera',
     );
-    widget.calculator.updateSpeedCams([cam]);
+    unawaited(widget.calculator.updateSpeedCams([cam]));
   }
 
   @override

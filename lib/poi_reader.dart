@@ -228,17 +228,19 @@ class POIReader extends Logger {
       'direction': '',
     });
 
-    calculator.updateSpeedCams([
-      SpeedCameraEvent(
-        latitude: latitude,
-        longitude: longitude,
-        fixed: cameraType == 'fix_cam',
-        traffic: cameraType == 'traffic_cam',
-        distance: cameraType == 'distance_cam',
-        mobile: cameraType == 'mobile_cam',
-        name: name ?? '',
-      ),
-    ]);
+    unawaited(
+      calculator.updateSpeedCams([
+        SpeedCameraEvent(
+          latitude: latitude,
+          longitude: longitude,
+          fixed: cameraType == 'fix_cam',
+          traffic: cameraType == 'traffic_cam',
+          distance: cameraType == 'distance_cam',
+          mobile: cameraType == 'mobile_cam',
+          name: name ?? '',
+        ),
+      ]),
+    );
   }
 
   /// Prepare an entry for the OSM wrapper (map display of cameras).
