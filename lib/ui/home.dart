@@ -55,6 +55,9 @@ class _HomePageState extends State<HomePage> {
     return Scaffold(
       body: IndexedStack(index: _index, children: _pages),
       bottomNavigationBar: BottomNavigationBar(
+        backgroundColor: Colors.black54,
+        selectedItemColor: Colors.white,
+        unselectedItemColor: Colors.white70,
         currentIndex: _index,
         onTap: (i) => setState(() => _index = i),
         items: const [
