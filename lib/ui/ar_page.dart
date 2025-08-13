@@ -7,7 +7,7 @@ import '../app_controller.dart';
 ///
 /// The heavy lifting is handled by [ARLayout]; this widget simply wires the
 /// [AppController] into it so the AR view can manage background threads.
-class ArPage extends StatelessWidget {
+class ArPage extends StatefulWidget {
   final AppController controller;
   final VoidCallback onReturn;
   const ArPage({super.key, required this.controller, required this.onReturn});
@@ -50,7 +50,7 @@ class _ArPageState extends State<ArPage> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      body: ARLayout(mainApp: controller),
+      body: ARLayout(mainApp: widget.controller),
     );
   }
 }

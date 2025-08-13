@@ -1,4 +1,3 @@
-import 'dart:convert';
 import 'dart:io';
 
 import 'package:dialog_flowtter/dialog_flowtter.dart';
@@ -29,13 +28,13 @@ class DialogflowClient implements DialogflowService {
   /// Language code for requests, defaults to English.
   final String languageCode;
 
-  /// Service account credentials used for authentication.
-  final DialogAuthCredentials credentials;
+  /// Path to the service account credentials used for authentication.
+  final String jsonPath;
 
   /// Creates a [DialogflowClient] instance.
   DialogflowClient({
     required this.projectId,
-    required this.credentials,
+    required this.jsonPath,
     this.languageCode = 'en',
   });
 
@@ -45,18 +44,14 @@ class DialogflowClient implements DialogflowService {
     required String jsonPath,
     String languageCode = 'en',
   }) {
-    try {
-      final content = File(jsonPath).readAsStringSync();
-      final jsonMap = jsonDecode(content) as Map<String, dynamic>;
-      final creds = DialogAuthCredentials.fromJson(jsonMap);
-      return DialogflowClient(
-        projectId: projectId,
-        credentials: creds,
-        languageCode: languageCode,
-      );
-    } catch (e) {
-      throw DialogflowException('Failed to load credentials: $e');
+    if (!File(jsonPath).existsSync()) {
+      throw DialogflowException('Credentials file not found: $jsonPath');
     }
+    return DialogflowClient(
+      projectId: projectId,
+      jsonPath: jsonPath,
+      languageCode: languageCode,
+    );
   }
 
   /// Detects the intent of the supplied [text] using Dialogflow.
@@ -70,10 +65,9 @@ class DialogflowClient implements DialogflowService {
     final sessionId = const Uuid().v4();
     try {
       final dialog = DialogFlowtter(
-        credentials: credentials,
-        projectId: projectId,
         sessionId: sessionId,
-      );
+        jsonPath: jsonPath,
+      )..projectId = projectId;
 
       final queryInput = QueryInput(
         text: TextInput(
