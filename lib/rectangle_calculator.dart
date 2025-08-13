@@ -38,6 +38,7 @@ import 'thread_base.dart';
 import 'package:http/http.dart' as http;
 import 'logger.dart';
 import 'service_account.dart';
+import 'config.dart';
 
 /// Data class representing a single GPS/vector sample.  It contains the
 /// current longitude/latitude, current speed (in km/h), a bearing angle
@@ -400,7 +401,9 @@ class RectangleCalculatorThread {
   int numberDistanceCams = 0;
 
   /// Distance in kilometres used for look‑ahead camera searches.
-  double speedCamLookAheadDistance = 1.0;
+  double speedCamLookAheadDistance =
+      (AppConfig.get<num>('calculator.speed_cam_look_ahead_distance') ?? 1)
+          .toDouble();
 
   /// Current rectangle angle used for look‑ahead projections.
   double currentRectAngle = 0.0;
@@ -420,14 +423,23 @@ class RectangleCalculatorThread {
   int mobile_cams = 0;
 
   /// Distance in kilometres used for construction area look‑ahead.
-  double constructionAreaLookaheadDistance = 1.0;
+  double constructionAreaLookaheadDistance =
+      (AppConfig.get<num>('calculator.construction_area_lookahead_distance') ??
+              30)
+          .toDouble();
 
   /// Minimum interval between network lookups to avoid excessive requests.
-  double dosAttackPreventionIntervalDownloads = 30.0;
+  double dosAttackPreventionIntervalDownloads =
+      (AppConfig.get<num>('calculator.dos_attack_prevention_interval_downloads') ??
+              30)
+          .toDouble();
 
   /// Disable construction lookups during application start up for this many
   /// seconds.
-  double constructionAreaStartupTriggerMax = 60.0;
+  double constructionAreaStartupTriggerMax =
+      (AppConfig.get<num>('calculator.construction_area_startup_trigger_max') ??
+              60)
+          .toDouble();
 
   /// Track the last execution time of look‑ahead routines.
   final Map<String, DateTime> _lastLookaheadExecution = {};
@@ -645,7 +657,6 @@ class RectangleCalculatorThread {
     // translate into a larger lookahead rectangle.
     final double lookAheadKm = _computeLookAheadDistance(speedKmH);
     speedCamLookAheadDistance = lookAheadKm;
-    constructionAreaLookaheadDistance = lookAheadKm;
     final GeoRect rect = _computeBoundingRect(latitude, longitude, lookAheadKm);
     currentRectAngle = bearing;
     _rectangleStreamController.add(rect);
