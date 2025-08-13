@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:geolocator/geolocator.dart';
 
 import '../app_controller.dart';
 
@@ -26,17 +27,17 @@ class ActionsPage extends StatelessWidget {
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            _buildButton('Start', () async {
+            _buildButton(context, 'Start', () async {
               await controller.start();
               onFinished();
             }),
             const SizedBox(height: 16),
-            _buildButton('Stop', () async {
+            _buildButton(context, 'Stop', () async {
               await controller.stop();
               onFinished();
             }),
             const SizedBox(height: 16),
-            _buildButton('Exit', () async {
+            _buildButton(context, 'Exit', () async {
               await controller.dispose();
               SystemNavigator.pop();
             }),
@@ -46,14 +47,41 @@ class ActionsPage extends StatelessWidget {
     );
   }
 
-  Widget _buildButton(String label, Future<void> Function() onPressed) {
+  Widget _buildButton(
+      BuildContext context, String label, Future<void> Function() onPressed) {
     return SizedBox(
       height: 80,
       child: ElevatedButton(
         onPressed: () async {
-          await onPressed();
+          try {
+            await onPressed();
+          } catch (e) {
+            if (e.toString().contains('Location services are disabled')) {
+              await _showLocationDisabledDialog(context);
+            }
+          }
         },
         child: Text(label, style: const TextStyle(fontSize: 32)),
+      ),
+    );
+  }
+
+  Future<void> _showLocationDisabledDialog(BuildContext context) async {
+    await showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Location services disabled'),
+        content: const Text(
+            'Please enable location services on your device to continue.'),
+        actions: [
+          TextButton(
+            onPressed: () async {
+              Navigator.of(context).pop();
+              await Geolocator.openLocationSettings();
+            },
+            child: const Text('Open Settings'),
+          ),
+        ],
       ),
     );
   }
