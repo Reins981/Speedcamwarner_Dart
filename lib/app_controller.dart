@@ -15,6 +15,8 @@ import 'overspeed_thread.dart' as overspeed;
 import 'overspeed_checker.dart';
 import 'config.dart';
 import 'thread_base.dart';
+import 'osm_wrapper.dart';
+import 'osm_thread.dart';
 import 'deviation_checker.dart' as deviation;
 
 /// Central place that wires up background modules and manages their
@@ -52,6 +54,15 @@ class AppController {
         _bearingBuffer.clear();
       }
     });
+
+    osmWrapper = Maps();
+    osmWrapper.setCalculatorThread(calculator);
+    osmThread = OsmThread(
+      osmWrapper: osmWrapper,
+      mapQueue: mapQueue,
+    );
+    unawaited(osmThread.run());
+
     poiReader = POIReader(
       speedCamQueue,
       gpsProducer,
@@ -63,7 +74,7 @@ class AppController {
       resume: _AlwaysResume(),
       voicePromptQueue: voicePromptQueue,
       speedcamQueue: speedCamQueue,
-      osmWrapper: null,
+      osmWrapper: osmWrapper,
       calculator: calculator,
     );
     unawaited(camWarner.run());
@@ -132,6 +143,12 @@ class AppController {
   /// Queue distributing map updates.
   final MapQueue<dynamic> mapQueue = MapQueue<dynamic>();
 
+  /// Wrapper around OpenStreetMap related interactions.
+  late final Maps osmWrapper;
+
+  /// Thread consuming map update events.
+  late final OsmThread osmThread;
+
   /// Loads POIs from the database and cloud.
   late final POIReader poiReader;
 
@@ -171,6 +188,7 @@ class AppController {
     camWarner.cond.setTerminateState(true);
     voiceThread.stop();
     await overspeedThread.stop();
+    await osmThread.stop();
     deviationChecker.terminate();
     averageAngleQueue.clearAverageAngleData();
     _bearingBuffer.clear();
