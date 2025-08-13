@@ -32,6 +32,7 @@ import 'road_resolver.dart';
 import 'point.dart';
 import 'linked_list_generator.dart';
 import 'tree_generator.dart';
+import 'voice_prompt_queue.dart';
 import 'package:http/http.dart' as http;
 
 /// Data class representing a single GPS/vector sample.  It contains the
@@ -259,6 +260,9 @@ class RectangleCalculatorThread {
   /// The predictive model used by [predictSpeedCamera].
   final PredictiveModel _predictiveModel;
 
+  /// Queue used to emit voice prompts for camera events and system messages.
+  final VoicePromptQueue voicePromptQueue;
+
   /// Helper that tracks the most probable road based on recent updates.
   final MostProbableWay mostProbableWay;
 
@@ -461,8 +465,11 @@ class RectangleCalculatorThread {
     17: 'road',
   };
 
-  RectangleCalculatorThread({PredictiveModel? model})
-      : _predictiveModel = model ?? PredictiveModel(),
+  RectangleCalculatorThread({
+    PredictiveModel? model,
+    VoicePromptQueue? voicePromptQueue,
+  })  : _predictiveModel = model ?? PredictiveModel(),
+        voicePromptQueue = voicePromptQueue ?? VoicePromptQueue(),
         mostProbableWay = MostProbableWay() {
     _start();
   }

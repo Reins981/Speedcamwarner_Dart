@@ -3,6 +3,7 @@ import 'package:flutter/foundation.dart';
 import 'gps_thread.dart';
 import 'location_manager.dart';
 import 'rectangle_calculator.dart';
+import 'voice_prompt_queue.dart';
 import 'package:geolocator/geolocator.dart';
 
 /// Central place that wires up background modules and manages their
@@ -11,6 +12,7 @@ import 'package:geolocator/geolocator.dart';
 /// hooks so the Flutter UI can control them.
 class AppController {
   AppController() {
+    calculator = RectangleCalculatorThread(voicePromptQueue: voicePromptQueue);
     // Pipe GPS samples directly into the calculator.
     gps.stream.listen(calculator.addVectorSample);
   }
@@ -21,8 +23,11 @@ class AppController {
   /// Provides real position updates using the device's sensors.
   final LocationManager locationManager = LocationManager();
 
+  /// Shared queue for delivering voice prompt entries.
+  final VoicePromptQueue voicePromptQueue = VoicePromptQueue();
+
   /// Performs rectangle calculations and camera lookups.
-  final RectangleCalculatorThread calculator = RectangleCalculatorThread();
+  late final RectangleCalculatorThread calculator;
 
   /// Publishes the latest AR detection status so UI widgets can react.
   final ValueNotifier<String> arStatusNotifier =
