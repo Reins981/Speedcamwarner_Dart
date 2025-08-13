@@ -13,6 +13,7 @@ import 'package:path/path.dart' as p;
 import 'package:path_provider/path_provider.dart';
 
 import 'voice_prompt_queue.dart';
+import 'app_controller.dart';
 
 /// Widget that manages the augmented reality camera preview and detection logic.
 class EdgeDetect extends StatefulWidget {
@@ -321,7 +322,7 @@ class ARLayout extends StatefulWidget {
   const ARLayout({super.key, this.sm, this.mainApp, this.initArgs});
 
   final dynamic sm;
-  final dynamic mainApp;
+  final AppController? mainApp;
   final List<dynamic>? initArgs;
 
   @override
@@ -367,11 +368,13 @@ class _ARLayoutState extends State<ARLayout> {
     state?.voicePromptQueue.clearArQueue();
     if (state?.cameraConnected ?? false) {
       state?.disconnectCamera();
+      widget.mainApp?.arStatusNotifier.value = 'Idle';
       widget.mainApp?.startDeviationCheckerThread();
     } else {
       widget.mainApp?.stopDeviationCheckerThread();
       state?.initArDetection();
       state?.connectCamera();
+      widget.mainApp?.arStatusNotifier.value = 'Scanning';
     }
   }
 
@@ -379,7 +382,10 @@ class _ARLayoutState extends State<ARLayout> {
   Widget build(BuildContext context) {
     return Stack(
       children: <Widget>[
-        Positioned.fill(child: EdgeDetect(key: _edgeKey)),
+        Positioned.fill(
+            child: EdgeDetect(
+                key: _edgeKey,
+                statusNotifier: widget.mainApp?.arStatusNotifier)),
         Positioned.fill(
           child: ButtonsLayout(
             onReturn: callbackReturn,
