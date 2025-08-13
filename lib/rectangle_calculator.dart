@@ -2008,9 +2008,9 @@ class RectangleCalculatorThread {
         '(${area.minLat},${area.minLon},${area.maxLat},${area.maxLon})';
     String query;
     if (lookupType == 'camera_ahead') {
-      query = '[out:json];node$bbox[highway=speed_camera];out;';
+      query = '[out:json];node[highway=speed_camera]$bbox;out;';
     } else if (lookupType == 'distance_cam') {
-      query = '[out:json];node$bbox["some_distance_cam_tag"];out;';
+      query = '[out:json];node["some_distance_cam_tag"]$bbox;out;';
     } else if (lookupType == 'node' && nodeId != null) {
       query = '[out:json];node($nodeId);out;';
     } else {
