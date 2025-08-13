@@ -1,10 +1,19 @@
 import 'package:flutter/foundation.dart';
 
+import 'dart:async';
+
 import 'gps_thread.dart';
 import 'location_manager.dart';
 import 'rectangle_calculator.dart';
 import 'voice_prompt_queue.dart';
 import 'package:geolocator/geolocator.dart';
+import 'poi_reader.dart';
+import 'thread_base.dart';
+import 'gps_producer.dart';
+import 'speed_cam_warner.dart';
+import 'voice_prompt_thread.dart';
+import 'overspeed_thread.dart';
+import 'overspeed_checker.dart';
 
 /// Central place that wires up background modules and manages their
 /// lifecycles.  The original Python project spawned numerous threads; in
@@ -12,9 +21,41 @@ import 'package:geolocator/geolocator.dart';
 /// hooks so the Flutter UI can control them.
 class AppController {
   AppController() {
-    calculator = RectangleCalculatorThread(voicePromptQueue: voicePromptQueue);
-    // Pipe GPS samples directly into the calculator.
-    gps.stream.listen(calculator.addVectorSample);
+    overspeedChecker = OverspeedChecker();
+    overspeedThread = OverspeedThread(
+      cond: ThreadCondition(),
+      isResumed: () => true,
+      speedLayout: _OverspeedLayout(overspeedChecker),
+    );
+    unawaited(overspeedThread.run());
+
+    calculator = RectangleCalculatorThread(
+      voicePromptQueue: voicePromptQueue,
+      speedCamQueue: speedCamQueue,
+      overspeedChecker: overspeedChecker,
+      overspeedThread: overspeedThread,
+    );
+    // Pipe GPS samples into the calculator and GPS producer.
+    gps.stream.listen((vector) {
+      calculator.addVectorSample(vector);
+      gpsProducer.update(vector);
+    });
+    poiReader = POIReader(speedCamQueue, gpsProducer, calculator, mapQueue, null);
+    camWarner = SpeedCamWarner(
+      resume: _AlwaysResume(),
+      voicePromptQueue: voicePromptQueue,
+      speedcamQueue: speedCamQueue,
+      osmWrapper: null,
+      calculator: calculator,
+    );
+    unawaited(camWarner.run());
+
+    voiceThread = VoicePromptThread(
+      voicePromptQueue: voicePromptQueue,
+      dialogflowClient: _DummyDialogflowClient(),
+      aiVoicePrompts: false,
+    );
+    unawaited(voiceThread.run());
   }
 
   /// Handles GPS sampling.
@@ -28,6 +69,31 @@ class AppController {
 
   /// Performs rectangle calculations and camera lookups.
   late final RectangleCalculatorThread calculator;
+
+  /// Handles camera approach warnings and UI updates.
+  late final SpeedCamWarner camWarner;
+
+  /// Plays alert sounds for spoken and acoustic warnings.
+  late final VoicePromptThread voiceThread;
+
+  /// Calculates overspeed warnings based on current and maximum speeds.
+  late final OverspeedThread overspeedThread;
+
+  /// Publishes the current overspeed difference to the UI.
+  late final OverspeedChecker overspeedChecker;
+
+  /// Supplies direction and coordinates for POI queries.
+  final GpsProducer gpsProducer = GpsProducer();
+
+  /// Queue delivering speed camera updates to interested consumers.
+  final SpeedCamQueue<Map<String, dynamic>> speedCamQueue =
+      SpeedCamQueue<Map<String, dynamic>>();
+
+  /// Queue distributing map updates.
+  final MapQueue<dynamic> mapQueue = MapQueue<dynamic>();
+
+  /// Loads POIs from the database and cloud.
+  late final POIReader poiReader;
 
   /// Publishes the latest AR detection status so UI widgets can react.
   final ValueNotifier<String> arStatusNotifier =
@@ -55,6 +121,10 @@ class AppController {
     await gps.stop();
     await locationManager.stop();
     calculator.stop();
+    poiReader.stopTimer();
+    camWarner.cond.setTerminateState(true);
+    voiceThread.stop();
+    await overspeedThread.stop();
     _running = false;
   }
 
@@ -65,5 +135,31 @@ class AppController {
     await gps.dispose();
     await locationManager.dispose();
     await calculator.dispose();
+    poiReader.stopTimer();
+    camWarner.cond.setTerminateState(true);
+    voiceThread.stop();
   }
+}
+
+class _OverspeedLayout implements SpeedLayout {
+  _OverspeedLayout(this.checker);
+  final OverspeedChecker checker;
+
+  @override
+  void resetOverspeed() {
+    checker.difference.value = null;
+  }
+
+  @override
+  void updateOverspeed(int value) {
+    checker.difference.value = value;
+  }
+}
+
+class _AlwaysResume {
+  bool isResumed() => true;
+}
+
+class _DummyDialogflowClient {
+  Future<String> detectIntent(String text) async => '';
 }

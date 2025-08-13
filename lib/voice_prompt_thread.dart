@@ -296,4 +296,9 @@ class VoicePromptThread {
     final file = map[voiceEntry];
     return file != null ? '$_basePath/$file' : null;
   }
+
+  /// Stop consuming new voice prompts and terminate the thread loop.
+  void stop() {
+    _running = false;
+  }
 }

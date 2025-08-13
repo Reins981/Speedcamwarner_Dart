@@ -7,7 +7,8 @@ import '../app_controller.dart';
 /// performed by [EdgeDetect]; this widget merely offers start/stop controls.
 class ArPage extends StatefulWidget {
   final AppController controller;
-  const ArPage({super.key, required this.controller});
+  final VoidCallback onReturn;
+  const ArPage({super.key, required this.controller, required this.onReturn});
 
   @override
   State<ArPage> createState() => _ArPageState();
@@ -34,7 +35,15 @@ class _ArPageState extends State<ArPage> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text('AR View')),
+      appBar: AppBar(
+        title: const Text('AR View'),
+        leading: _running
+            ? IconButton(
+                icon: const Icon(Icons.arrow_back),
+                onPressed: widget.onReturn,
+              )
+            : null,
+      ),
       body: Stack(
         children: [
           Positioned.fill(

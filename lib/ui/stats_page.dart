@@ -22,7 +22,7 @@ class _StatsPageState extends State<StatsPage> {
   late final StreamSubscription<SpeedCameraEvent> _sub;
   int _fixed = 0;
   int _traffic = 0;
-  int _distance = 0; // Placeholder; no dedicated flag in current model
+    int _distance = 0;
   int _mobile = 0;
   int _predictive = 0;
   int _poi = 0; // Placeholder for future POI integration
@@ -34,6 +34,7 @@ class _StatsPageState extends State<StatsPage> {
       setState(() {
         if (cam.fixed) _fixed++;
         if (cam.traffic) _traffic++;
+        if (cam.distance) _distance++;
         if (cam.mobile) _mobile++;
         if (cam.predictive) _predictive++;
       });

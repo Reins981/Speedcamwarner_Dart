@@ -22,9 +22,14 @@ class _MapPageState extends State<MapPage> {
   Marker? _gpsMarker;
   final List<Marker> _cameraMarkers = [];
   final Map<Marker, SpeedCameraEvent> _markerData = {};
+  final List<Marker> _constructionMarkers = [];
+  final Map<Marker, GeoRect> _constructionData = {};
   final PopupController _popupController = PopupController();
   final MapController _mapController = MapController();
   StreamSubscription<SpeedCameraEvent>? _camSub;
+  StreamSubscription<GeoRect>? _rectSub;
+  StreamSubscription<GeoRect>? _constructionSub;
+  final List<Polygon> _rectPolygons = [];
 
   @override
   void initState() {
@@ -38,6 +43,9 @@ class _MapPageState extends State<MapPage> {
     );
     widget.calculator.positionNotifier.addListener(_updatePosition);
     _camSub = widget.calculator.cameras.listen(_onCameraEvent);
+    _rectSub = widget.calculator.rectangles.listen(_onRect);
+    _constructionSub =
+        widget.calculator.constructions.listen(_onConstructionArea);
   }
 
   void _updatePosition() {
@@ -68,6 +76,39 @@ class _MapPageState extends State<MapPage> {
     });
   }
 
+  void _onConstructionArea(GeoRect area) {
+    final marker = Marker(
+      point: LatLng(area.minLat, area.minLon),
+      width: 40,
+      height: 40,
+      child: Image.asset('images/construction_marker.png'),
+    );
+    setState(() {
+      _constructionMarkers.add(marker);
+      _constructionData[marker] = area;
+    });
+  }
+
+  void _onRect(GeoRect rect) {
+    final points = [
+      LatLng(rect.minLat, rect.minLon),
+      LatLng(rect.minLat, rect.maxLon),
+      LatLng(rect.maxLat, rect.maxLon),
+      LatLng(rect.maxLat, rect.minLon),
+    ];
+    final polygon = Polygon(
+      points: points,
+      color: Colors.blue.withOpacity(0.1),
+      borderColor: Colors.blue,
+      borderStrokeWidth: 2,
+    );
+    setState(() {
+      _rectPolygons
+        ..clear()
+        ..add(polygon);
+    });
+  }
+
   void _addPoliceCamera() {
     final cam = SpeedCameraEvent(
       latitude: _center.latitude,
@@ -82,6 +123,8 @@ class _MapPageState extends State<MapPage> {
   void dispose() {
     widget.calculator.positionNotifier.removeListener(_updatePosition);
     _camSub?.cancel();
+    _rectSub?.cancel();
+    _constructionSub?.cancel();
     super.dispose();
   }
 
@@ -97,35 +140,48 @@ class _MapPageState extends State<MapPage> {
             urlTemplate: 'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
             userAgentPackageName: 'com.example.speedcamwarner',
           ),
+          if (_rectPolygons.isNotEmpty) PolygonLayer(polygons: _rectPolygons),
           if (_gpsMarker != null) MarkerLayer(markers: [_gpsMarker!]),
           PopupMarkerLayer(
             options: PopupMarkerLayerOptions(
               popupController: _popupController,
-              markers: _cameraMarkers,
+              markers: [..._cameraMarkers, ..._constructionMarkers],
               popupDisplayOptions: PopupDisplayOptions(
                 builder: (context, marker) {
                   final cam = _markerData[marker];
-                  if (cam == null) return const SizedBox.shrink();
-                  final types = <String>[
-                    if (cam.fixed) 'fixed',
-                    if (cam.traffic) 'traffic',
-                    if (cam.mobile) 'mobile',
-                    if (cam.predictive) 'predictive',
-                  ].join(', ');
-                  return Card(
-                    child: Padding(
-                      padding: const EdgeInsets.all(8.0),
-                      child: Column(
-                        mainAxisSize: MainAxisSize.min,
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(cam.name.isNotEmpty ? cam.name : 'Speed camera'),
-                          if (types.isNotEmpty)
-                            Text(types, style: const TextStyle(fontSize: 12)),
-                        ],
+                  if (cam != null) {
+                    final types = <String>[
+                      if (cam.fixed) 'fixed',
+                      if (cam.traffic) 'traffic',
+                      if (cam.distance) 'distance',
+                      if (cam.mobile) 'mobile',
+                      if (cam.predictive) 'predictive',
+                    ].join(', ');
+                    return Card(
+                      child: Padding(
+                        padding: const EdgeInsets.all(8.0),
+                        child: Column(
+                          mainAxisSize: MainAxisSize.min,
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                                cam.name.isNotEmpty ? cam.name : 'Speed camera'),
+                            if (types.isNotEmpty)
+                              Text(types, style: const TextStyle(fontSize: 12)),
+                          ],
+                        ),
                       ),
-                    ),
-                  );
+                    );
+                  }
+                  if (_constructionData.containsKey(marker)) {
+                    return const Card(
+                      child: Padding(
+                        padding: EdgeInsets.all(8.0),
+                        child: Text('Construction area'),
+                      ),
+                    );
+                  }
+                  return const SizedBox.shrink();
                 },
               ),
             ),
@@ -143,6 +199,7 @@ class _MapPageState extends State<MapPage> {
   String _iconForCamera(SpeedCameraEvent cam) {
     if (cam.fixed) return 'images/fixcamera_map.png';
     if (cam.traffic) return 'images/trafficlightcamera_map.jpg';
+    if (cam.distance) return 'images/distancecamera_map.jpg';
     if (cam.mobile) return 'images/mobilecamera_map.jpg';
     if (cam.predictive) return 'images/camera_ahead.png';
     return 'images/distancecamera_map.jpg';

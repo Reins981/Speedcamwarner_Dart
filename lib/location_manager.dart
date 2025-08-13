@@ -1,8 +1,11 @@
 import 'dart:async';
+import 'dart:math';
 
 import 'package:geolocator/geolocator.dart';
+import 'package:gpx/gpx.dart';
 
-import 'gps_test_data_generator.dart';
+import 'gpx_loader.dart';
+import 'logger.dart';
 import 'rectangle_calculator.dart';
 
 /// Port of the Python `LocationManager` which requested location updates on
@@ -10,7 +13,9 @@ import 'rectangle_calculator.dart';
 /// [VectorData] instances constructed from [Position] updates provided by the
 /// `geolocator` package.  Consumers can listen to [stream] to receive the
 /// converted GPS samples.
-class LocationManager {
+class LocationManager extends Logger {
+  LocationManager() : super('LocationManager');
+
   final StreamController<VectorData> _controller =
       StreamController<VectorData>.broadcast();
   StreamSubscription<Position>? _subscription;
@@ -31,31 +36,29 @@ class LocationManager {
   /// behaviour of the original Python implementation where the underlying
   /// Android `LocationManager` was configured with a minimum update interval and
   /// distance.
-  Future<void> start(
-      {Stream<Position>? positionStream,
-      int minTime = 1000,
-      double minDistance = 1,
-      String? gpxFile}) async {
+  Future<void> start({
+    Stream<Position>? positionStream,
+    int minTime = 1000,
+    double minDistance = 1,
+    String? gpxFile,
+  }) async {
     if (_running) return;
     _running = true;
+
     if (gpxFile != null) {
-      final generator = GpsTestDataGenerator(gpxFile: gpxFile);
-      final iterator = generator.iterator;
-      _gpxTimer = Timer.periodic(Duration(milliseconds: minTime), (timer) {
-        if (iterator.moveNext()) {
-          final gps = iterator.current['data']['gps'];
-          final vector = VectorData(
-            longitude: (gps['longitude'] as num).toDouble(),
-            latitude: (gps['latitude'] as num).toDouble(),
-            // speed in GPX/test data is m/s -> convert to km/h
-            speed: (gps['speed'] as num).toDouble() * 3.6,
-            bearing: (gps['bearing'] as num).toDouble(),
-            accuracy: (gps['accuracy'] as num).toDouble(),
-            direction: '',
-            gpsStatus: 1,
-          );
-          _controller.add(vector);
+      printLogLine('Starting with GPX file $gpxFile');
+      final samples = await _loadGpxSamples(gpxFile);
+      printLogLine('Loaded ${samples.length} GPX samples');
+      int index = 0;
+      _gpxTimer = Timer.periodic(Duration(milliseconds: minTime), (
+        Timer timer,
+      ) {
+        if (index < samples.length) {
+          printLogLine('Emitting GPX sample ${index + 1}/${samples.length}');
+          _controller.add(samples[index]);
+          index++;
         } else {
+          printLogLine('GPX playback finished');
           timer.cancel();
         }
       });
@@ -86,13 +89,44 @@ class LocationManager {
       }
 
       positionStreamLocal = Geolocator.getPositionStream(
-          locationSettings: LocationSettings(
-        accuracy: LocationAccuracy.best,
-        distanceFilter: minDistance.round(),
-      ));
+        locationSettings: LocationSettings(
+          accuracy: LocationAccuracy.best,
+          distanceFilter: minDistance.round(),
+        ),
+      );
     }
 
+    printLogLine('Listening to live position updates');
     _subscription = positionStreamLocal.listen(_onPosition);
+  }
+
+  Future<List<VectorData>> _loadGpxSamples(String gpxFile) async {
+    printLogLine('Loading GPX data from $gpxFile');
+    final gpxString = await loadGpx(gpxFile);
+    final gpx = GpxReader().fromString(gpxString);
+    final random = Random();
+    final samples = <VectorData>[];
+
+    for (final track in gpx.trks) {
+      for (final segment in track.trksegs) {
+        for (final point in segment.trkpts) {
+          samples.add(
+            VectorData(
+              longitude: point.lon ?? 0.0,
+              latitude: point.lat ?? 0.0,
+              speed: (random.nextInt(26) + 10) * 3.6,
+              bearing: (random.nextInt(51) + 200).toDouble(),
+              accuracy: (random.nextInt(24) + 2).toDouble(),
+              direction: '',
+              gpsStatus: 1,
+            ),
+          );
+        }
+      }
+    }
+
+    printLogLine('GPX parsing produced ${samples.length} samples');
+    return samples;
   }
 
   void _onPosition(Position position) {
@@ -106,12 +140,15 @@ class LocationManager {
       direction: '',
       gpsStatus: 1,
     );
+    printLogLine(
+        'Received position update: ${position.latitude}, ${position.longitude}, speed ${(position.speed * 3.6).toStringAsFixed(2)} km/h');
     _controller.add(vector);
   }
 
   /// Stop listening to location updates but keep the stream open for restart.
   Future<void> stop() async {
     if (!_running) return;
+    printLogLine('Stopping LocationManager');
     await _subscription?.cancel();
     _subscription = null;
     _gpxTimer?.cancel();
@@ -125,4 +162,3 @@ class LocationManager {
     await _controller.close();
   }
 }
-
