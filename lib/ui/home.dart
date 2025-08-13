@@ -23,11 +23,16 @@ class _HomePageState extends State<HomePage> {
   int _index = 0;
   late final List<Widget> _pages;
 
+  void _showMain() => setState(() => _index = 1);
+
   @override
   void initState() {
     super.initState();
     _pages = [
-      ActionsPage(controller: widget.controller),
+      ActionsPage(
+        controller: widget.controller,
+        onFinished: _showMain,
+      ),
       DashboardPage(
         calculator: widget.controller.calculator,
         arStatus: widget.controller.arStatusNotifier,
@@ -41,7 +46,7 @@ class _HomePageState extends State<HomePage> {
 
   @override
   void dispose() {
-    widget.controller.stop();
+    widget.controller.dispose();
     super.dispose();
   }
 

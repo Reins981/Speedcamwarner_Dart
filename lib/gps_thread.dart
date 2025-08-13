@@ -10,7 +10,11 @@ import 'rectangle_calculator.dart';
 class GpsThread {
   final StreamController<VectorData> _controller =
       StreamController<VectorData>.broadcast();
+  StreamSubscription<VectorData>? _sourceSub;
   bool _running = false;
+
+  /// Indicates whether the GPS thread is currently running.
+  bool get isRunning => _running;
 
   /// Stream of incoming [VectorData] samples.
   Stream<VectorData> get stream => _controller.stream;
@@ -19,8 +23,9 @@ class GpsThread {
   /// forwarded to listeners.  Otherwise samples can be pushed manually via
   /// [addSample].
   void start({Stream<VectorData>? source}) {
+    if (_running) return;
     _running = true;
-    source?.listen((event) {
+    _sourceSub = source?.listen((event) {
       if (_running) {
         _controller.add(event);
       }
@@ -34,9 +39,16 @@ class GpsThread {
     }
   }
 
-  /// Stop emitting samples and close the underlying stream controller.
+  /// Stop emitting samples but keep the stream open for a possible restart.
   Future<void> stop() async {
     _running = false;
+    await _sourceSub?.cancel();
+    _sourceSub = null;
+  }
+
+  /// Permanently dispose the underlying stream controller.
+  Future<void> dispose() async {
+    await _sourceSub?.cancel();
     await _controller.close();
   }
 }
