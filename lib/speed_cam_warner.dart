@@ -38,6 +38,9 @@ class SpeedCamWarner {
   dynamic currentCamPointer;
   bool maxStorageTimeIncreased = false;
 
+  /// Items older than this are considered out-of-date and discarded.
+  static const Duration _staleThreshold = Duration(seconds: 2);
+
   // configuration values -------------------------------------------------
   bool enableInsideRelevantAngleFeature = true;
   double emergencyAngleDistance = 150; // meters
@@ -114,7 +117,12 @@ class SpeedCamWarner {
   }
 
   Future<String?> process() async {
-    var item = await speedcamQueue.consume();
+    final envelope = await speedcamQueue.consume();
+    if (DateTime.now().difference(envelope.timestamp) > _staleThreshold) {
+      // Skip stale updates that may arrive out of order.
+      return null;
+    }
+    var item = envelope.data;
 
     ccpBearing = item['bearing'];
     var stableCcp = item['stable_ccp'] ?? true;

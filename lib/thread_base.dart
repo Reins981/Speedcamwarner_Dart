@@ -32,6 +32,20 @@ abstract class StoppableThread {
   void stopSpecific() => stop();
 }
 
+/// Wrapper that tags queue items with the time they were enqueued.
+///
+/// Consumers can use the [timestamp] to detect and discard stale data if
+/// necessary.  The timestamp is captured when the instance is created.
+class Timestamped<T> {
+  Timestamped(this.data) : timestamp = DateTime.now();
+
+  /// Payload carried through the queue.
+  final T data;
+
+  /// Moment when [data] was added to the queue.
+  final DateTime timestamp;
+}
+
 class _NotifyingDeque<T> {
   final Queue<T> _queue = Queue<T>();
   final StreamController<void> _notifier =
@@ -229,11 +243,14 @@ class GPSQueue<T> {
 }
 
 class SpeedCamQueue<T> {
-  final _NotifyingDeque<T> _queue = _NotifyingDeque<T>();
+  final _NotifyingDeque<Timestamped<T>> _queue =
+      _NotifyingDeque<Timestamped<T>>();
 
-  Future<T> consume() => _queue.consume();
+  /// Retrieve the next camera update along with its enqueue timestamp.
+  Future<Timestamped<T>> consume() => _queue.consume();
 
-  void produce(T item) => _queue.produce(item);
+  /// Add a new camera update, automatically tagging it with a timestamp.
+  void produce(T item) => _queue.produce(Timestamped<T>(item));
 
   void clearCamQueue() => _queue.clear();
 }
