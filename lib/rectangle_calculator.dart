@@ -1449,10 +1449,14 @@ class RectangleCalculatorThread {
     _rectangleStreamController.add(rect);
     logger.printLogLine('speedCamLookupAhead bounds: $rect');
     for (final type in ['camera_ahead', 'distance_cam']) {
+      logger.printLogLine('speedCamLookupAhead requesting $type');
       final result = await triggerOsmLookup(
         rect,
         lookupType: type,
         client: client,
+      );
+      logger.printLogLine(
+        'speedCamLookupAhead result for $type success=${result.success} elements=${result.elements?.length ?? 0}',
       );
       if (result.success && result.elements != null) {
         processSpeedCamLookupAheadResults(
@@ -1502,10 +1506,16 @@ class RectangleCalculatorThread {
       maxLat: maxLat,
       maxLon: maxLon,
     );
+    logger.printLogLine('constructionsLookupAhead bounds: $rect');
+    logger.printLogLine(
+        'constructionsLookupAhead requesting construction_ahead');
     final result = await triggerOsmLookup(
       rect,
       lookupType: 'construction_ahead',
       client: client,
+    );
+    logger.printLogLine(
+      'constructionsLookupAhead result success=${result.success} elements=${result.elements?.length ?? 0}',
     );
     if (result.success && result.elements != null) {
       processConstructionAreasLookupAheadResults(
@@ -1899,6 +1909,11 @@ class RectangleCalculatorThread {
     int? nodeId,
     http.Client? client,
   }) async {
+    logger.printLogLine(
+      'triggerOsmLookup: lookupType=$lookupType nodeId=$nodeId area=$area',
+      logLevel: 'DEBUG',
+    );
+
     final baseUrl = 'https://overpass-api.de/api/interpreter?data=';
     final bbox =
         '(${area.minLat},${area.minLon},${area.maxLat},${area.maxLon})';
@@ -1908,8 +1923,10 @@ class RectangleCalculatorThread {
     } else {
       query = '[out:json];(node$bbox;);out;';
     }
+    logger.printLogLine('triggerOsmLookup query: $query', logLevel: 'DEBUG');
 
     final uri = Uri.parse(baseUrl + Uri.encodeQueryComponent(query));
+    logger.printLogLine('triggerOsmLookup uri: $uri', logLevel: 'DEBUG');
     final http.Client httpClient = client ?? http.Client();
     final start = DateTime.now();
 
@@ -1919,17 +1936,30 @@ class RectangleCalculatorThread {
       }).timeout(const Duration(seconds: 15));
       final duration = DateTime.now().difference(start);
       reportDownloadTime(duration);
+      logger.printLogLine(
+        'triggerOsmLookup HTTP ${resp.statusCode} in ${duration.inMilliseconds}ms',
+        logLevel: 'DEBUG',
+      );
       if (resp.statusCode == 200) {
         final data = jsonDecode(resp.body) as Map<String, dynamic>;
+        final elements = data['elements'] as List<dynamic>?;
+        logger.printLogLine(
+          'triggerOsmLookup returned ${elements?.length ?? 0} elements',
+          logLevel: 'DEBUG',
+        );
         return OsmLookupResult(
           true,
           'OK',
-          data['elements'] as List<dynamic>?,
+          elements,
           null,
           area,
         );
       } else {
         await checkWorkerThreadStatus();
+        logger.printLogLine(
+          'triggerOsmLookup non-200 HTTP ${resp.statusCode}',
+          logLevel: 'WARNING',
+        );
         return OsmLookupResult(
           false,
           'ERROR',
@@ -1940,6 +1970,10 @@ class RectangleCalculatorThread {
       }
     } catch (e) {
       await checkWorkerThreadStatus();
+      logger.printLogLine(
+        'triggerOsmLookup exception: $e',
+        logLevel: 'ERROR',
+      );
       return OsmLookupResult(false, 'NOINET', null, e.toString(), area);
     } finally {
       if (client == null) {
