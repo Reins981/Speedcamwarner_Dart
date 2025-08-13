@@ -506,7 +506,13 @@ class SpeedCamWarner {
     var maxSpeed = attributes[10];
     var predictive = attributes[13];
     var speedcamType = attributes[0];
-    var distance = attributes[8];
+    // Distance values may be stored as either integers or doubles depending on
+    // how they were produced earlier in the pipeline.  Downstream logic
+    // expects a ``double`` which previously resulted in a runtime type error
+    // when an ``int`` slipped through.  Normalise the value here so that the
+    // angle matching and subsequent calculations always operate on a ``double``
+    // regardless of the original numeric type.
+    var distance = (attributes[8] as num?)?.toDouble() ?? 0.0;
 
     if (!matchCameraAgainstAngle(
       cam,
