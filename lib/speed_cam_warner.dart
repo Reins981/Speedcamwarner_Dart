@@ -182,10 +182,10 @@ class SpeedCamWarner {
           ccpNodeCoordinates,
           linkedList,
           tree,
-          -1,
+          -1.0,
           startTime,
           roadname,
-          0,
+          0.0,
           camDirection,
           maxSpeed,
           newCam,
@@ -237,10 +237,10 @@ class SpeedCamWarner {
           ccpNodeCoordinates,
           linkedList,
           tree,
-          -1,
+          -1.0,
           startTime,
           roadname,
-          0,
+          0.0,
           camDirection,
           maxSpeed,
           newCam,
@@ -292,10 +292,10 @@ class SpeedCamWarner {
           ccpNodeCoordinates,
           linkedList,
           tree,
-          -1,
+          -1.0,
           startTime,
           roadname,
-          0,
+          0.0,
           camDirection,
           maxSpeed,
           newCam,
@@ -353,10 +353,10 @@ class SpeedCamWarner {
           ccpNodeCoordinates,
           linkedList,
           tree,
-          -1,
+          -1.0,
           startTime,
           roadname,
-          0,
+          0.0,
           camDirection,
           maxSpeed,
           newCam,
@@ -502,11 +502,11 @@ class SpeedCamWarner {
     var camRoadName = attributes[7];
     var linkedList = attributes[3];
     var tree = attributes[4];
-    var lastDistance = attributes[5];
+    var lastDistance = (attributes[5] as num?)?.toDouble() ?? -1.0;
     var maxSpeed = attributes[10];
     var predictive = attributes[13];
     var speedcamType = attributes[0];
-    var distance = attributes[8];
+    var distance = (attributes[8] as num?)?.toDouble() ?? 0.0;
 
     if (!matchCameraAgainstAngle(
       cam,
