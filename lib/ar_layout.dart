@@ -319,11 +319,18 @@ class _DetectionPainter extends CustomPainter {
 }
 
 class ARLayout extends StatefulWidget {
-  const ARLayout({super.key, this.sm, this.mainApp, this.initArgs});
+  const ARLayout({
+    super.key,
+    this.sm,
+    this.mainApp,
+    this.initArgs,
+    this.onReturn,
+  });
 
   final dynamic sm;
   final AppController? mainApp;
   final List<dynamic>? initArgs;
+  final VoidCallback? onReturn;
 
   @override
   State<ARLayout> createState() => _ARLayoutState();
@@ -388,7 +395,7 @@ class _ARLayoutState extends State<ARLayout> {
                 statusNotifier: widget.mainApp?.arStatusNotifier)),
         Positioned.fill(
           child: ButtonsLayout(
-            onReturn: callbackReturn,
+            onReturn: widget.onReturn ?? callbackReturn,
             onScreenshot: () => _edgeKey.currentState?.captureScreenshot(),
             onSelectCamera: _selectCamera,
             onConnectCamera: _connectCamera,

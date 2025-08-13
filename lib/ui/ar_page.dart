@@ -50,7 +50,10 @@ class _ArPageState extends State<ArPage> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      body: ARLayout(mainApp: widget.controller),
+      body: ARLayout(
+        mainApp: widget.controller,
+        onReturn: widget.onReturn,
+      ),
     );
   }
 }
