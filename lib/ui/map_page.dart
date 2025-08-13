@@ -98,34 +98,36 @@ class _MapPageState extends State<MapPage> {
             userAgentPackageName: 'com.example.speedcamwarner',
           ),
           if (_gpsMarker != null) MarkerLayer(markers: [_gpsMarker!]),
-          PopupMarkerLayerWidget(
+          PopupMarkerLayer(
             options: PopupMarkerLayerOptions(
               popupController: _popupController,
               markers: _cameraMarkers,
-              popupBuilder: (context, marker) {
-                final cam = _markerData[marker];
-                if (cam == null) return const SizedBox.shrink();
-                final types = <String>[
-                  if (cam.fixed) 'fixed',
-                  if (cam.traffic) 'traffic',
-                  if (cam.mobile) 'mobile',
-                  if (cam.predictive) 'predictive',
-                ].join(', ');
-                return Card(
-                  child: Padding(
-                    padding: const EdgeInsets.all(8.0),
-                    child: Column(
-                      mainAxisSize: MainAxisSize.min,
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(cam.name.isNotEmpty ? cam.name : 'Speed camera'),
-                        if (types.isNotEmpty)
-                          Text(types, style: const TextStyle(fontSize: 12)),
-                      ],
+              popupDisplayOptions: PopupDisplayOptions(
+                builder: (context, marker) {
+                  final cam = _markerData[marker];
+                  if (cam == null) return const SizedBox.shrink();
+                  final types = <String>[
+                    if (cam.fixed) 'fixed',
+                    if (cam.traffic) 'traffic',
+                    if (cam.mobile) 'mobile',
+                    if (cam.predictive) 'predictive',
+                  ].join(', ');
+                  return Card(
+                    child: Padding(
+                      padding: const EdgeInsets.all(8.0),
+                      child: Column(
+                        mainAxisSize: MainAxisSize.min,
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(cam.name.isNotEmpty ? cam.name : 'Speed camera'),
+                          if (types.isNotEmpty)
+                            Text(types, style: const TextStyle(fontSize: 12)),
+                        ],
+                      ),
                     ),
-                  ),
-                );
-              },
+                  );
+                },
+              ),
             ),
           ),
         ],
