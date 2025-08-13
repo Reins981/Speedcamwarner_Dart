@@ -38,6 +38,8 @@ void main() {
     );
     final sound = thread.mapVoiceEntryToSound('GPS_OFF');
     expect(sound, contains('gps_off.wav'));
+    final low = thread.mapVoiceEntryToSound('GPS_LOW');
+    expect(low, contains('gps_weak.wav'));
   });
 
   test('setConfigs toggles aiVoicePrompts', () {
