@@ -1,6 +1,7 @@
 import 'dart:convert';
 import 'dart:io';
 
+import 'package:flutter/services.dart' show FlutterError, rootBundle;
 import 'package:googleapis/drive/v3.dart' as drive;
 import 'package:googleapis_auth/googleapis_auth.dart';
 import 'package:googleapis_auth/auth_io.dart';
@@ -30,20 +31,39 @@ class ServiceAccount {
   static Map<String, _RequestRecord> userRequests = {};
 
   static Future<Map<String, dynamic>> loadServiceAccount() async {
-    final content = await File(serviceAccount).readAsString();
-    return jsonDecode(content) as Map<String, dynamic>;
+    try {
+      final content = await File(serviceAccount).readAsString();
+      return jsonDecode(content) as Map<String, dynamic>;
+    } on FileSystemException {
+      try {
+        final content = await rootBundle
+            .loadString('python/service_account/osmwarner-01bcd4dc2dd3.json');
+        return jsonDecode(content) as Map<String, dynamic>;
+      } on FlutterError {
+        throw Exception(
+            'Service account file not found in assets or file system.');
+      }
+    }
   }
 
   /// Build an authenticated HTTP client for the Google Drive API using the
   /// service account credentials.
   static Future<AutoRefreshingAuthClient> buildDriveFromCredentials() async {
+    String jsonString;
     final file = File(serviceAccount);
-    if (!file.existsSync()) {
-      throw Exception('Service account file not found: $serviceAccount');
+    if (await file.exists()) {
+      jsonString = await file.readAsString();
+    } else {
+      try {
+        jsonString = await rootBundle
+            .loadString('python/service_account/osmwarner-01bcd4dc2dd3.json');
+      } on FlutterError {
+        throw Exception(
+            'Service account file not found in assets or file system.');
+      }
     }
-    final credentials = ServiceAccountCredentials.fromJson(
-      json.decode(file.readAsStringSync()),
-    );
+    final credentials =
+        ServiceAccountCredentials.fromJson(json.decode(jsonString));
     return clientViaServiceAccount(credentials, scopes);
   }
 
