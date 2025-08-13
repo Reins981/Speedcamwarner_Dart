@@ -62,7 +62,7 @@ class _MapPageState extends State<MapPage> {
     });
     // Recenter the map whenever the GPS position updates while keeping the
     // current zoom level so the user can zoom out if desired.
-    _mapController.move(_center, _mapController.zoom);
+    _mapController.move(_center, _mapController.camera.zoom);
   }
 
   void _onCameraEvent(SpeedCameraEvent cam) {
