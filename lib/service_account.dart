@@ -133,7 +133,8 @@ class ServiceAccount {
     final driveApi = drive.DriveApi(client);
     final fname = uploadFileName ?? fileName;
     try {
-      final drive.File file = await driveApi.files.get(id, $fields: 'parents');
+      final drive.File file =
+          await driveApi.files.get(id, $fields: 'parents') as drive.File;
       final currentParents = (file.parents ?? []).join(',');
       final media = drive.Media(
         File(fname).openRead(),

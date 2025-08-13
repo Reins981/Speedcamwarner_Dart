@@ -14,6 +14,7 @@ import 'voice_prompt_thread.dart';
 import 'overspeed_thread.dart' as overspeed;
 import 'overspeed_checker.dart';
 import 'config.dart';
+import 'thread_base.dart';
 
 /// Central place that wires up background modules and manages their
 /// lifecycles.  The original Python project spawned numerous threads; in
