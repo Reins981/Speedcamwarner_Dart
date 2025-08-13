@@ -7,6 +7,7 @@ import 'overspeed_checker.dart';
 import 'rectangle_calculator.dart';
 import 'linked_list_generator.dart';
 import 'app_controller.dart';
+import 'config.dart';
 import 'ui/home.dart';
 
 /// Entry point of the SpeedCamWarner application.
@@ -15,7 +16,9 @@ import 'ui/home.dart';
 /// In this Flutter port we provide a [HomePage] with a bottom navigation bar
 /// and multiple dedicated screens while background modules are coordinated by
 /// [AppController].
-void main() {
+Future<void> main() async {
+  WidgetsFlutterBinding.ensureInitialized();
+  await AppConfig.load();
   runApp(SpeedCamWarnerApp());
 }
 

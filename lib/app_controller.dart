@@ -12,8 +12,9 @@ import 'thread_base.dart';
 import 'gps_producer.dart';
 import 'speed_cam_warner.dart';
 import 'voice_prompt_thread.dart';
-import 'overspeed_thread.dart';
+import 'overspeed_thread.dart' as overspeed;
 import 'overspeed_checker.dart';
+import 'config.dart';
 
 /// Central place that wires up background modules and manages their
 /// lifecycles.  The original Python project spawned numerous threads; in
@@ -22,8 +23,8 @@ import 'overspeed_checker.dart';
 class AppController {
   AppController() {
     overspeedChecker = OverspeedChecker();
-    overspeedThread = OverspeedThread(
-      cond: ThreadCondition(),
+    overspeedThread = overspeed.OverspeedThread(
+      cond: overspeed.ThreadCondition(),
       isResumed: () => true,
       speedLayout: _OverspeedLayout(overspeedChecker),
     );
@@ -40,7 +41,13 @@ class AppController {
       calculator.addVectorSample(vector);
       gpsProducer.update(vector);
     });
-    poiReader = POIReader(speedCamQueue, gpsProducer, calculator, mapQueue, null);
+    poiReader = POIReader(
+      speedCamQueue,
+      gpsProducer,
+      calculator,
+      mapQueue,
+      null,
+    );
     camWarner = SpeedCamWarner(
       resume: _AlwaysResume(),
       voicePromptQueue: voicePromptQueue,
@@ -53,7 +60,8 @@ class AppController {
     voiceThread = VoicePromptThread(
       voicePromptQueue: voicePromptQueue,
       dialogflowClient: _DummyDialogflowClient(),
-      aiVoicePrompts: false,
+      aiVoicePrompts:
+          AppConfig.get<bool>('accusticWarner.ai_voice_prompts') ?? false,
     );
     unawaited(voiceThread.run());
   }
@@ -77,7 +85,7 @@ class AppController {
   late final VoicePromptThread voiceThread;
 
   /// Calculates overspeed warnings based on current and maximum speeds.
-  late final OverspeedThread overspeedThread;
+  late final overspeed.OverspeedThread overspeedThread;
 
   /// Publishes the current overspeed difference to the UI.
   late final OverspeedChecker overspeedChecker;
@@ -96,8 +104,7 @@ class AppController {
   late final POIReader poiReader;
 
   /// Publishes the latest AR detection status so UI widgets can react.
-  final ValueNotifier<String> arStatusNotifier =
-      ValueNotifier<String>('Idle');
+  final ValueNotifier<String> arStatusNotifier = ValueNotifier<String>('Idle');
 
   bool _running = false;
 
@@ -107,9 +114,15 @@ class AppController {
   /// that GPX track instead of querying the device's sensors. Tests may supply
   /// a custom [positionStream] to avoid interacting with the real platform
   /// services.
-  Future<void> start({String? gpxFile, Stream<Position>? positionStream}) async {
+  Future<void> start({
+    String? gpxFile,
+    Stream<Position>? positionStream,
+  }) async {
     if (_running) return;
-    await locationManager.start(gpxFile: gpxFile, positionStream: positionStream);
+    await locationManager.start(
+      gpxFile: gpxFile,
+      positionStream: positionStream,
+    );
     gps.start(source: locationManager.stream);
     calculator.run();
     _running = true;
@@ -141,7 +154,7 @@ class AppController {
   }
 }
 
-class _OverspeedLayout implements SpeedLayout {
+class _OverspeedLayout implements overspeed.SpeedLayout {
   _OverspeedLayout(this.checker);
   final OverspeedChecker checker;
 

@@ -6,7 +6,8 @@ import 'package:sqlite3/sqlite3.dart' as sqlite;
 import 'logger.dart';
 import 'rect.dart';
 import 'service_account.dart';
-import 'rectangle_calculator.dart' show SpeedCameraEvent, RectangleCalculatorThread;
+import 'rectangle_calculator.dart'
+    show SpeedCameraEvent, RectangleCalculatorThread;
 import 'thread_base.dart';
 import 'gps_producer.dart';
 
@@ -150,7 +151,7 @@ class POIReader extends Logger {
     for (final camTuple in poiRawData!) {
       final x = _decodeMorton2X(camTuple[1] as int);
       final y = _decodeMorton2Y(camTuple[1] as int);
-      final longLat = calculator.tile2longlat(x, y, 17);
+      final longLat = calculator.tile2longlat(x.toDouble(), y.toDouble(), 17);
       final longitude = longLat[0];
       final latitude = longLat[1];
 
@@ -206,7 +207,8 @@ class POIReader extends Logger {
     String cameraType,
   ) {
     printLogLine(
-        'Propagating $cameraType camera (${longitude.toStringAsFixed(5)}, ${latitude.toStringAsFixed(5)})');
+      'Propagating $cameraType camera (${longitude.toStringAsFixed(5)}, ${latitude.toStringAsFixed(5)})',
+    );
     speedCamQueue.produce({
       'bearing': 0.0,
       'stable_ccp': true,
@@ -277,10 +279,12 @@ class POIReader extends Logger {
   }
 
   void _updateOsmWrapper({String cameraSource = 'cloud'}) {
-    final processingDict =
-        cameraSource == 'cloud' ? speedCamDict : speedCamDictDb;
-    final processingList =
-        cameraSource == 'cloud' ? speedCamList : speedCamListDb;
+    final processingDict = cameraSource == 'cloud'
+        ? speedCamDict
+        : speedCamDictDb;
+    final processingList = cameraSource == 'cloud'
+        ? speedCamList
+        : speedCamListDb;
 
     if (processingDict.isNotEmpty) {
       processingList.add(Map<String, List<dynamic>>.from(processingDict));
@@ -395,16 +399,18 @@ class POIReader extends Logger {
 
     poiRect?.deleteRect();
 
-    var direction = gpsProducer.get_direction();
+    String? direction = gpsProducer.get_direction();
     var lonLat = gpsProducer.get_lon_lat();
-    var longitude = lonLat[0];
-    var latitude = lonLat[1];
+    double longitude = lonLat[0];
+    double latitude = lonLat[1];
 
     if (direction == '-' || direction == null) {
-      if (lastValidDrivingDirection != null && lastValidLongitude != null) {
+      if (lastValidDrivingDirection != null &&
+          lastValidLongitude != null &&
+          lastValidLatitude != null) {
         direction = lastValidDrivingDirection;
-        longitude = lastValidLongitude;
-        latitude = lastValidLatitude;
+        longitude = lastValidLongitude!;
+        latitude = lastValidLatitude!;
       } else {
         printLogLine(' Waiting for valid direction once');
         return;
@@ -421,7 +427,7 @@ class POIReader extends Logger {
     final ytile = tiles[1];
 
     final polygon = calculator.createGeoJsonTilePolygon(
-      direction,
+      direction!,
       zoom,
       xtile,
       ytile,
@@ -436,7 +442,7 @@ class POIReader extends Logger {
     final pt1 = calculator.longlat2tile(latMin, lonMin, zoom);
     final pt2 = calculator.longlat2tile(latMax, lonMax, zoom);
     poiRect = calculator.calculate_rectangle_border(pt1, pt2);
-    poiRect?.setRectangleIdent(direction);
+    poiRect?.setRectangleIdent(direction!);
     poiRect?.setRectangleString('POIRECT');
 
     final rectangleRadius = calculator.calculate_rectangle_radius(
