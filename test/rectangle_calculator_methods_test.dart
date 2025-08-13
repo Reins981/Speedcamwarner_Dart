@@ -250,6 +250,25 @@ void main() {
       expect(calc.constructionCalled, isTrue);
     });
 
+    test('rate limit prevents frequent lookups', () async {
+      final calc = _RateLimitCalc();
+      final start = DateTime.now().subtract(const Duration(seconds: 120));
+      await calc.processLookaheadItems(start);
+      expect(calc.speedCalls, equals(1));
+      expect(calc.constructionCalls, equals(1));
+
+      // Second call occurs immediately and should be skipped by the rate limiter.
+      await calc.processLookaheadItems(start);
+      expect(calc.speedCalls, equals(1));
+      expect(calc.constructionCalls, equals(1));
+
+      // After the interval passes both lookups should execute again.
+      await Future.delayed(const Duration(seconds: 2));
+      await calc.processLookaheadItems(start);
+      expect(calc.speedCalls, equals(2));
+      expect(calc.constructionCalls, equals(2));
+    });
+
     test('processConstructionAreasLookupAheadResults stores areas', () {
       final calc = RectangleCalculatorThread();
       calc.processConstructionAreasLookupAheadResults(
@@ -300,6 +319,51 @@ class _TestCalc extends RectangleCalculatorThread {
     http.Client? client,
   }) async {
     constructionCalled = true;
+  }
+
+  @override
+  Future<SpeedCameraEvent?> processPredictiveCameras(
+    double longitude,
+    double latitude,
+  ) async => null;
+}
+
+class _RateLimitCalc extends RectangleCalculatorThread {
+  int speedCalls = 0;
+  int constructionCalls = 0;
+
+  _RateLimitCalc() {
+    dosAttackPreventionIntervalDownloads = 1;
+    constructionAreaStartupTriggerMax = 0;
+  }
+
+  @override
+  Future<String?> getRoadNameViaNominatim(double lat, double lon) async =>
+      'Test Road';
+
+  @override
+  Future<bool> internetAvailable() async => true;
+
+  @override
+  Future<void> speedCamLookupAhead(
+    double xtile,
+    double ytile,
+    double lon,
+    double lat, {
+    http.Client? client,
+  }) async {
+    speedCalls++;
+  }
+
+  @override
+  Future<void> constructionsLookupAhead(
+    double xtile,
+    double ytile,
+    double lon,
+    double lat, {
+    http.Client? client,
+  }) async {
+    constructionCalls++;
   }
 
   @override
