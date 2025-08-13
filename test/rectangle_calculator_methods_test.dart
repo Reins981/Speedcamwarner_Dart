@@ -150,6 +150,48 @@ void main() {
       expect(result.elements!.length, equals(1));
     });
 
+    test('triggerOsmLookup retries on timeout and falls back to cache',
+        () async {
+      final calc = RectangleCalculatorThread();
+      calc.osmRetryBaseDelay = const Duration(milliseconds: 1);
+      calc.processAllSpeedCameras([
+        SpeedCameraEvent(latitude: 0.5, longitude: 0.5, fixed: true, name: 'C'),
+      ]);
+      var calls = 0;
+      final mock = MockClient((req) async {
+        calls++;
+        throw TimeoutException('timeout');
+      });
+      final result = await calc.triggerOsmLookup(
+        const GeoRect(minLat: 0, minLon: 0, maxLat: 1, maxLon: 1),
+        lookupType: 'camera_ahead',
+        client: mock,
+      );
+      expect(calls, equals(calc.osmRetryMaxAttempts));
+      expect(result.success, isTrue);
+      expect(result.status, equals('CACHE'));
+      expect(result.elements, isNotNull);
+      expect(result.elements!.length, equals(1));
+    });
+
+    test('triggerOsmLookup surfaces timeout when no cache', () async {
+      final calc = RectangleCalculatorThread();
+      calc.osmRetryBaseDelay = const Duration(milliseconds: 1);
+      var calls = 0;
+      final mock = MockClient((req) async {
+        calls++;
+        throw TimeoutException('timeout');
+      });
+      final result = await calc.triggerOsmLookup(
+        const GeoRect(minLat: 0, minLon: 0, maxLat: 1, maxLon: 1),
+        lookupType: 'camera_ahead',
+        client: mock,
+      );
+      expect(calls, equals(calc.osmRetryMaxAttempts));
+      expect(result.success, isFalse);
+      expect(result.status, equals('TIMEOUT'));
+    });
+
     test('uploadCameraToDrive writes json', () async {
       final dir = await Directory.systemTemp.createTemp();
       final path = '${dir.path}/cameras.json';

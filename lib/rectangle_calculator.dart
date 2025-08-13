@@ -353,6 +353,11 @@ class RectangleCalculatorThread {
   final ThreadPool _threadPool = ThreadPool();
   final DateTime _applicationStartTime = DateTime.now();
 
+  // Retry configuration for OSM lookups. Attempts are limited and use
+  // exponential backoff starting from [osmRetryBaseDelay].
+  int osmRetryMaxAttempts = 3;
+  Duration osmRetryBaseDelay = const Duration(seconds: 1);
+
   // UI related state mirrors the callbacks of the original project.  In this
   // port the values are exposed via [ValueNotifier] so widgets can listen for
   // changes and update accordingly.
@@ -1611,6 +1616,39 @@ class RectangleCalculatorThread {
     return processSpeedCamerasOnTheWay(p, 0.01); // approx 1km radius
   }
 
+  List<Map<String, dynamic>>? _getCachedLocalData(
+      GeoRect area, String? lookupType) {
+    bool within(double lat, double lon) =>
+        lat >= area.minLat &&
+        lat <= area.maxLat &&
+        lon >= area.minLon &&
+        lon <= area.maxLon;
+
+    if (lookupType == 'camera_ahead' || lookupType == 'distance_cam') {
+      final cams = _cameraCache
+          .where((c) => within(c.latitude, c.longitude))
+          .map((c) => {
+                'lat': c.latitude,
+                'lon': c.longitude,
+                'tags': {'highway': 'speed_camera', 'name': c.name}
+              })
+          .toList();
+      return cams.isEmpty ? null : cams;
+    } else if (lookupType == 'construction_ahead') {
+      final areas = constructionAreas
+          .where((r) =>
+              within(r.minLat, r.minLon) || within(r.maxLat, r.maxLon))
+          .map((r) => {
+                'lat': r.minLat,
+                'lon': r.minLon,
+                'tags': {'construction': 'yes'}
+              })
+          .toList();
+      return areas.isEmpty ? null : areas;
+    }
+    return null;
+  }
+
   void cleanupMapContent() {
     _cameraCache.clear();
     _tileCache.clear();
@@ -1921,58 +1959,81 @@ class RectangleCalculatorThread {
     final uri = Uri.parse(baseUrl + Uri.encodeQueryComponent(query));
     logger.printLogLine('triggerOsmLookup uri: $uri', logLevel: 'DEBUG');
     final http.Client httpClient = client ?? http.Client();
-    final start = DateTime.now();
 
-    try {
-      final resp = await httpClient.get(uri, headers: {
-        'User-Agent': 'speedcamwarner-dart'
-      }).timeout(const Duration(seconds: 15));
-      final duration = DateTime.now().difference(start);
-      reportDownloadTime(duration);
-      logger.printLogLine(
-        'triggerOsmLookup HTTP ${resp.statusCode} in ${duration.inMilliseconds}ms',
-        logLevel: 'DEBUG',
-      );
-      if (resp.statusCode == 200) {
-        final data = jsonDecode(resp.body) as Map<String, dynamic>;
-        final elements = data['elements'] as List<dynamic>?;
+    for (var attempt = 1; attempt <= osmRetryMaxAttempts; attempt++) {
+      final start = DateTime.now();
+      try {
+        final resp = await httpClient
+            .get(uri, headers: {'User-Agent': 'speedcamwarner-dart'})
+            .timeout(const Duration(seconds: 15));
+        final duration = DateTime.now().difference(start);
+        reportDownloadTime(duration);
         logger.printLogLine(
-          'triggerOsmLookup returned ${elements?.length ?? 0} elements',
+          'triggerOsmLookup HTTP ${resp.statusCode} in ${duration.inMilliseconds}ms',
           logLevel: 'DEBUG',
         );
-        return OsmLookupResult(
-          true,
-          'OK',
-          elements,
-          null,
-          area,
-        );
-      } else {
-        await checkWorkerThreadStatus();
+        if (resp.statusCode == 200) {
+          final data = jsonDecode(resp.body) as Map<String, dynamic>;
+          final elements = data['elements'] as List<dynamic>?;
+          logger.printLogLine(
+            'triggerOsmLookup returned ${elements?.length ?? 0} elements',
+            logLevel: 'DEBUG',
+          );
+          if (client == null) httpClient.close();
+          return OsmLookupResult(true, 'OK', elements, null, area);
+        } else {
+          await checkWorkerThreadStatus();
+          logger.printLogLine(
+            'triggerOsmLookup non-200 HTTP ${resp.statusCode}',
+            logLevel: 'WARNING',
+          );
+          if (client == null) httpClient.close();
+          return OsmLookupResult(
+            false,
+            'ERROR',
+            null,
+            'HTTP ${resp.statusCode}',
+            area,
+          );
+        }
+      } on TimeoutException catch (e) {
         logger.printLogLine(
-          'triggerOsmLookup non-200 HTTP ${resp.statusCode}',
+          'triggerOsmLookup timeout on attempt $attempt: $e',
           logLevel: 'WARNING',
         );
-        return OsmLookupResult(
-          false,
-          'ERROR',
-          null,
-          'HTTP ${resp.statusCode}',
-          area,
+        if (attempt >= osmRetryMaxAttempts) {
+          await checkWorkerThreadStatus();
+          final cached = _getCachedLocalData(area, lookupType);
+          if (client == null) httpClient.close();
+          if (cached != null && cached.isNotEmpty) {
+            logger.printLogLine(
+              'triggerOsmLookup returning cached data after timeout',
+              logLevel: 'WARNING',
+            );
+            return OsmLookupResult(true, 'CACHE', cached, e.toString(), area);
+          }
+          logger.printLogLine(
+            'triggerOsmLookup timeout after $osmRetryMaxAttempts attempts',
+            logLevel: 'ERROR',
+          );
+          return OsmLookupResult(false, 'TIMEOUT', null, e.toString(), area);
+        }
+        final delayMs =
+            osmRetryBaseDelay.inMilliseconds * (1 << (attempt - 1));
+        await Future.delayed(Duration(milliseconds: delayMs));
+      } catch (e) {
+        await checkWorkerThreadStatus();
+        logger.printLogLine(
+          'triggerOsmLookup exception: $e',
+          logLevel: 'ERROR',
         );
-      }
-    } catch (e) {
-      await checkWorkerThreadStatus();
-      logger.printLogLine(
-        'triggerOsmLookup exception: $e',
-        logLevel: 'ERROR',
-      );
-      return OsmLookupResult(false, 'NOINET', null, e.toString(), area);
-    } finally {
-      if (client == null) {
-        httpClient.close();
+        if (client == null) httpClient.close();
+        return OsmLookupResult(false, 'NOINET', null, e.toString(), area);
       }
     }
+
+    if (client == null) httpClient.close();
+    return OsmLookupResult(false, 'UNKNOWN', null, 'Unexpected error', area);
   }
 
   Future<void> checkWorkerThreadStatus() =>
