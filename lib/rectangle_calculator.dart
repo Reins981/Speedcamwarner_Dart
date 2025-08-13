@@ -265,6 +265,14 @@ class RectangleCalculatorThread {
   /// Whether the run loop should continue executing.  Set to ``false`` to
   /// stop processing samples.
   bool _running = true;
+  bool get isRunning => _running;
+
+  /// Guard to ensure the processing loop is only attached once.  The
+  /// constructor calls [_start] and some external code may invoke [run]
+  /// for API parity.  Without this flag the stream would be listened to
+  /// multiple times which throws a ``Bad state: Stream has already been
+  /// listened to`` exception.
+  bool _started = false;
 
   /// The current zoom level used when converting between tiles and
   /// latitude/longitude.  You may expose this as a public field if your map
@@ -526,6 +534,8 @@ class RectangleCalculatorThread {
   /// incoming vector samples and processes them sequentially.  If
   /// [_running] becomes false the loop exits gracefully.
   void _start() {
+    if (_started) return;
+    _started = true;
     // ignore: unawaited_futures
     _vectorStreamController.stream.listen((vector) async {
       if (!_running) return;
@@ -696,7 +706,16 @@ class RectangleCalculatorThread {
   /// Wrapper around [_start] to mirror the Python ``run`` method.  The
   /// constructor already launches the processing loop, but this method is kept
   /// for API parity.
-  void run() => _start();
+  void run() {
+    _running = true;
+    _start();
+  }
+
+  /// Stop processing vector samples but keep streams open so the calculator can
+  /// be restarted later.
+  void stop() {
+    _running = false;
+  }
 
   /// Replace the current list of known speed cameras.  Each entry is broadcast
   /// immediately on the camera stream.
