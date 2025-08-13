@@ -55,6 +55,7 @@ class POIReader extends Logger {
   /// Timers
   Timer? timer1;
   Timer? timer2;
+  Timer? timer3;
 
   /// OSM layer zoom and rectangle
   final int zoom = 17;
@@ -94,6 +95,7 @@ class POIReader extends Logger {
   void stopTimer() {
     timer1?.cancel();
     timer2?.cancel();
+    timer3?.cancel();
   }
 
   /// Process initial loading and schedule cyclic tasks.
@@ -107,13 +109,15 @@ class POIReader extends Logger {
       (_) => _updatePoisFromDb(),
     );
 
-    timer2 = Timer(Duration(seconds: initTimeFromCloud), () {
-      unawaited(_updatePoisFromCloud());
-      timer2 = Timer.periodic(
-        Duration(seconds: uTimeFromCloud),
-        (_) => unawaited(_updatePoisFromCloud()),
-      );
-    });
+    // Schedule a one-shot update from the cloud and a periodic refresher.
+    timer2 = Timer.periodic(
+      Duration(seconds: uTimeFromCloud),
+      (_) => unawaited(_updatePoisFromCloud()),
+    );
+    timer3 = Timer(
+      Duration(seconds: initTimeFromCloud),
+      () => unawaited(_updatePoisFromCloud()),
+    );
   }
 
   /// Open the bundled SQLite database using the ``sqlite3`` package.
