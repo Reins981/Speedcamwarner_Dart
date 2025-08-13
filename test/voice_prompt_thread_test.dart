@@ -17,6 +17,21 @@ class FakeDialogflow {
   Future<String> detectIntent(String text) async => 'response:$text';
 }
 
+class TestVoicePromptThread extends VoicePromptThread {
+  final List<String> played = [];
+  TestVoicePromptThread({
+    required super.voicePromptQueue,
+    required super.dialogflowClient,
+    super.tts,
+    super.aiVoicePrompts,
+  });
+
+  @override
+  Future<void> playSound(String fileName) async {
+    played.add(fileName);
+  }
+}
+
 void main() {
   test('ai voice prompts speak dialogflow response', () async {
     final thread = VoicePromptThread(
@@ -38,6 +53,8 @@ void main() {
     );
     final sound = thread.mapVoiceEntryToSound('GPS_OFF');
     expect(sound, contains('gps_off.wav'));
+    final low = thread.mapVoiceEntryToSound('GPS_LOW');
+    expect(low, contains('gps_weak.wav'));
   });
 
   test('setConfigs toggles aiVoicePrompts', () {
@@ -66,5 +83,19 @@ void main() {
     thread.stop();
     await future;
     expect(tts.lastText, isNull);
+  });
+
+  test('ar events processed by voice thread', () async {
+    final queue = VoicePromptQueue();
+    final thread = TestVoicePromptThread(
+      voicePromptQueue: queue,
+      dialogflowClient: FakeDialogflow(),
+      tts: FakeTts(),
+      aiVoicePrompts: false,
+    );
+    queue.produceArStatus('AR_HUMAN');
+    final item = await queue.consumeItems();
+    await thread.process(item);
+    expect(thread.played, contains('human.wav'));
   });
 }

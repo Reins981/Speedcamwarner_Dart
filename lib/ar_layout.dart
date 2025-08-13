@@ -33,7 +33,7 @@ class EdgeDetectState extends State<EdgeDetect> {
   bool cameraConnected = false;
   String _cameraDirection = 'back';
 
-  VoicePromptQueue voicePromptQueue = VoicePromptQueue();
+  late VoicePromptQueue voicePromptQueue;
   dynamic g;
   dynamic speedL;
   Function(String message)? _logViewer;
