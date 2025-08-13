@@ -124,7 +124,6 @@ class LocationManager extends Logger {
         }
       }
     }
-
     printLogLine('GPX parsing produced ${samples.length} samples');
     return samples;
   }
