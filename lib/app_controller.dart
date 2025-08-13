@@ -21,7 +21,10 @@ import 'thread_base.dart';
 /// Dart we keep long lived objects and expose explicit [start] and [stop]
 /// hooks so the Flutter UI can control them.
 class AppController {
-  AppController() {
+  AppController()
+      : voicePromptQueue = VoicePromptQueue(),
+        locationManager = LocationManager() {
+    gps = GpsThread(voicePromptQueue: voicePromptQueue);
     overspeedChecker = OverspeedChecker();
     overspeedThread = overspeed.OverspeedThread(
       cond: overspeed.ThreadCondition(),
@@ -67,13 +70,13 @@ class AppController {
   }
 
   /// Handles GPS sampling.
-  final GpsThread gps = GpsThread();
+  late final GpsThread gps;
 
   /// Provides real position updates using the device's sensors.
-  final LocationManager locationManager = LocationManager();
+  final LocationManager locationManager;
 
   /// Shared queue for delivering voice prompt entries.
-  final VoicePromptQueue voicePromptQueue = VoicePromptQueue();
+  final VoicePromptQueue voicePromptQueue;
 
   /// Performs rectangle calculations and camera lookups.
   late final RectangleCalculatorThread calculator;
