@@ -2,6 +2,8 @@ import 'dart:async';
 import 'dart:math';
 
 import 'rectangle_calculator.dart';
+import 'thread_base.dart';
+import 'voice_prompt_queue.dart';
 
 /// Ported from `SpeedCamWarnerThread.py`.
 ///
@@ -14,16 +16,12 @@ class SpeedCamWarner {
   // ---------------------------- configuration ----------------------------
   static bool camInProgress = false;
 
-  final dynamic mainApp;
   final dynamic resume;
-  final dynamic cvSpeedcam;
-  final dynamic voicePromptQueue;
-  final dynamic speedcamQueue;
-  final dynamic cvOverspeed;
-  final dynamic overspeedQueue;
+  final VoicePromptQueue voicePromptQueue;
+  final SpeedCamQueue<Map<String, dynamic>> speedcamQueue;
   final dynamic osmWrapper;
-  final dynamic calculator;
-  final dynamic cond;
+  final RectangleCalculatorThread calculator;
+  final ThreadCondition cond;
 
   // runtime state --------------------------------------------------------
   List<double?> camCoordinates = [null, null];
@@ -50,17 +48,14 @@ class SpeedCamWarner {
   int maxDismissCounter = 5;
   int maxDistanceToFutureCamera = 5000; // meters
 
-  SpeedCamWarner(
-      {required this.mainApp,
-      required this.resume,
-      required this.cvSpeedcam,
-      required this.voicePromptQueue,
-      required this.speedcamQueue,
-      required this.cvOverspeed,
-      required this.overspeedQueue,
-      required this.osmWrapper,
-      required this.calculator,
-      required this.cond}) {
+  SpeedCamWarner({
+    required this.resume,
+    required this.voicePromptQueue,
+    required this.speedcamQueue,
+    required this.osmWrapper,
+    required this.calculator,
+    ThreadCondition? cond,
+  }) : cond = cond ?? ThreadCondition(false) {
     setConfigs();
     Timer.periodic(Duration(seconds: traversedCamerasInterval), (_) {
       deletePassedCameras();
@@ -77,9 +72,6 @@ class SpeedCamWarner {
   // ------------------------------ threading -----------------------------
   Future<void> run() async {
     while (!(cond.terminate ?? false)) {
-      if (mainApp.runInBackGround == true) {
-        await mainApp.mainEvent.wait();
-      }
       var status = await process();
       if (status == 'EXIT') break;
     }
@@ -87,8 +79,7 @@ class SpeedCamWarner {
   }
 
   Future<String?> process() async {
-    var item = await speedcamQueue.consume(cvSpeedcam);
-    cvSpeedcam.release();
+    var item = await speedcamQueue.consume();
 
     ccpBearing = item['bearing'];
     var stableCcp = item['stable_ccp'] ?? true;
@@ -152,6 +143,7 @@ class SpeedCamWarner {
         ];
         insertedSpeedcams
             .add([item['fix_cam'][1], item['fix_cam'][2]]);
+        updateSpeedcam('fix');
       }
     }
 
@@ -200,6 +192,7 @@ class SpeedCamWarner {
         ];
         insertedSpeedcams
             .add([item['traffic_cam'][1], item['traffic_cam'][2]]);
+        updateSpeedcam('traffic');
       }
     }
 
@@ -248,6 +241,7 @@ class SpeedCamWarner {
         ];
         insertedSpeedcams
             .add([item['distance_cam'][1], item['distance_cam'][2]]);
+        updateSpeedcam('distance');
       }
     }
 
@@ -296,6 +290,7 @@ class SpeedCamWarner {
         ];
         insertedSpeedcams
             .add([item['mobile_cam'][1], item['mobile_cam'][2]]);
+        updateSpeedcam('mobile');
       }
     }
 
@@ -922,10 +917,14 @@ class SpeedCamWarner {
     calculator.updateSpeedCam(speedcam);
   }
 
-  void updateBarWidget1000m({int color = 1}) {}
-  void updateBarWidget500m({int color = 1}) {}
-  void updateBarWidget300m({int color = 1}) {}
-  void updateBarWidget100m({int color = 1}) {}
+  void updateBarWidget1000m({int color = 1}) =>
+      calculator.updateSpeedCam('CAMERA_AHEAD');
+  void updateBarWidget500m({int color = 1}) =>
+      calculator.updateSpeedCam('CAMERA_AHEAD');
+  void updateBarWidget300m({int color = 1}) =>
+      calculator.updateSpeedCam('CAMERA_AHEAD');
+  void updateBarWidget100m({int color = 1}) =>
+      calculator.updateSpeedCam('CAMERA_AHEAD');
 
   void updateBarWidgetMeters(dynamic meter) {
     if (meter is num) {
@@ -948,18 +947,8 @@ class SpeedCamWarner {
   void updateMaxSpeed({dynamic maxSpeed, bool reset = false}) {
     if (reset || maxSpeed == null) {
       calculator.updateMaxspeed('');
-      overspeedQueue.produce(cvOverspeed, {'maxspeed': 10000});
     } else {
       calculator.updateMaxspeed(maxSpeed);
-      try {
-        if (maxSpeed is String && maxSpeed.contains('mph')) {
-          maxSpeed = int.parse(maxSpeed.replaceAll(' mph', ''));
-        }
-        overspeedQueue.produce(
-            cvOverspeed, {'maxspeed': int.parse(maxSpeed.toString())});
-      } catch (_) {
-        overspeedQueue.produce(cvOverspeed, {'maxspeed': 10000});
-      }
     }
   }
 
@@ -1076,7 +1065,7 @@ class SpeedCamWarner {
           print(
               'Deleting obsolete camera: $cam (camera is outside current camera rectangle with radius ${calculateCameraRectangleRadius()} km)');
           deleteObsoleteCamera(cam, camAttributes);
-          osmWrapper.remove_marker_from_map(cam[0], cam[1]);
+          osmWrapper?.remove_marker_from_map(cam[0], cam[1]);
         } else {
           if (camAttributes[2][0] == 'IGNORE' ||
               camAttributes[2][1] == 'IGNORE') {
@@ -1086,14 +1075,14 @@ class SpeedCamWarner {
               print(
                   'Deleting obsolete camera: $cam (max distance $maxAbsoluteDistance m < current distance ${distance.abs()} m)');
               deleteObsoleteCamera(cam, camAttributes);
-              osmWrapper.remove_marker_from_map(cam[0], cam[1]);
+              osmWrapper?.remove_marker_from_map(cam[0], cam[1]);
             } else {
               if (camAttributes[6] > maxStorageTime) {
                 if (camAttributes[11] == false) {
                   print(
                       'Deleting obsolete camera: $cam because of storage time (max: $maxStorageTime seconds, current: ${camAttributes[6]})');
                   deleteObsoleteCamera(cam, camAttributes);
-                  osmWrapper.remove_marker_from_map(cam[0], cam[1]);
+                  osmWrapper?.remove_marker_from_map(cam[0], cam[1]);
                 } else {
                   print('Camera $cam is new. Ignore deletion');
                 }
@@ -1108,7 +1097,7 @@ class SpeedCamWarner {
               print(
                   'Deleting obsolete camera: $cam (max distance $maxAbsoluteDistance m < current distance ${distance.abs()} m)');
               deleteObsoleteCamera(cam, camAttributes);
-              osmWrapper.remove_marker_from_map(cam[0], cam[1]);
+              osmWrapper?.remove_marker_from_map(cam[0], cam[1]);
             } else {
               if (distance < 0 &&
                   camAttributes[5] == -1 &&
@@ -1117,7 +1106,7 @@ class SpeedCamWarner {
                   print(
                       'Deleting obsolete camera: $cam because of storage time (max: $maxStorageTime seconds, current: ${camAttributes[6]})');
                   deleteObsoleteCamera(cam, camAttributes);
-                  osmWrapper.remove_marker_from_map(cam[0], cam[1]);
+                  osmWrapper?.remove_marker_from_map(cam[0], cam[1]);
                 } else {
                   print('Camera $cam is new. Ignore deletion');
                 }

@@ -27,13 +27,16 @@ import 'most_probable_way.dart';
 import 'rect.dart' show Rect;
 import 'rect.dart' as rect_utils hide Rect;
 import 'overspeed_checker.dart';
+import 'overspeed_thread.dart';
 import 'thread_pool.dart';
 import 'road_resolver.dart';
 import 'point.dart';
 import 'linked_list_generator.dart';
 import 'tree_generator.dart';
 import 'voice_prompt_queue.dart';
+import 'thread_base.dart';
 import 'package:http/http.dart' as http;
+import 'logger.dart';
 
 /// Data class representing a single GPS/vector sample.  It contains the
 /// current longitude/latitude, current speed (in km/h), a bearing angle
@@ -93,6 +96,7 @@ class SpeedCameraEvent {
   final double longitude;
   final bool fixed;
   final bool traffic;
+  final bool distance;
   final bool mobile;
   final bool predictive;
   final String name;
@@ -102,6 +106,7 @@ class SpeedCameraEvent {
     required this.longitude,
     this.fixed = false,
     this.traffic = false,
+    this.distance = false,
     this.mobile = false,
     this.predictive = false,
     this.name = '',
@@ -112,6 +117,7 @@ class SpeedCameraEvent {
     final List<String> flags = [];
     if (fixed) flags.add('fixed');
     if (traffic) flags.add('traffic');
+    if (distance) flags.add('distance');
     if (mobile) flags.add('mobile');
     if (predictive) flags.add('predictive');
     final flagStr = flags.isEmpty ? 'none' : flags.join(',');
@@ -240,6 +246,8 @@ Future<bool> uploadCameraToDrive({
 /// emits events to registered listeners.  Termination is controlled via the
 /// [dispose] method.
 class RectangleCalculatorThread {
+  final Logger logger = Logger('RectangleCalculatorThread');
+
   /// Controller through which callers push new vector samples.  Each sample
   /// triggers a call to [processVector] from within the run loop.
   final StreamController<VectorData> _vectorStreamController =
@@ -260,11 +268,19 @@ class RectangleCalculatorThread {
   final StreamController<SpeedCameraEvent> _cameraStreamController =
       StreamController<SpeedCameraEvent>.broadcast();
 
+  /// Controller used to broadcast newly discovered construction areas.
+  final StreamController<GeoRect> _constructionStreamController =
+      StreamController<GeoRect>.broadcast();
+
   /// The predictive model used by [predictSpeedCamera].
   final PredictiveModel _predictiveModel;
 
   /// Queue used to emit voice prompts for camera events and system messages.
   final VoicePromptQueue voicePromptQueue;
+
+  /// Optional queue for notifying the legacy [SpeedCamWarner] thread about
+  /// newly detected cameras.
+  final SpeedCamQueue<Map<String, dynamic>>? speedCamQueue;
 
   /// Helper that tracks the most probable road based on recent updates.
   final MostProbableWay mostProbableWay;
@@ -286,9 +302,11 @@ class RectangleCalculatorThread {
   /// layer needs to remain in sync with the calculator.
   int zoom = 17;
 
-  /// Helper used to compute overspeed differences when new max-speed values
-  /// are processed.
-  final OverspeedChecker overspeedChecker = OverspeedChecker();
+  /// Exposes the current overspeed difference to listeners.
+  final OverspeedChecker overspeedChecker;
+
+  /// Thread responsible for calculating overspeed warnings.
+  final OverspeedThread? overspeedThread;
 
   /// Last road name resolved by [processRoadName].
   String? lastRoadName;
@@ -330,6 +348,7 @@ class RectangleCalculatorThread {
   final Map<String, String> _combinedTags = {};
 
   final ThreadPool _threadPool = ThreadPool();
+  final DateTime _applicationStartTime = DateTime.now();
 
   // UI related state mirrors the callbacks of the original project.  In this
   // port the values are exposed via [ValueNotifier] so widgets can listen for
@@ -338,6 +357,9 @@ class RectangleCalculatorThread {
   final ValueNotifier<String> roadNameNotifier = ValueNotifier<String>('');
   final ValueNotifier<double?> camRadiusNotifier = ValueNotifier<double?>(null);
   final ValueNotifier<String?> infoPageNotifier = ValueNotifier<String?>(null);
+  /// Tracks the number of construction areas discovered so far.
+  final ValueNotifier<int> constructionAreaCountNotifier =
+      ValueNotifier<int>(0);
   final ValueNotifier<bool> maxspeedOnlineNotifier = ValueNotifier<bool>(false);
   final ValueNotifier<String?> maxspeedStatusNotifier = ValueNotifier<String?>(
     null,
@@ -470,9 +492,14 @@ class RectangleCalculatorThread {
   RectangleCalculatorThread({
     PredictiveModel? model,
     VoicePromptQueue? voicePromptQueue,
-  }) : _predictiveModel = model ?? PredictiveModel(),
-       voicePromptQueue = voicePromptQueue ?? VoicePromptQueue(),
-       mostProbableWay = MostProbableWay() {
+    SpeedCamQueue<Map<String, dynamic>>? speedCamQueue,
+    OverspeedChecker? overspeedChecker,
+    this.overspeedThread,
+  })  : _predictiveModel = model ?? PredictiveModel(),
+        voicePromptQueue = voicePromptQueue ?? VoicePromptQueue(),
+        speedCamQueue = speedCamQueue,
+        mostProbableWay = MostProbableWay(),
+        overspeedChecker = overspeedChecker ?? OverspeedChecker() {
     _start();
   }
 
@@ -507,6 +534,9 @@ class RectangleCalculatorThread {
   /// predictive analytics (machine learning) or from some external data source.
   Stream<SpeedCameraEvent> get cameras => _cameraStreamController.stream;
 
+  /// Stream of construction areas discovered during look‑ahead queries.
+  Stream<GeoRect> get constructions => _constructionStreamController.stream;
+
   /// Connect a stream of [VectorData] samples (e.g. from [GpsThread]) directly
   /// to this calculator.  Each incoming vector is forwarded to
   /// [addVectorSample].
@@ -535,6 +565,7 @@ class RectangleCalculatorThread {
     await _vectorStreamController.close();
     await _rectangleStreamController.close();
     await _cameraStreamController.close();
+    await _constructionStreamController.close();
   }
 
   /// Kick off the asynchronous processing loop.  In Dart we rely on
@@ -561,6 +592,8 @@ class RectangleCalculatorThread {
   /// rectangle and publishes it.  It also invokes the predictive model to
   /// determine whether a speed camera might exist ahead on the current route.
   Future<void> _processVector(VectorData vector) async {
+    logger.printLogLine(
+        'Processing vector lon:${vector.longitude}, lat:${vector.latitude}, speed:${vector.speed}, bearing:${vector.bearing}');
     longitude = vector.longitude;
     latitude = vector.latitude;
     direction = vector.direction;
@@ -583,7 +616,12 @@ class RectangleCalculatorThread {
     // lookahead distance grows with speed.  Vehicles above 110 km/h
     // translate into a larger lookahead rectangle.
     final double lookAheadKm = _computeLookAheadDistance(speedKmH);
+    speedCamLookAheadDistance = lookAheadKm;
+    constructionAreaLookaheadDistance = lookAheadKm;
     final GeoRect rect = _computeBoundingRect(latitude, longitude, lookAheadKm);
+    rectSpeedCamLookahead = lastRect;
+    rectConstructionAreasLookahead = lastRect;
+    currentRectAngle = bearing;
     _rectangleStreamController.add(rect);
 
     // Predictive camera detection.  Evaluate the model with the current
@@ -600,6 +638,8 @@ class RectangleCalculatorThread {
       dayOfWeek: dayOfWeek,
     );
     if (predicted != null) {
+      logger.printLogLine(
+          'Predictive camera detected at ${predicted.latitude}, ${predicted.longitude}');
       // If a camera was predicted ahead, publish it on the camera stream and
       // optionally record it to persistent storage.
       _cameraStreamController.add(predicted);
@@ -609,6 +649,18 @@ class RectangleCalculatorThread {
         longitude: predicted.longitude,
       );
     }
+
+    if (camerasLookAheadMode) {
+      logger.printLogLine('Triggering camera lookahead');
+      await processLookaheadItems(_applicationStartTime);
+    }
+
+    // Feed current speed and the latest max-speed to the overspeed thread so
+    // it can emit warnings when the driver exceeds the limit.
+    overspeedThread?.addCurrentSpeed(speedKmH.toInt());
+    final dynamic lms = lastMaxSpeed;
+    final int overspeedValue = (lms is int) ? lms : 10000;
+    overspeedThread?.addOverspeedEntry({'maxspeed': overspeedValue});
   }
 
   /// Compute a lookahead distance in kilometres based upon the current speed.
@@ -737,6 +789,21 @@ class RectangleCalculatorThread {
   void updateSpeedCams(List<SpeedCameraEvent> speedCams) {
     for (final cam in speedCams) {
       _cameraStreamController.add(cam);
+      logger.printLogLine('Emitting camera event: $cam');
+      speedCamQueue?.produce({
+        'bearing': 0.0,
+        'stable_ccp': true,
+        'ccp': ['IGNORE', 'IGNORE'],
+        'fix_cam': [cam.fixed, cam.longitude, cam.latitude, true],
+        'traffic_cam': [cam.traffic, cam.longitude, cam.latitude, true],
+        'distance_cam': [cam.distance, cam.longitude, cam.latitude, true],
+        'mobile_cam': [cam.mobile, cam.longitude, cam.latitude, true],
+        'ccp_node': ['IGNORE', 'IGNORE'],
+        'list_tree': [null, null],
+        'name': cam.name,
+        'maxspeed': 0,
+        'direction': '',
+      });
     }
   }
 
@@ -745,6 +812,7 @@ class RectangleCalculatorThread {
 
   void updateConstructionAreas(List<GeoRect> areas) {
     constructionAreas = List<GeoRect>.from(areas);
+    constructionAreaCountNotifier.value = constructionAreas.length;
   }
 
   /// Reset transient state and clear construction areas.
@@ -989,8 +1057,9 @@ class RectangleCalculatorThread {
     }
   }
 
-  /// Process a max speed entry and update [overspeedChecker].  Returns a
-  /// status string describing the outcome similar to the Python code.
+  /// Process a max speed entry. The resulting value is stored in
+  /// [lastMaxSpeed] so the [overspeedThread] can warn the driver on the next
+  /// position update. Returns a status string mirroring the Python logic.
   String processMaxSpeed(
     dynamic maxspeed,
     bool foundMaxspeed, {
@@ -1001,8 +1070,8 @@ class RectangleCalculatorThread {
     int? currentSpeed,
   }) {
     if (resetMaxspeed && !dismissPois) {
-      overspeedChecker.process(currentSpeed, {'maxspeed': 10000});
-      lastMaxSpeed = 'POI';
+      logger.printLogLine('Resetting Overspeed to 10000');
+      lastMaxSpeed = null;
       return 'MAX_SPEED_IS_POI';
     }
 
@@ -1010,14 +1079,18 @@ class RectangleCalculatorThread {
       var result = prepareDataForSpeedCheck(maxspeed, motorway: motorway);
       maxspeed = result['maxspeed'];
       final bool overspeedReset = result['overspeedReset'];
-      final overspeed = overspeedReset ? 10000 : maxspeed;
-      overspeedChecker.process(currentSpeed, {'maxspeed': overspeed});
-      lastMaxSpeed = maxspeed;
+      if (ramp) {
+        logger.printLogLine('Final Maxspeed value is RAMP');
+        lastMaxSpeed = null;
+      } else {
+        final overspeed = overspeedReset ? 10000 : maxspeed;
+        logger.printLogLine('Final Maxspeed value is $overspeed');
+        lastMaxSpeed = overspeedReset ? null : maxspeed;
+      }
       return 'MAX_SPEED_FOUND';
     } else {
       if (lastMaxSpeed != null && lastRoadName == roadName) {
-        overspeedChecker.process(currentSpeed, {'maxspeed': lastMaxSpeed});
-        lastMaxSpeed = null;
+        logger.printLogLine('Using last max speed $lastMaxSpeed');
         return 'LAST_MAX_SPEED_USED';
       }
       lastMaxSpeed = null;
@@ -1131,6 +1204,7 @@ class RectangleCalculatorThread {
     DateTime applicationStartTime, {
     bool previousCcp = false,
   }) async {
+    logger.printLogLine('processLookaheadItems previousCcp:$previousCcp');
     double xtile;
     double ytile;
     double ccpLon;
@@ -1198,6 +1272,7 @@ class RectangleCalculatorThread {
       final now = DateTime.now().millisecondsSinceEpoch / 1000.0;
       final last = _lastLookaheadExecution[msg] ?? 0;
       if (now - last < dosAttackPreventionIntervalDownloads) {
+        logger.printLogLine('Skipping $msg - rate limited');
         continue;
       }
 
@@ -1206,6 +1281,7 @@ class RectangleCalculatorThread {
             .difference(applicationStartTime)
             .inSeconds;
         if (elapsed <= constructionAreaStartupTriggerMax) {
+          logger.printLogLine('Skipping $msg during startup grace period');
           continue;
         }
       }
@@ -1219,11 +1295,14 @@ class RectangleCalculatorThread {
           lookAheadMode: msg,
         );
         if (inside && !close) {
+          logger.printLogLine('Skipping $msg - inside existing lookahead');
           continue;
         }
       }
 
+      logger.printLogLine('Executing $msg lookup');
       await func(trigger, 1, xtile, ytile, ccpLon, ccpLat);
+      logger.printLogLine('$msg lookup finished');
       _lastLookaheadExecution[msg] = now;
     }
   }
@@ -1242,14 +1321,17 @@ class RectangleCalculatorThread {
       final lat = (element['lat'] as num?)?.toDouble();
       final lon = (element['lon'] as num?)?.toDouble();
       if (lat == null || lon == null) continue;
-      constructionAreas.add(
-        GeoRect(minLat: lat, minLon: lon, maxLat: lat, maxLon: lon),
-      );
+      final rect = GeoRect(minLat: lat, minLon: lon, maxLat: lat, maxLon: lon);
+      logger.printLogLine('Adding construction area at ($lat, $lon)');
+      constructionAreas.add(rect);
+      _constructionStreamController.add(rect);
     }
     if (constructionAreas.isNotEmpty) {
       updateConstructionAreas(constructionAreas);
       updateMapQueue();
-      updateInfoPage('CONSTRUCTION_AREAS');
+      updateInfoPage('CONSTRUCTION_AREAS:${constructionAreas.length}');
+      logger.printLogLine(
+          'Total construction areas: ${constructionAreas.length}');
       cleanupMapContent();
     }
   }
@@ -1302,6 +1384,9 @@ class RectangleCalculatorThread {
       maxLat: maxLat,
       maxLon: maxLon,
     );
+    // Notify listeners so geo bounds can be visualised on the map
+    _rectangleStreamController.add(rect);
+    logger.printLogLine('speedCamLookupAhead bounds: $rect');
     for (final type in ['camera_ahead', 'distance_cam']) {
       final result = await triggerOsmLookup(
         rect,
@@ -1401,6 +1486,7 @@ class RectangleCalculatorThread {
       }
     }
     if (cams.isNotEmpty) {
+      logger.printLogLine('Found ${cams.length} cameras from $lookupType lookup');
       updateSpeedCams(cams);
       updateMapQueue();
       updateInfoPage('SPEED_CAMERAS');

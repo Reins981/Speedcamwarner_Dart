@@ -6,7 +6,9 @@ import 'package:sqlite3/sqlite3.dart' as sqlite;
 import 'logger.dart';
 import 'rect.dart';
 import 'service_account.dart';
-import 'rectangle_calculator.dart' show SpeedCameraEvent;
+import 'rectangle_calculator.dart' show SpeedCameraEvent, RectangleCalculatorThread;
+import 'thread_base.dart';
+import 'gps_producer.dart';
 
 /// Representation of a user contributed camera.
 class UserCamera {
@@ -28,15 +30,10 @@ class UserCamera {
 /// (SQLite access, Google Drive interaction) remains to be implemented in
 /// dedicated modules.
 class POIReader extends Logger {
-  final dynamic cvSpeedcam;
-  final dynamic speedCamQueue;
-  final dynamic gpsProducer;
-  final dynamic calculator;
-  final dynamic osmWrapper;
-  final dynamic mapQueue;
-  final dynamic cvMap;
-  final dynamic cvMapCloud;
-  final dynamic cvMapDb;
+  final SpeedCamQueue<dynamic> speedCamQueue;
+  final GpsProducer gpsProducer;
+  final RectangleCalculatorThread calculator;
+  final MapQueue<dynamic> mapQueue;
   final StreamController<String>? logViewer;
 
   /// Global members translated from the Python implementation
@@ -72,15 +69,10 @@ class POIReader extends Logger {
   late int uTimeFromDb;
 
   POIReader(
-    this.cvSpeedcam,
     this.speedCamQueue,
     this.gpsProducer,
     this.calculator,
-    this.osmWrapper,
     this.mapQueue,
-    this.cvMap,
-    this.cvMapCloud,
-    this.cvMapDb,
     this.logViewer,
   ) : super('POIReader', logViewer: logViewer) {
     _setConfigs();
@@ -108,8 +100,11 @@ class POIReader extends Logger {
     _openConnection();
     _execute();
     _convertCamMortonCodes();
-
-    timer1 = Timer(Duration(seconds: uTimeFromDb), _updatePoisFromDb);
+    _updatePoisFromDb();
+    timer1 = Timer.periodic(
+      Duration(seconds: uTimeFromDb),
+      (_) => _updatePoisFromDb(),
+    );
 
     timer2 = Timer(Duration(seconds: initTimeFromCloud), () {
       unawaited(_updatePoisFromCloud());
@@ -210,15 +205,21 @@ class POIReader extends Logger {
     double latitude,
     String cameraType,
   ) {
-    speedCamQueue.produce(cvSpeedcam, {
+    printLogLine(
+        'Propagating $cameraType camera (${longitude.toStringAsFixed(5)}, ${latitude.toStringAsFixed(5)})');
+    speedCamQueue.produce({
+      'bearing': 0.0,
+      'stable_ccp': true,
       'ccp': ['IGNORE', 'IGNORE'],
       'fix_cam': [cameraType == 'fix_cam', longitude, latitude, true],
-      'traffic_cam': [false, longitude, latitude, true],
-      'distance_cam': [false, longitude, latitude, true],
+      'traffic_cam': [cameraType == 'traffic_cam', longitude, latitude, true],
+      'distance_cam': [cameraType == 'distance_cam', longitude, latitude, true],
       'mobile_cam': [cameraType == 'mobile_cam', longitude, latitude, true],
       'ccp_node': ['IGNORE', 'IGNORE'],
       'list_tree': [null, null],
       'name': name ?? '',
+      'maxspeed': 0,
+      'direction': '',
     });
 
     calculator.updateSpeedCams([
@@ -226,6 +227,8 @@ class POIReader extends Logger {
         latitude: latitude,
         longitude: longitude,
         fixed: cameraType == 'fix_cam',
+        traffic: cameraType == 'traffic_cam',
+        distance: cameraType == 'distance_cam',
         mobile: cameraType == 'mobile_cam',
         name: name ?? '',
       ),
@@ -262,15 +265,15 @@ class POIReader extends Logger {
   }
 
   void _updateMapQueue() {
-    mapQueue.produce(cvMap, 'UPDATE');
+    mapQueue.produce('UPDATE');
   }
 
   void _updateSpeedCamsCloud(List<Map<String, List<dynamic>>> speedCams) {
-    mapQueue.produce_cloud(cvMap, speedCams);
+    mapQueue.produceCloud(speedCams);
   }
 
   void _updateSpeedCamsDb(List<Map<String, List<dynamic>>> speedCams) {
-    mapQueue.produce_db(cvMap, speedCams);
+    mapQueue.produceDb(speedCams);
   }
 
   void _updateOsmWrapper({String cameraSource = 'cloud'}) {

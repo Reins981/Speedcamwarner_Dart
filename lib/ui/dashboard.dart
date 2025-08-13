@@ -309,7 +309,9 @@ class _DashboardPageState extends State<DashboardPage> {
   String _iconForCamera(SpeedCameraEvent cam) {
     if (cam.fixed) return 'images/fixcamera_map.png';
     if (cam.traffic) return 'images/trafficlightcamera_map.jpg';
+    if (cam.distance) return 'images/distancecamera_map.jpg';
     if (cam.mobile) return 'images/mobilecamera_map.jpg';
+    if (cam.predictive) return 'images/camera_ahead.png';
     return 'images/distancecamera_map.jpg';
   }
 }
