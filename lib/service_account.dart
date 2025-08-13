@@ -39,7 +39,7 @@ class ServiceAccount {
         final content = await rootBundle
             .loadString('python/service_account/osmwarner-01bcd4dc2dd3.json');
         return jsonDecode(content) as Map<String, dynamic>;
-      } on FlutterError {
+      } on Exception {
         throw Exception(
             'Service account file not found in assets or file system.');
       }
@@ -57,7 +57,7 @@ class ServiceAccount {
       try {
         jsonString = await rootBundle
             .loadString('python/service_account/osmwarner-01bcd4dc2dd3.json');
-      } on FlutterError {
+      } on Exception {
         throw Exception(
             'Service account file not found in assets or file system.');
       }
@@ -186,12 +186,10 @@ class ServiceAccount {
   ) async {
     final api = drive.DriveApi(client);
     try {
-      final drive.Media media =
-          await api.files.get(
-                fileId,
-                downloadOptions: drive.DownloadOptions.fullMedia,
-              )
-              as drive.Media;
+      final drive.Media media = await api.files.get(
+        fileId,
+        downloadOptions: drive.DownloadOptions.fullMedia,
+      ) as drive.Media;
       final data = await media.stream.fold<List<int>>(
         [],
         (buffer, bytes) => buffer..addAll(bytes),

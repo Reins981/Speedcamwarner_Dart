@@ -511,11 +511,11 @@ class RectangleCalculatorThread {
     SpeedCamQueue<Map<String, dynamic>>? speedCamQueue,
     OverspeedChecker? overspeedChecker,
     this.overspeedThread,
-  }) : _predictiveModel = model ?? PredictiveModel(),
-       voicePromptQueue = voicePromptQueue ?? VoicePromptQueue(),
-       speedCamQueue = speedCamQueue,
-       mostProbableWay = MostProbableWay(),
-       overspeedChecker = overspeedChecker ?? OverspeedChecker() {
+  })  : _predictiveModel = model ?? PredictiveModel(),
+        voicePromptQueue = voicePromptQueue ?? VoicePromptQueue(),
+        speedCamQueue = speedCamQueue,
+        mostProbableWay = MostProbableWay(),
+        overspeedChecker = overspeedChecker ?? OverspeedChecker() {
     _start();
   }
 
@@ -710,8 +710,7 @@ class RectangleCalculatorThread {
     // Convert distance (km) into degrees latitude/longitude.  One degree
     // latitude spans approximately 111 km.  Longitude scales with cos(lat).
     final double deltaLat = (lookAheadKm / earthRadiusKm) * (180.0 / math.pi);
-    final double deltaLon =
-        (lookAheadKm / earthRadiusKm) *
+    final double deltaLon = (lookAheadKm / earthRadiusKm) *
         (180.0 / math.pi) /
         math.cos(latRadians);
 
@@ -741,8 +740,8 @@ class RectangleCalculatorThread {
     final double xTile = (lonDeg + 180.0) / 360.0 * n;
     final double yTile =
         (1.0 - math.log(math.tan(latRad) + 1.0 / math.cos(latRad)) / math.pi) /
-        2.0 *
-        n;
+            2.0 *
+            n;
     return math.Point<double>(xTile, yTile);
   }
 
@@ -1314,19 +1313,30 @@ class RectangleCalculatorThread {
     for (final item in lookups) {
       final Rect? rect = item['rect'] as Rect?;
       final String msg = item['msg'] as String;
-      final func =
-          item['func']
-              as Future<void> Function(
-                Future<void> Function(double, double, double, double),
-                int,
-                double,
-                double,
-                double,
-                double,
-              );
-      final trigger =
-          item['trigger']
-              as Future<void> Function(double, double, double, double);
+      final func = item['func'] as Future<void> Function(
+        Future<void> Function(double, double, double, double),
+        int,
+        double,
+        double,
+        double,
+        double,
+      );
+      final trigger = item['trigger'] as Future<void> Function(
+          double, double, double, double);
+
+      if (rect != null) {
+        final inside = rect.pointInRect(xtile, ytile);
+        final close = rect.pointsCloseToBorder(
+          xtile,
+          ytile,
+          lookAhead: true,
+          lookAheadMode: msg,
+        );
+        if (inside && !close) {
+          logger.printLogLine('Skipping $msg - inside existing lookahead');
+          continue;
+        }
+      }
 
       final now = DateTime.now();
       final last = _lastLookaheadExecution[msg];
@@ -1341,25 +1351,10 @@ class RectangleCalculatorThread {
       }
 
       if (msg == 'Construction area lookahead') {
-        final elapsed = DateTime.now()
-            .difference(applicationStartTime)
-            .inSeconds;
+        final elapsed =
+            DateTime.now().difference(applicationStartTime).inSeconds;
         if (elapsed <= constructionAreaStartupTriggerMax) {
           logger.printLogLine('Skipping $msg during startup grace period');
-          continue;
-        }
-      }
-
-      if (rect != null) {
-        final inside = rect.pointInRect(xtile, ytile);
-        final close = rect.pointsCloseToBorder(
-          xtile,
-          ytile,
-          lookAhead: true,
-          lookAheadMode: msg,
-        );
-        if (inside && !close) {
-          logger.printLogLine('Skipping $msg - inside existing lookahead');
           continue;
         }
       }
@@ -1404,13 +1399,14 @@ class RectangleCalculatorThread {
   Future<SpeedCameraEvent?> processPredictiveCameras(
     double longitude,
     double latitude,
-  ) async => predictSpeedCamera(
-    model: _predictiveModel,
-    latitude: latitude,
-    longitude: longitude,
-    timeOfDay: _formatTimeOfDay(DateTime.now()),
-    dayOfWeek: _formatDayOfWeek(DateTime.now()),
-  );
+  ) async =>
+      predictSpeedCamera(
+        model: _predictiveModel,
+        latitude: latitude,
+        longitude: longitude,
+        timeOfDay: _formatTimeOfDay(DateTime.now()),
+        dayOfWeek: _formatDayOfWeek(DateTime.now()),
+      );
 
   Future<void> speedCamLookupAhead(
     double xtile,
@@ -1747,8 +1743,7 @@ class RectangleCalculatorThread {
       DoubleLinkedListNodes? linkedListGenerator,
       BinarySearchTree? treeGenerator,
       Rect? currentRect,
-    })
-    func, {
+    }) func, {
     double? lat,
     double? lon,
     DoubleLinkedListNodes? linkedList,
@@ -1919,9 +1914,9 @@ class RectangleCalculatorThread {
     final start = DateTime.now();
 
     try {
-      final resp = await httpClient
-          .get(uri, headers: {'User-Agent': 'speedcamwarner-dart'})
-          .timeout(const Duration(seconds: 15));
+      final resp = await httpClient.get(uri, headers: {
+        'User-Agent': 'speedcamwarner-dart'
+      }).timeout(const Duration(seconds: 15));
       final duration = DateTime.now().difference(start);
       reportDownloadTime(duration);
       if (resp.statusCode == 200) {
@@ -1985,12 +1980,10 @@ class RectangleCalculatorThread {
 
   Future<bool> internetAvailable() async {
     try {
-      final resp = await http
-          .get(
-            Uri.parse('https://example.com'),
-            headers: {'User-Agent': 'speedcamwarner-dart'},
-          )
-          .timeout(const Duration(seconds: 3));
+      final resp = await http.get(
+        Uri.parse('https://example.com'),
+        headers: {'User-Agent': 'speedcamwarner-dart'},
+      ).timeout(const Duration(seconds: 3));
       return resp.statusCode == 200;
     } catch (_) {
       return false;
@@ -2033,11 +2026,8 @@ class RectangleCalculatorThread {
       roadNameNotifier.value = '';
       return;
     }
-    final parts = roadname
-        .split('/')
-        .where((p) => p.isNotEmpty)
-        .toList()
-        .reversed;
+    final parts =
+        roadname.split('/').where((p) => p.isNotEmpty).toList().reversed;
     roadNameNotifier.value = parts.join('/');
     // foundCombinedTags flag kept for parity with Python version.
     foundCombinedTags;
