@@ -37,6 +37,7 @@ import 'voice_prompt_queue.dart';
 import 'thread_base.dart';
 import 'package:http/http.dart' as http;
 import 'logger.dart';
+import 'service_account.dart';
 
 /// Data class representing a single GPS/vector sample.  It contains the
 /// current longitude/latitude, current speed (in km/h), a bearing angle
@@ -203,10 +204,12 @@ Future<bool> uploadCameraToDrive({
   required String name,
   required double latitude,
   required double longitude,
-  String camerasJsonPath = 'python/service_account/cameras.json',
+  String? camerasJsonPath,
 }) async {
+  await ServiceAccount.init();
+  final path = camerasJsonPath ?? ServiceAccount.fileName;
   try {
-    final file = File(camerasJsonPath);
+    final file = File(path);
     Map<String, dynamic> content;
     if (await file.exists()) {
       content = jsonDecode(await file.readAsString()) as Map<String, dynamic>;

@@ -6,23 +6,17 @@ import 'package:googleapis/drive/v3.dart' as drive;
 import 'package:googleapis_auth/googleapis_auth.dart';
 import 'package:googleapis_auth/auth_io.dart';
 import 'package:path/path.dart' as p;
+import 'package:path_provider/path_provider.dart';
 
 import 'logger.dart';
 
 class ServiceAccount {
   static final Logger logger = Logger('ServiceAccount');
 
-  static String basePath = p.join(
-    Directory.current.path,
-    'python',
-    'service_account',
-  );
-  static String serviceAccount = p.join(
-    basePath,
-    'osmwarner-01bcd4dc2dd3.json',
-  );
+  static String basePath = '';
+  static String serviceAccount = '';
+  static String fileName = '';
   static String folderId = '1VlWuYw_lGeZzrVt5P-dvw8ZzZWSXpaQR';
-  static String fileName = p.join(basePath, 'cameras.json');
   static List<String> scopes = [drive.DriveApi.driveScope];
   static String fileId = '1T-Frq3_M-NaGMenIZpTHjrjGusBgoKgE';
   static int requestLimit = 1;
@@ -30,7 +24,29 @@ class ServiceAccount {
 
   static Map<String, _RequestRecord> userRequests = {};
 
+  static bool _initialized = false;
+
+  static Future<void> _init() async {
+    if (_initialized) return;
+    String rootPath;
+    try {
+      final dir = await getApplicationDocumentsDirectory();
+      rootPath = dir.path;
+    } catch (_) {
+      rootPath = Directory.systemTemp.path;
+    }
+    basePath = p.join(rootPath, 'python', 'service_account');
+    serviceAccount = p.join(basePath, 'osmwarner-01bcd4dc2dd3.json');
+    if (fileName.isEmpty) {
+      fileName = p.join(basePath, 'cameras.json');
+    }
+    _initialized = true;
+  }
+
+  static Future<void> init() => _init();
+
   static Future<Map<String, dynamic>> loadServiceAccount() async {
+    await _init();
     try {
       final content = await File(serviceAccount).readAsString();
       return jsonDecode(content) as Map<String, dynamic>;
@@ -49,6 +65,7 @@ class ServiceAccount {
   /// Build an authenticated HTTP client for the Google Drive API using the
   /// service account credentials.
   static Future<AutoRefreshingAuthClient> buildDriveFromCredentials() async {
+    await _init();
     String jsonString;
     final file = File(serviceAccount);
     if (await file.exists()) {
@@ -94,6 +111,7 @@ class ServiceAccount {
     double latitude,
     double longitude,
   ) async {
+    await _init();
     if (!checkRateLimit('master_user')) {
       logger.printLogLine(
         "Dismiss Camera upload: Rate limit exceeded for user: 'master_user'",
@@ -150,6 +168,7 @@ class ServiceAccount {
     AutoRefreshingAuthClient client, {
     String? uploadFileName,
   }) async {
+    await _init();
     final driveApi = drive.DriveApi(client);
     final fname = uploadFileName ?? fileName;
     try {
@@ -184,6 +203,7 @@ class ServiceAccount {
     String fileId,
     AutoRefreshingAuthClient client,
   ) async {
+    await _init();
     final api = drive.DriveApi(client);
     try {
       final drive.Media media = await api.files.get(
