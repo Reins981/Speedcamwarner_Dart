@@ -31,6 +31,9 @@ class OverspeedThread extends Logger {
   int? lastMaxSpeed;
   bool _running = false;
 
+  /// Indicates whether the overspeed thread is currently processing events.
+  bool get isRunning => _running;
+
   OverspeedThread({
     required this.cond,
     required this.isResumed,

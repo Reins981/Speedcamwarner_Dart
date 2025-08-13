@@ -155,4 +155,10 @@ class DeviationCheckerThread extends Logger {
     cond.terminate = true;
     condAr.terminate = true;
   }
+
+  void stop() {
+    _running = false;
+    cond.terminate = true;
+    condAr.terminate = true;
+  }
 }

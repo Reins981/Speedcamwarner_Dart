@@ -102,6 +102,8 @@ class POIReader extends Logger {
     timer2?.cancel();
   }
 
+  void stop() => stopTimer();
+
   /// Process initial loading and schedule cyclic tasks.
   void _process() {
     _openConnection();

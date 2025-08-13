@@ -9,7 +9,13 @@ import '../app_controller.dart';
 /// were stacked vertically.
 class ActionsPage extends StatelessWidget {
   final AppController controller;
-  const ActionsPage({super.key, required this.controller});
+  final VoidCallback onFinished;
+
+  const ActionsPage({
+    super.key,
+    required this.controller,
+    required this.onFinished,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -20,12 +26,18 @@ class ActionsPage extends StatelessWidget {
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            _buildButton('Start', controller.start),
+            _buildButton('Start', () async {
+              await controller.start();
+              onFinished();
+            }),
             const SizedBox(height: 16),
-            _buildButton('Stop', controller.stop),
+            _buildButton('Stop', () async {
+              await controller.stop();
+              onFinished();
+            }),
             const SizedBox(height: 16),
             _buildButton('Exit', () async {
-              await controller.stop();
+              await controller.dispose();
               SystemNavigator.pop();
             }),
           ],
@@ -38,7 +50,9 @@ class ActionsPage extends StatelessWidget {
     return SizedBox(
       height: 80,
       child: ElevatedButton(
-        onPressed: onPressed,
+        onPressed: () async {
+          await onPressed();
+        },
         child: Text(label, style: const TextStyle(fontSize: 32)),
       ),
     );
