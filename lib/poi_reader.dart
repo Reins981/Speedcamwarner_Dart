@@ -10,6 +10,7 @@ import 'rectangle_calculator.dart'
     show SpeedCameraEvent, RectangleCalculatorThread;
 import 'thread_base.dart';
 import 'gps_producer.dart';
+import 'config.dart';
 
 /// Representation of a user contributed camera.
 class UserCamera {
@@ -69,6 +70,7 @@ class POIReader extends Logger {
   late int uTimeFromCloud;
   late int initTimeFromCloud;
   late int uTimeFromDb;
+  late int poiDistance;
 
   POIReader(
     this.speedCamQueue,
@@ -84,11 +86,16 @@ class POIReader extends Logger {
   /// Mirror the configuration setup from the Python version.
   void _setConfigs() {
     // Cloud cyclic update time in seconds (runs every x seconds)
-    uTimeFromCloud = 60;
+    uTimeFromCloud =
+        (AppConfig.get<num>('sql.u_time_from_cloud') ?? 60).toInt();
     // Initial update time from cloud (one time operation)
-    initTimeFromCloud = 10;
+    initTimeFromCloud =
+        (AppConfig.get<num>('sql.init_time_from_cloud') ?? 10).toInt();
     // POIs from database update time in seconds (one shot after x seconds)
-    uTimeFromDb = 30;
+    uTimeFromDb =
+        (AppConfig.get<num>('sql.u_time_from_db') ?? 30).toInt();
+    poiDistance = (AppConfig.get<num>('main.poi_distance') ?? 50).toInt();
+    calculator.rectangle_periphery_poi_reader = poiDistance.toDouble();
   }
 
   /// Cancel running timers – called from main UI thread.

@@ -395,18 +395,13 @@ class RectangleCalculatorThread {
 
   /// Configuration flags mirroring the Python implementation.
   bool disableRoadLookup = false;
-  bool alternativeRoadLookup = false;
+  bool alternativeRoadLookup = true;
 
   /// Number of distance cameras encountered in the current data set.
   int numberDistanceCams = 0;
 
   /// Distance in kilometres used for look‑ahead camera searches.
-  double speedCamLookAheadDistance =
-      (AppConfig.get<num>('calculator.speed_cam_look_ahead_distance') ?? 1)
-          .toDouble();
-
-  /// Current rectangle angle used for look‑ahead projections.
-  double currentRectAngle = 0.0;
+  double speedCamLookAheadDistance = 300.0;
 
   /// Size of the rectangle used by the legacy POI reader. The original
   /// implementation exposed a full lookup table keyed by driving direction.
@@ -423,29 +418,36 @@ class RectangleCalculatorThread {
   int mobile_cams = 0;
 
   /// Distance in kilometres used for construction area look‑ahead.
-  double constructionAreaLookaheadDistance =
-      (AppConfig.get<num>('calculator.construction_area_lookahead_distance') ??
-              30)
-          .toDouble();
+  double constructionAreaLookaheadDistance = 30.0;
 
   /// Minimum interval between network lookups to avoid excessive requests.
-  double dosAttackPreventionIntervalDownloads =
-      (AppConfig.get<num>('calculator.dos_attack_prevention_interval_downloads') ??
-              30)
-          .toDouble();
+  double dosAttackPreventionIntervalDownloads = 30.0;
 
   /// Disable construction lookups during application start up for this many
   /// seconds.
-  double constructionAreaStartupTriggerMax =
-      (AppConfig.get<num>('calculator.construction_area_startup_trigger_max') ??
-              60)
-          .toDouble();
+  double constructionAreaStartupTriggerMax = 60.0;
 
   /// Track the last execution time of look‑ahead routines.
   final Map<String, DateTime> _lastLookaheadExecution = {};
 
   /// Whether look‑ahead mode for cameras is active.
   bool camerasLookAheadMode = true;
+
+  // Additional configuration options loaded from AppConfig.
+  Duration maxDownloadTime = const Duration(seconds: 20);
+  Duration osmTimeout = const Duration(seconds: 20);
+  Duration osmTimeoutMotorway = const Duration(seconds: 30);
+  double initialRectDistance = 3.0;
+  double speedInfluenceOnRectBoundary = 110.0;
+  double currentRectAngle = 90.0;
+  double fallbackRectAngle = 123.0;
+  int maxCrossRoads = 3;
+  bool useOnlyOneExtrapolatedRect = false;
+  bool considerBackupRects = true;
+  bool enableOrderedRectsExtrapolated = true;
+  int maxNumberExtrapolatedRects = 6;
+  Map<String, dynamic> maxspeedCountries = {};
+  Map<String, dynamic> roadClassesToSpeedConfig = {};
 
   /// Flag indicating that a camera related operation is currently running.
   bool camInProgress = false;
@@ -539,6 +541,7 @@ class RectangleCalculatorThread {
         speedCamQueue = speedCamQueue,
         mostProbableWay = MostProbableWay(),
         overspeedChecker = overspeedChecker ?? OverspeedChecker() {
+    _loadConfigs();
     _start();
   }
 
@@ -550,6 +553,83 @@ class RectangleCalculatorThread {
 
   void setConfigs(Map<String, dynamic> configs) {
     _configs.addAll(configs);
+  }
+
+  void _loadConfigs() {
+    maxDownloadTime = Duration(
+        seconds: (AppConfig.get<num>('calculator.max_download_time') ?? 20)
+            .toInt());
+    osmTimeout = Duration(
+        seconds: (AppConfig.get<num>('calculator.osm_timeout') ?? 20).toInt());
+    osmTimeoutMotorway = Duration(
+        seconds:
+            (AppConfig.get<num>('calculator.osm_timeout_motorway') ?? 30)
+                .toInt());
+    osmRequestTimeout = osmTimeout;
+    speedCamLookAheadDistance = (AppConfig.get<num>(
+                'calculator.speed_cam_look_ahead_distance') ??
+            speedCamLookAheadDistance)
+        .toDouble();
+    constructionAreaLookaheadDistance = (AppConfig.get<num>(
+                'calculator.construction_area_lookahead_distance') ??
+            constructionAreaLookaheadDistance)
+        .toDouble();
+    dosAttackPreventionIntervalDownloads = (AppConfig.get<num>(
+                'calculator.dos_attack_prevention_interval_downloads') ??
+            dosAttackPreventionIntervalDownloads)
+        .toDouble();
+    constructionAreaStartupTriggerMax = (AppConfig.get<num>(
+                'calculator.construction_area_startup_trigger_max') ??
+            constructionAreaStartupTriggerMax)
+        .toDouble();
+    initialRectDistance = (AppConfig.get<num>('calculator.initial_rect_distance')
+                ??
+                initialRectDistance)
+            .toDouble();
+    speedInfluenceOnRectBoundary = (AppConfig.get<num>(
+                'calculator.speed_influence_on_rect_boundary') ??
+            speedInfluenceOnRectBoundary)
+        .toDouble();
+    currentRectAngle = (AppConfig.get<num>('calculator.current_rect_angle') ??
+            currentRectAngle)
+        .toDouble();
+    fallbackRectAngle = (AppConfig.get<num>('calculator.fallback_rect_angle') ??
+            fallbackRectAngle)
+        .toDouble();
+    zoom = (AppConfig.get<num>('calculator.zoom') ?? zoom).toInt();
+    maxCrossRoads =
+        (AppConfig.get<num>('calculator.max_cross_roads') ?? maxCrossRoads)
+            .toInt();
+    disableRoadLookup =
+        AppConfig.get<bool>('calculator.disable_road_lookup') ??
+            disableRoadLookup;
+    camerasLookAheadMode =
+        AppConfig.get<bool>('calculator.cameras_look_ahead_mode') ??
+            camerasLookAheadMode;
+    alternativeRoadLookup =
+        AppConfig.get<bool>('calculator.alternative_road_lookup') ??
+            alternativeRoadLookup;
+    useOnlyOneExtrapolatedRect =
+        AppConfig.get<bool>('calculator.use_only_one_extrapolated_rect') ??
+            useOnlyOneExtrapolatedRect;
+    considerBackupRects =
+        AppConfig.get<bool>('calculator.consider_backup_rects') ??
+            considerBackupRects;
+    dismissPois =
+        AppConfig.get<bool>('calculator.dismiss_pois') ?? dismissPois;
+    enableOrderedRectsExtrapolated =
+        AppConfig.get<bool>('calculator.enable_ordered_rects_extrapolated') ??
+            enableOrderedRectsExtrapolated;
+    maxNumberExtrapolatedRects = (AppConfig.get<num>(
+                'calculator.max_number_extrapolated_rects') ??
+            maxNumberExtrapolatedRects)
+        .toInt();
+    maxspeedCountries = AppConfig.get<Map<String, dynamic>>(
+            'calculator.maxspeed_countries') ??
+        maxspeedCountries;
+    roadClassesToSpeedConfig = AppConfig.get<Map<String, dynamic>>(
+            'calculator.road_classes_to_speed') ??
+        roadClassesToSpeedConfig;
   }
 
   /// Expose a convenience method to push a new sample and trigger processing in
@@ -2017,21 +2097,35 @@ class RectangleCalculatorThread {
 
     final bbox =
         '(${area.minLat},${area.minLon},${area.maxLat},${area.maxLon})';
+    final baseUrl =
+        AppConfig.get<String>('speedCamWarner.baseurl') ??
+            'https://overpass-api.de/api/interpreter?';
+    final qs1 = AppConfig.get<String>('speedCamWarner.querystring1') ?? '';
+    final qs2 = AppConfig.get<String>('speedCamWarner.querystring2') ?? '';
+    final qs3 = AppConfig.get<String>('speedCamWarner.querystring3') ?? '';
+    final qs4 = AppConfig.get<String>('speedCamWarner.querystring4') ?? '';
+    String defaultQuery = '$qs1$qs2$qs3$qs4';
     String query;
     if (lookupType == 'camera_ahead') {
-      query = '[out:json];node[highway=speed_camera]$bbox;out;';
+      query = defaultQuery.isNotEmpty
+          ? defaultQuery
+          : '[out:json];node[highway=speed_camera]$bbox;out;';
     } else if (lookupType == 'distance_cam') {
-      query = '[out:json];node["some_distance_cam_tag"]$bbox;out;';
+      query = defaultQuery.isNotEmpty
+          ? defaultQuery
+          : '[out:json];node["some_distance_cam_tag"]$bbox;out;';
     } else if (lookupType == 'node' && nodeId != null) {
       query = '[out:json];node($nodeId);out;';
     } else {
-      query = '[out:json];(node$bbox;);out;';
+      query = defaultQuery.isNotEmpty
+          ? defaultQuery
+          : '[out:json];(node$bbox;);out;';
     }
     logger.printLogLine('triggerOsmLookup query: $query', logLevel: 'DEBUG');
 
     // Build the request URI.  POST is used so that the query is encoded in the
     // request body which avoids issues with very long URLs on some platforms.
-    final uri = Uri.parse('https://overpass-api.de/api/interpreter');
+    final uri = Uri.parse(baseUrl);
     logger.printLogLine('triggerOsmLookup uri: $uri', logLevel: 'DEBUG');
     final http.Client httpClient = client ?? http.Client();
 

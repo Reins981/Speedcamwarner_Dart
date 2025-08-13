@@ -58,6 +58,7 @@ class AppController {
     });
 
     osmWrapper = Maps();
+    osmWrapper.setConfigs();
     osmWrapper.setCalculatorThread(calculator);
     osmThread = OsmThread(
       osmWrapper: osmWrapper,

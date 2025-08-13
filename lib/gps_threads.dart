@@ -5,6 +5,7 @@ import 'package:flutter/foundation.dart';
 import 'package:xml/xml.dart' as xml;
 
 import 'gps_test_data_generator.dart';
+import 'config.dart';
 
 class Logger {
   final String name;
@@ -48,10 +49,13 @@ class GPSConsumerThread extends StoppableThread {
     this.gpsqueue,
     this.cond, {
     Logger? logViewer,
-  }) : logger = logViewer ?? Logger('GPSConsumerThread');
+  }) : logger = logViewer ?? Logger('GPSConsumerThread') {
+    setConfigs();
+  }
 
   void setConfigs() {
-    displayMiles = false;
+    displayMiles =
+        AppConfig.get<bool>('gpsConsumer.display_miles') ?? displayMiles;
   }
 
   void run() {
@@ -195,12 +199,17 @@ class GPSThread extends StoppableThread {
   }
 
   void setConfigs() {
-    gpsTestData = true;
-    maxGpsEntries = 50000;
-    gpxFile = 'python/gpx/Weekend_Karntner_5SeenTour.gpx';
-    gpsTreshold = 40;
-    gpsInaccuracyTreshold = 4;
-    recording = false;
+    gpsTestData = AppConfig.get<bool>('gpsThread.gps_test_data') ?? true;
+    maxGpsEntries =
+        (AppConfig.get<num>('gpsThread.max_gps_entries') ?? 50000).toInt();
+    gpxFile = AppConfig.get<String>('gpsThread.gpx_file') ??
+        'python/gpx/Weekend_Karntner_5SeenTour.gpx';
+    gpsTreshold =
+        (AppConfig.get<num>('gpsThread.gps_treshold') ?? 40).toDouble();
+    gpsInaccuracyTreshold =
+        (AppConfig.get<num>('gpsThread.gps_inaccuracy_treshold') ?? 4)
+            .toInt();
+    recording = AppConfig.get<bool>('gpsThread.recording') ?? false;
     if (gpsTestData) {
       loadRouteData();
     }
