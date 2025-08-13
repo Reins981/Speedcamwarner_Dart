@@ -2139,8 +2139,13 @@ class RectangleCalculatorThread {
               headers: {
                 'User-Agent': 'speedcamwarner-dart',
                 'Accept': 'application/json',
+                'Content-Type': 'application/x-www-form-urlencoded',
               },
-              body: {'data': query},
+              // Using a raw string body rather than a Map avoids URL encoding of
+              // the query which can cause issues with some proxy setups.  The
+              // Overpass API expects the payload to be provided under the `data`
+              // key as form data.
+              body: 'data=$query',
             )
             .timeout(osmRequestTimeout);
         if (resp.statusCode == 200) {
