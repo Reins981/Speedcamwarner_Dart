@@ -15,6 +15,8 @@ import 'overspeed_thread.dart' as overspeed;
 import 'overspeed_checker.dart';
 import 'config.dart';
 import 'thread_base.dart';
+import 'dialogflow_client.dart';
+import 'dart:io';
 
 /// Central place that wires up background modules and manages their
 /// lifecycles.  The original Python project spawned numerous threads; in
@@ -57,9 +59,29 @@ class AppController {
     );
     unawaited(camWarner.run());
 
+    final dialogflow = () {
+      try {
+        final projectId = Platform.environment['DIALOGFLOW_PROJECT_ID'];
+        final credentialsPath =
+            Platform.environment['DIALOGFLOW_CREDENTIALS'] ??
+                'service_account/dialogflow_credentials.json';
+        if (projectId == null) {
+          throw DialogflowException('DIALOGFLOW_PROJECT_ID not set');
+        }
+        return DialogflowClient.fromServiceAccountFile(
+          projectId: projectId,
+          jsonPath: credentialsPath,
+        );
+      } catch (e) {
+        // ignore: avoid_print
+        print('Dialogflow initialisation failed: $e');
+        return FallbackDialogflowClient();
+      }
+    }();
+
     voiceThread = VoicePromptThread(
       voicePromptQueue: voicePromptQueue,
-      dialogflowClient: _DummyDialogflowClient(),
+      dialogflowClient: dialogflow,
       aiVoicePrompts:
           AppConfig.get<bool>('accusticWarner.ai_voice_prompts') ?? false,
     );
@@ -173,6 +195,3 @@ class _AlwaysResume {
   bool isResumed() => true;
 }
 
-class _DummyDialogflowClient {
-  Future<String> detectIntent(String text) async => '';
-}
