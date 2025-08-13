@@ -94,6 +94,7 @@ class EdgeDetectState extends State<EdgeDetect> {
     if (_controller != null) {
       await _controller!.stopImageStream();
       await _controller!.dispose();
+      _controller = null;
     }
     cameraConnected = false;
     setState(() {
@@ -133,6 +134,7 @@ class EdgeDetectState extends State<EdgeDetect> {
       description,
       ResolutionPreset.high,
       enableAudio: false,
+      imageFormatGroup: ImageFormatGroup.yuv420,
     );
     await _controller!.initialize();
     cameraConnected = true;
@@ -144,74 +146,87 @@ class EdgeDetectState extends State<EdgeDetect> {
   Future<void> _processImage(CameraImage image) async {
     if (_faceDetector == null || _objectDetector == null) return;
 
-    final WriteBuffer allBytes = WriteBuffer();
-    for (final Plane plane in image.planes) {
-      allBytes.putUint8List(plane.bytes);
-    }
-    final Uint8List bytes = allBytes.done().buffer.asUint8List();
-
-    final Size imageSize = Size(image.width.toDouble(), image.height.toDouble());
-    final InputImageRotation rotation =
-        InputImageRotationValue.fromRawValue(
-                _controller?.description.sensorOrientation ?? 0) ??
-            InputImageRotation.rotation0deg;
-    final InputImageFormat format =
-        InputImageFormatValue.fromRawValue(image.format.raw) ??
-            InputImageFormat.nv21;
-    final metadata = InputImageMetadata(
-      size: imageSize,
-      rotation: rotation,
-      format: format,
-      bytesPerRow: image.planes.first.bytesPerRow,
-    );
-    final InputImage inputImage =
-        InputImage.fromBytes(bytes: bytes, metadata: metadata);
-
-    final List<Face> faces = await _faceDetector!.processImage(inputImage);
-    final List<DetectedObject> objects =
-        await _objectDetector!.processImage(inputImage);
-
-    final List<Rect> people = <Rect>[];
-    for (final DetectedObject obj in objects) {
-      if (obj.labels.any((Label l) => l.text.toLowerCase() == 'person')) {
-        people.add(obj.boundingBox);
+    try {
+      final WriteBuffer allBytes = WriteBuffer();
+      for (final Plane plane in image.planes) {
+        allBytes.putUint8List(plane.bytes);
       }
-    }
+      final Uint8List bytes = allBytes.done().buffer.asUint8List();
 
-    final bool resultsFound = faces.isNotEmpty || people.isNotEmpty;
-    if (resultsFound) {
-      _freeflow = false;
-      WidgetsBinding.instance.addPostFrameCallback((_) {
-        speedL?.updateAr('!!!');
-        widget.statusNotifier?.value = 'HUMAN';
-      });
-      final int currentTime = DateTime.now().millisecondsSinceEpoch;
-      if (currentTime - _lastArSoundTime >=
-          _triggerTimeArSoundMax * 1000) {
-        _playArSound();
-        _logViewer?.call('AR detection successful');
-        _lastArSoundTime = currentTime;
-      }
-      if (!(g?.cameraInProgress() ?? true)) {
-        if (!(g?.cameraIsArHuman() ?? false)) {
-          g?.updateAr();
+      final Size imageSize =
+          Size(image.width.toDouble(), image.height.toDouble());
+      final InputImageRotation rotation =
+          InputImageRotationValue.fromRawValue(
+                  _controller?.description.sensorOrientation ?? 0) ??
+              InputImageRotation.rotation0deg;
+      final InputImageFormat format =
+          InputImageFormatValue.fromRawValue(image.format.raw) ??
+              InputImageFormat.nv21;
+      final metadata = InputImageMetadata(
+        size: imageSize,
+        rotation: rotation,
+        format: format,
+        planeData: image.planes
+            .map((Plane plane) => InputImagePlaneMetadata(
+                  bytesPerRow: plane.bytesPerRow,
+                  height: plane.height,
+                  width: plane.width,
+                ))
+            .toList(),
+      );
+      final InputImage inputImage =
+          InputImage.fromBytes(bytes: bytes, metadata: metadata);
+
+      final List<Face> faces = await _faceDetector!.processImage(inputImage);
+      final List<DetectedObject> objects =
+          await _objectDetector!.processImage(inputImage);
+
+      final List<Rect> people = <Rect>[];
+      for (final DetectedObject obj in objects) {
+        if (obj.labels.any((Label l) => l.text.toLowerCase() == 'person')) {
+          people.add(obj.boundingBox);
         }
       }
-    } else {
-      WidgetsBinding.instance.addPostFrameCallback((_) {
-        speedL?.updateAr('OK');
-        widget.statusNotifier?.value = 'FREEFLOW';
-      });
-      if (!(g?.cameraInProgress() ?? true) && !_freeflow) {
-        g?.updateSpeedCamera('FREEFLOW');
-        _freeflow = true;
-      }
-    }
 
-    setState(() {
-      _faces = faces.map((Face f) => f.boundingBox).toList();
-      _people = people;
-    });
+      final bool resultsFound = faces.isNotEmpty || people.isNotEmpty;
+      if (resultsFound) {
+        _freeflow = false;
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          speedL?.updateAr('!!!');
+          widget.statusNotifier?.value = 'HUMAN';
+        });
+        final int currentTime = DateTime.now().millisecondsSinceEpoch;
+        if (currentTime - _lastArSoundTime >=
+            _triggerTimeArSoundMax * 1000) {
+          _playArSound();
+          _logViewer?.call('AR detection successful');
+          _lastArSoundTime = currentTime;
+        }
+        if (!(g?.cameraInProgress() ?? true)) {
+          if (!(g?.cameraIsArHuman() ?? false)) {
+            g?.updateAr();
+          }
+        }
+      } else {
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          speedL?.updateAr('OK');
+          widget.statusNotifier?.value = 'FREEFLOW';
+        });
+        if (!(g?.cameraInProgress() ?? true) && !_freeflow) {
+          g?.updateSpeedCamera('FREEFLOW');
+          _freeflow = true;
+        }
+      }
+
+      setState(() {
+        _faces = faces.map((Face f) => f.boundingBox).toList();
+        _people = people;
+      });
+    } on PlatformException catch (e) {
+      _logViewer?.call('Image processing failed: ${e.message}');
+    } catch (e) {
+      _logViewer?.call('Image processing error: $e');
+    }
   }
 
   void _playArSound() {
