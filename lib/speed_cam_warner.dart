@@ -335,7 +335,7 @@ class SpeedCamWarner {
         camCoordinates = [item['mobile_cam'][1], item['mobile_cam'][2]];
         ccpNodeCoordinates = [
           double.tryParse(item['ccp_node'][0].toString()),
-          double.tryParse(['ccp_node'][1].toString())
+          double.tryParse(item['ccp_node'][1].toString())
         ];
         var linkedList = item['list_tree'][0];
         var tree = item['list_tree'][1];
