@@ -10,7 +10,8 @@ void main() {
     final controller = StreamController<Position>();
     final manager = LocationManager();
 
-    manager.start(positionStream: controller.stream);
+    await manager.start(positionStream: controller.stream);
+    expect(manager.isRunning, isTrue);
 
     final future = manager.stream.first;
 
@@ -29,12 +30,24 @@ void main() {
 
     expect(data.longitude, 1.0);
     expect(data.latitude, 2.0);
-    expect(data.speed, 3.0);
+    expect(data.speed, closeTo(10.8, 1e-9));
     expect(data.bearing, 4.0);
     expect(data.accuracy, 5.0);
 
     await manager.stop();
+    expect(manager.isRunning, isFalse);
     await controller.close();
+    await manager.dispose();
+  });
+
+  test('location manager can replay GPX file', () async {
+    final manager = LocationManager();
+    await manager.start(gpxFile: 'gpx/nordspange_tr2.gpx', minTime: 1);
+    final sample = await manager.stream.first;
+    expect(sample.latitude, closeTo(52.54380991, 1e-6));
+    expect(sample.longitude, closeTo(13.27306718, 1e-6));
+    await manager.stop();
+    await manager.dispose();
   });
 }
 
