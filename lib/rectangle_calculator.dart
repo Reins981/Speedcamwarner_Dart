@@ -419,7 +419,7 @@ class RectangleCalculatorThread {
   double constructionAreaStartupTriggerMax = 60.0;
 
   /// Track the last execution time of look‑ahead routines.
-  final Map<String, double> _lastLookaheadExecution = {};
+  final Map<String, DateTime> _lastLookaheadExecution = {};
 
   /// Whether look‑ahead mode for cameras is active.
   bool camerasLookAheadMode = true;
@@ -1324,9 +1324,11 @@ class RectangleCalculatorThread {
           item['trigger']
               as Future<void> Function(double, double, double, double);
 
-      final now = DateTime.now().millisecondsSinceEpoch / 1000.0;
-      final last = _lastLookaheadExecution[msg] ?? 0;
-      if (now - last < dosAttackPreventionIntervalDownloads) {
+      final now = DateTime.now();
+      final last = _lastLookaheadExecution[msg];
+      if (last != null &&
+          now.difference(last).inSeconds <
+              dosAttackPreventionIntervalDownloads) {
         logger.printLogLine('Skipping $msg - rate limited');
         continue;
       }
@@ -1358,7 +1360,7 @@ class RectangleCalculatorThread {
       logger.printLogLine('Executing $msg lookup');
       await func(trigger, 1, xtile, ytile, ccpLon, ccpLat);
       logger.printLogLine('$msg lookup finished');
-      _lastLookaheadExecution[msg] = now;
+      _lastLookaheadExecution[msg] = DateTime.now();
     }
   }
 
