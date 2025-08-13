@@ -39,13 +39,14 @@ class _MapPageState extends State<MapPage> {
       point: _center,
       width: 40,
       height: 40,
-      child: Image.asset('images/gps.png'),
+      child: Image.asset('images/car.png'),
     );
     widget.calculator.positionNotifier.addListener(_updatePosition);
     _camSub = widget.calculator.cameras.listen(_onCameraEvent);
     _rectSub = widget.calculator.rectangles.listen(_onRect);
-    _constructionSub =
-        widget.calculator.constructions.listen(_onConstructionArea);
+    _constructionSub = widget.calculator.constructions.listen(
+      _onConstructionArea,
+    );
   }
 
   void _updatePosition() {
@@ -56,7 +57,7 @@ class _MapPageState extends State<MapPage> {
         point: _center,
         width: 40,
         height: 40,
-        child: Image.asset('images/gps.png'),
+        child: Image.asset('images/car.png'),
       );
     });
     // Recenter the map whenever the GPS position updates
@@ -165,7 +166,8 @@ class _MapPageState extends State<MapPage> {
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
                             Text(
-                                cam.name.isNotEmpty ? cam.name : 'Speed camera'),
+                              cam.name.isNotEmpty ? cam.name : 'Speed camera',
+                            ),
                             if (types.isNotEmpty)
                               Text(types, style: const TextStyle(fontSize: 12)),
                           ],
