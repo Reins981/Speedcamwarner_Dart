@@ -382,6 +382,7 @@ class RectangleCalculatorThread {
   final ValueNotifier<String?> speedCamNotifier = ValueNotifier<String?>(null);
   final ValueNotifier<double?> speedCamDistanceNotifier =
       ValueNotifier<double?>(null);
+  final ValueNotifier<String?> camTextNotifier = ValueNotifier<String?>(null);
   final ValueNotifier<String?> cameraRoadNotifier = ValueNotifier<String?>(
     null,
   );
@@ -2270,6 +2271,7 @@ class RectangleCalculatorThread {
   String? get maxspeedStatus => maxspeedStatusNotifier.value;
   String? get speedCamWarning => speedCamNotifier.value;
   double? get speedCamDistance => speedCamDistanceNotifier.value;
+  String? get camText => camTextNotifier.value;
   String? get cameraRoad => cameraRoadNotifier.value;
 
   void updateMaxspeed(dynamic maxspeed, {List<double>? color}) {
@@ -2311,10 +2313,12 @@ class RectangleCalculatorThread {
   void updateMaxspeedStatus(String value) =>
       maxspeedStatusNotifier.value = value;
 
-  void updateSpeedCam(String warning) => speedCamNotifier.value = warning;
+void updateSpeedCam(String warning) => speedCamNotifier.value = warning;
 
-  void updateSpeedCamDistance(double? meter) =>
-      speedCamDistanceNotifier.value = meter;
+void updateSpeedCamDistance(double? meter) =>
+    speedCamDistanceNotifier.value = meter;
 
-  void updateCameraRoad(String? road) => cameraRoadNotifier.value = road;
+void updateCamText(String? text) => camTextNotifier.value = text;
+
+void updateCameraRoad(String? road) => cameraRoadNotifier.value = road;
 }
