@@ -27,10 +27,11 @@ void main() {
         gpsStatus: 1,
         accuracy: 5));
 
-    final rect = await completer.future
-        .timeout(const Duration(seconds: 1));
+    final rect =
+        await completer.future.timeout(const Duration(seconds: 1));
     expect(rect, isNotNull);
-    expect(calc.lastRect!.pointInRect(1.0, 1.0), isTrue);
+    final tiles = calc.longlat2tile(1.0, 1.0, calc.zoom);
+    expect(calc.lastRect!.pointInRect(tiles[0], tiles[1]), isTrue);
 
     await gps.stop();
     await calc.dispose();
