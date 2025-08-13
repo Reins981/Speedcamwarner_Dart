@@ -273,7 +273,6 @@ class RectangleCalculatorThread {
   /// multiple times which throws a ``Bad state: Stream has already been
   /// listened to`` exception.
   bool _loopStarted = false;
-
   /// The current zoom level used when converting between tiles and
   /// latitude/longitude.  You may expose this as a public field if your map
   /// layer needs to remain in sync with the calculator.
