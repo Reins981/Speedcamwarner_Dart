@@ -83,7 +83,10 @@ class _DashboardPageState extends State<DashboardPage> {
       _maxSpeed = _calculator!.maxspeedNotifier.value;
       _speedHistory.add(_speed);
       if (_speedHistory.length > 30) _speedHistory.removeAt(0);
-      _acceleration = ((_speed - (_lastSpeed ?? _speed)) / 3.6);
+      // Smooth the acceleration bar by easing toward the new acceleration
+      // value instead of jumping directly based on the full speed change.
+      final targetAcceleration = (_speed - (_lastSpeed ?? _speed)) / 3.6;
+      _acceleration = ui.lerpDouble(_acceleration, targetAcceleration, 0.2)!;
       _lastSpeed = _speed;
     });
   }
