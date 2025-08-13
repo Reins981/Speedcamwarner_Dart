@@ -2,6 +2,7 @@ import 'dart:async';
 
 import 'logger.dart';
 import 'rectangle_calculator.dart';
+import 'voice_prompt_queue.dart';
 
 /// Simplified port of the GPS handling thread from the Python code base.  The
 /// original application relied on OS threads and condition variables to push
@@ -9,12 +10,17 @@ import 'rectangle_calculator.dart';
 /// [Stream] of [VectorData] objects.  Consumers may listen to [stream] or
 /// forward the events to [RectangleCalculatorThread.addVectorSample].
 class GpsThread extends Logger {
-  GpsThread() : super('GpsThread');
+  GpsThread({this.voicePromptQueue, this.accuracyThreshold = 40})
+      : super('GpsThread');
+
+  final VoicePromptQueue? voicePromptQueue;
+  final double accuracyThreshold;
 
   final StreamController<VectorData> _controller =
       StreamController<VectorData>.broadcast();
   StreamSubscription<VectorData>? _sourceSub;
   bool _running = false;
+  String? _lastSignal;
 
   /// Indicates whether the GPS thread is currently running.
   bool get isRunning => _running;
@@ -33,7 +39,7 @@ class GpsThread extends Logger {
       if (_running) {
         printLogLine(
             'Forwarding vector ${event.latitude}, ${event.longitude}, speed ${event.speed}');
-        _controller.add(event);
+        _handleSample(event);
       }
     });
   }
@@ -43,7 +49,7 @@ class GpsThread extends Logger {
     if (_running) {
       printLogLine(
           'Manually added sample ${vector.latitude}, ${vector.longitude}, speed ${vector.speed}');
-      _controller.add(vector);
+      _handleSample(vector);
     }
   }
 
@@ -53,11 +59,33 @@ class GpsThread extends Logger {
     printLogLine('GPS thread stopping');
     await _sourceSub?.cancel();
     _sourceSub = null;
+    if (voicePromptQueue != null && _lastSignal != 'GPS_OFF') {
+      voicePromptQueue!.produceGpsSignal('GPS_OFF');
+      _lastSignal = 'GPS_OFF';
+    }
   }
 
   /// Permanently dispose the underlying stream controller.
   Future<void> dispose() async {
     await _sourceSub?.cancel();
     await _controller.close();
+  }
+
+  void _handleSample(VectorData vector) {
+    _controller.add(vector);
+    if (voicePromptQueue != null) {
+      String signal;
+      if (vector.gpsStatus != 1) {
+        signal = 'GPS_OFF';
+      } else if (vector.accuracy > accuracyThreshold) {
+        signal = 'GPS_LOW';
+      } else {
+        signal = 'GPS_ON';
+      }
+      if (signal != _lastSignal) {
+        voicePromptQueue!.produceGpsSignal(signal);
+        _lastSignal = signal;
+      }
+    }
   }
 }
