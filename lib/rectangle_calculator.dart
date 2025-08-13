@@ -1289,6 +1289,10 @@ class RectangleCalculatorThread {
       ccpLat = latitude;
     }
 
+    logger.printLogLine(
+      'Lookahead for tiles ($xtile,$ytile) at ($ccpLat,$ccpLon)',
+    );
+
     // Process predictive cameras
     await processPredictiveCameras(ccpLon, ccpLat);
 
@@ -1326,11 +1330,14 @@ class RectangleCalculatorThread {
 
       final now = DateTime.now();
       final last = _lastLookaheadExecution[msg];
-      if (last != null &&
-          now.difference(last).inSeconds <
-              dosAttackPreventionIntervalDownloads) {
-        logger.printLogLine('Skipping $msg - rate limited');
-        continue;
+      if (last != null) {
+        final elapsed = now.difference(last).inMilliseconds / 1000;
+        if (elapsed < dosAttackPreventionIntervalDownloads) {
+          final wait = (dosAttackPreventionIntervalDownloads - elapsed)
+              .toStringAsFixed(1);
+          logger.printLogLine('Skipping $msg - rate limited (wait ${wait}s)');
+          continue;
+        }
       }
 
       if (msg == 'Construction area lookahead') {

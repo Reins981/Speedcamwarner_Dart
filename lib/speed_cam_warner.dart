@@ -109,6 +109,7 @@ class SpeedCamWarner {
 
   // ------------------------------ threading -----------------------------
   Future<void> run() async {
+    print('SpeedCamWarner thread started');
     while (!(cond.terminate ?? false)) {
       var status = await process();
       if (status == 'EXIT') break;
