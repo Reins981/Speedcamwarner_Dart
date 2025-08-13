@@ -13,6 +13,11 @@ This is a Flutter-based Android application that predicts the nearest speed came
 3. Run `flutter pub get` to install dependencies.
 4. Use `flutter run` to launch the app on an emulator or device.
 
+## GPX Simulation
+For development and testing without relying on a real GPS receiver, the app can
+replay coordinates from a GPX track. On the **Actions** page press **Start (GPX)**
+to launch the app using the sample track located at `gpx/nordspange_tr2.gpx`.
+
 ## Project Structure
 - `lib/`: Contains the main application code.
 - `assets/`: Stores static assets like images and JSON files.

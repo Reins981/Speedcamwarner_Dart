@@ -32,6 +32,11 @@ class ActionsPage extends StatelessWidget {
               onFinished();
             }),
             const SizedBox(height: 16),
+            _buildButton(context, 'Start (GPX)', () async {
+              await controller.start(gpxFile: 'gpx/nordspange_tr2.gpx');
+              onFinished();
+            }),
+            const SizedBox(height: 16),
             _buildButton(context, 'Stop', () async {
               await controller.stop();
               onFinished();
