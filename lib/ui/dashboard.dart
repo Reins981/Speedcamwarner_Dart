@@ -4,6 +4,7 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 
 import 'dart:ui' as ui;
+import 'dart:math' as math;
 
 import '../rectangle_calculator.dart';
 
@@ -142,54 +143,21 @@ class _DashboardPageState extends State<DashboardPage> {
           children: [
             _buildCameraInfo(),
             const SizedBox(height: 16),
-            Row(
-              children: [
-                Expanded(
-                  child: FittedBox(
-                    alignment: Alignment.centerLeft,
-                    fit: BoxFit.scaleDown,
-                    child: Text(
-                      '${_speed.toStringAsFixed(0)} km/h',
-                      style: TextStyle(
-                        fontSize: 72,
-                        fontWeight: FontWeight.bold,
-                        color:
-                            _overspeedDiff != null ? Colors.red : Colors.green,
-                      ),
+            Expanded(
+              child: Row(
+                children: [
+                  Expanded(flex: 2, child: _buildSpeedWidget()),
+                  const SizedBox(width: 16),
+                  Expanded(
+                    child: Column(
+                      children: [
+                        Expanded(child: _buildAccelerationWidget()),
+                        const SizedBox(height: 16),
+                        Expanded(child: _buildSpeedHistoryWidget()),
+                      ],
                     ),
                   ),
-                ),
-                if (_maxSpeed != null)
-                  Flexible(
-                    child: FittedBox(
-                      alignment: Alignment.centerRight,
-                      fit: BoxFit.scaleDown,
-                      child: Text(
-                        'max ${_maxSpeed!} km/h',
-                        style: const TextStyle(
-                            fontSize: 32, color: Colors.white70),
-                      ),
-                    ),
-                  ),
-              ],
-            ),
-            Text(
-              _roadName,
-              style: const TextStyle(color: Colors.white70, fontSize: 20),
-            ),
-            if (_overspeedDiff != null)
-              Text(
-                'Slow down by ${_overspeedDiff!} km/h',
-                style:
-                    const TextStyle(color: Colors.redAccent, fontSize: 24),
-              ),
-            const SizedBox(height: 12),
-            _buildAccelerationBar(),
-            const SizedBox(height: 16),
-            SizedBox(
-              height: 80,
-              child: CustomPaint(
-                painter: _SpeedChartPainter(_speedHistory),
+                ],
               ),
             ),
             if (_arStatus.isNotEmpty) ...[
@@ -266,29 +234,132 @@ class _DashboardPageState extends State<DashboardPage> {
     );
   }
 
-  Widget _buildAccelerationBar() {
+  Widget _buildAccelerationWidget() {
     final ratio = ((_acceleration + 5) / 10).clamp(0.0, 1.0);
     // Use a full hue spectrum so braking (blue) and acceleration (red)
     // produce more fine-grained color changes around the neutral (green)
     // point.
     final hue = 240 - (ratio * 240);
     final color = HSVColor.fromAHSV(1.0, hue, 1.0, 1.0).toColor();
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        const Text('Acceleration',
-            style: TextStyle(color: Colors.white70, fontSize: 16)),
-        const SizedBox(height: 4),
-        ClipRRect(
-          borderRadius: BorderRadius.circular(4),
-          child: LinearProgressIndicator(
-            value: ratio,
-            backgroundColor: Colors.white24,
-            valueColor: AlwaysStoppedAnimation<Color>(color),
-            minHeight: 10,
+    return Container(
+      decoration: BoxDecoration(
+        color: Colors.white.withOpacity(0.05),
+        borderRadius: BorderRadius.circular(12),
+      ),
+      padding: const EdgeInsets.all(12),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Text('Acceleration',
+              style: TextStyle(color: Colors.white70, fontSize: 16)),
+          const SizedBox(height: 8),
+          ClipRRect(
+            borderRadius: BorderRadius.circular(4),
+            child: LinearProgressIndicator(
+              value: ratio,
+              backgroundColor: Colors.white24,
+              valueColor: AlwaysStoppedAnimation<Color>(color),
+              minHeight: 10,
+            ),
           ),
+          const SizedBox(height: 8),
+          Text('${_acceleration.toStringAsFixed(1)} m/s²',
+              style: const TextStyle(color: Colors.white70)),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildSpeedWidget() {
+    final speedRatio = (_speed / 200).clamp(0.0, 1.0);
+    return Container(
+      decoration: BoxDecoration(
+        color: Colors.white.withOpacity(0.05),
+        borderRadius: BorderRadius.circular(16),
+      ),
+      child: Stack(
+        alignment: Alignment.center,
+        children: [
+          TweenAnimationBuilder<double>(
+            tween: Tween(begin: 0, end: speedRatio),
+            duration: const Duration(milliseconds: 500),
+            builder: (context, value, child) => SizedBox(
+              width: double.infinity,
+              height: double.infinity,
+              child: CircularProgressIndicator(
+                value: value,
+                strokeWidth: 12,
+                backgroundColor: Colors.white24,
+                valueColor: AlwaysStoppedAnimation<Color>(
+                    _overspeedDiff != null ? Colors.red : Colors.green),
+              ),
+            ),
+          ),
+          Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Text('${_speed.toStringAsFixed(0)}',
+                  style: const TextStyle(
+                      fontSize: 64,
+                      color: Colors.white,
+                      fontWeight: FontWeight.bold)),
+              const Text('km/h',
+                  style: TextStyle(color: Colors.white70, fontSize: 20)),
+              const SizedBox(height: 8),
+              Text(_roadName,
+                  textAlign: TextAlign.center,
+                  style:
+                      const TextStyle(color: Colors.white70, fontSize: 16)),
+              if (_maxSpeed != null)
+                Text('limit ${_maxSpeed!} km/h',
+                    style: const TextStyle(color: Colors.white54)),
+              if (_overspeedDiff != null)
+                Text('Slow down by ${_overspeedDiff!} km/h',
+                    style: const TextStyle(color: Colors.redAccent)),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildSpeedHistoryWidget() {
+    final maxSpeed =
+        _speedHistory.isEmpty ? 0.0 : _speedHistory.reduce(math.max);
+    final avgSpeed = _speedHistory.isEmpty
+        ? 0.0
+        : _speedHistory.reduce((a, b) => a + b) / _speedHistory.length;
+    return GestureDetector(
+      onDoubleTap: () {
+        setState(() => _speedHistory.clear());
+      },
+      child: Container(
+        decoration: BoxDecoration(
+          color: Colors.white.withOpacity(0.05),
+          borderRadius: BorderRadius.circular(12),
         ),
-      ],
+        padding: const EdgeInsets.all(12),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Text('Speed history',
+                style: TextStyle(color: Colors.white70, fontSize: 16)),
+            const SizedBox(height: 8),
+            Expanded(
+              child: CustomPaint(
+                painter: _SpeedChartPainter(_speedHistory),
+              ),
+            ),
+            const SizedBox(height: 8),
+            Text('max: ${maxSpeed.toStringAsFixed(0)} km/h · '
+                'avg: ${avgSpeed.toStringAsFixed(0)} km/h',
+                style: const TextStyle(color: Colors.white54, fontSize: 12)),
+            const SizedBox(height: 4),
+            const Text('Double tap to clear',
+                style: TextStyle(color: Colors.white30, fontSize: 10)),
+          ],
+        ),
+      ),
     );
   }
 
