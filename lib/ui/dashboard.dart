@@ -38,6 +38,8 @@ class _DashboardPageState extends State<DashboardPage> {
   RectangleCalculatorThread? _calculator;
   String _arStatus = '';
   ValueNotifier<String>? _arNotifier;
+  double _acceleration = 0.0;
+  double? _lastSpeed;
 
   @override
   void initState() {
@@ -81,6 +83,8 @@ class _DashboardPageState extends State<DashboardPage> {
       _maxSpeed = _calculator!.maxspeedNotifier.value;
       _speedHistory.add(_speed);
       if (_speedHistory.length > 30) _speedHistory.removeAt(0);
+      _acceleration = ((_speed - (_lastSpeed ?? _speed)) / 3.6);
+      _lastSpeed = _speed;
     });
   }
 
@@ -122,53 +126,19 @@ class _DashboardPageState extends State<DashboardPage> {
         title: const Text('SpeedCamWarner'),
       ),
       body: Container(
-        color: Colors.black,
+        decoration: const BoxDecoration(
+          gradient: LinearGradient(
+            colors: [Color(0xFF1E1E1E), Color(0xFF121212)],
+            begin: Alignment.topLeft,
+            end: Alignment.bottomRight,
+          ),
+        ),
         padding: const EdgeInsets.all(16),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            if (_speedCamWarning != null || _activeCamera != null) ...[
-              Row(
-                crossAxisAlignment: CrossAxisAlignment.center,
-                children: [
-                  if (_speedCamIcon != null)
-                    Image.asset(_speedCamIcon!, width: 48, height: 48),
-                  const SizedBox(width: 12),
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        if (_cameraRoad != null)
-                          Text(
-                            _cameraRoad!,
-                            style: const TextStyle(
-                                color: Colors.white, fontSize: 18),
-                          ),
-                        if (_activeCamera != null)
-                          Text(
-                            'Lat: ' +
-                                _activeCamera!.latitude.toStringAsFixed(5) +
-                                ', Lon: ' +
-                                _activeCamera!.longitude.toStringAsFixed(5),
-                            style: const TextStyle(
-                                color: Colors.white54, fontSize: 14),
-                          ),
-                      ],
-                    ),
-                  ),
-                  if (_speedCamDistance != null && _speedCamDistance! > 1000)
-                    const Icon(Icons.warning, color: Colors.orange),
-                ],
-              ),
-              const SizedBox(height: 8),
-              _buildDistanceProgress(),
-              const SizedBox(height: 16),
-            ],
-            Text(
-              _roadName,
-              style: const TextStyle(color: Colors.white70, fontSize: 20),
-            ),
-            const SizedBox(height: 12),
+            _buildCameraInfo(),
+            const SizedBox(height: 16),
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
@@ -188,20 +158,18 @@ class _DashboardPageState extends State<DashboardPage> {
                   ),
               ],
             ),
+            Text(
+              _roadName,
+              style: const TextStyle(color: Colors.white70, fontSize: 20),
+            ),
             if (_overspeedDiff != null)
               Text(
                 'Slow down by ${_overspeedDiff!} km/h',
                 style:
                     const TextStyle(color: Colors.redAccent, fontSize: 24),
               ),
-            const SizedBox(height: 8),
-            LinearProgressIndicator(
-              value: (_speed / (_maxSpeed ?? 120)).clamp(0.0, 1.0),
-              backgroundColor: Colors.white24,
-              valueColor: AlwaysStoppedAnimation<Color>(
-                _overspeedDiff != null ? Colors.red : Colors.green,
-              ),
-            ),
+            const SizedBox(height: 12),
+            _buildAccelerationBar(),
             const SizedBox(height: 16),
             SizedBox(
               height: 80,
@@ -218,6 +186,79 @@ class _DashboardPageState extends State<DashboardPage> {
           ],
         ),
       ),
+    );
+  }
+
+  Widget _buildCameraInfo() {
+    if (_speedCamWarning == null && _activeCamera == null) {
+      return const SizedBox.shrink();
+    }
+    return Card(
+      color: Colors.grey[900],
+      child: Padding(
+        padding: const EdgeInsets.all(12),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              crossAxisAlignment: CrossAxisAlignment.center,
+              children: [
+                if (_speedCamIcon != null)
+                  Image.asset(_speedCamIcon!, width: 48, height: 48),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      if (_cameraRoad != null)
+                        Text(
+                          _cameraRoad!,
+                          style: const TextStyle(
+                              color: Colors.white, fontSize: 18),
+                        ),
+                      if (_activeCamera != null)
+                        Text(
+                          'Lat: ' +
+                              _activeCamera!.latitude.toStringAsFixed(5) +
+                              ', Lon: ' +
+                              _activeCamera!.longitude.toStringAsFixed(5),
+                          style: const TextStyle(
+                              color: Colors.white54, fontSize: 14),
+                        ),
+                    ],
+                  ),
+                ),
+                if (_speedCamDistance != null && _speedCamDistance! > 1000)
+                  const Icon(Icons.warning, color: Colors.orange),
+              ],
+            ),
+            const SizedBox(height: 8),
+            _buildDistanceProgress(),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildAccelerationBar() {
+    final ratio = ((_acceleration + 5) / 10).clamp(0.0, 1.0);
+    final color = Color.lerp(Colors.green, Colors.red, ratio)!;
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        const Text('Acceleration',
+            style: TextStyle(color: Colors.white70, fontSize: 16)),
+        const SizedBox(height: 4),
+        ClipRRect(
+          borderRadius: BorderRadius.circular(4),
+          child: LinearProgressIndicator(
+            value: ratio,
+            backgroundColor: Colors.white24,
+            valueColor: AlwaysStoppedAnimation<Color>(color),
+            minHeight: 10,
+          ),
+        ),
+      ],
     );
   }
 
