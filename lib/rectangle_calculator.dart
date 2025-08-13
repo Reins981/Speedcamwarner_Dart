@@ -354,9 +354,12 @@ class RectangleCalculatorThread {
   final DateTime _applicationStartTime = DateTime.now();
 
   // Retry configuration for OSM lookups. Attempts are limited and use
-  // exponential backoff starting from [osmRetryBaseDelay].
+  // exponential backoff starting from [osmRetryBaseDelay]. The HTTP request
+  // itself can take a while on the Overpass API, therefore the timeout is
+  // configurable via [osmRequestTimeout].
   int osmRetryMaxAttempts = 3;
   Duration osmRetryBaseDelay = const Duration(seconds: 1);
+  Duration osmRequestTimeout = const Duration(seconds: 30);
 
   // UI related state mirrors the callbacks of the original project.  In this
   // port the values are exposed via [ValueNotifier] so widgets can listen for
@@ -2015,12 +2018,9 @@ class RectangleCalculatorThread {
     }
     logger.printLogLine('triggerOsmLookup query: $query', logLevel: 'DEBUG');
 
-    // Build the request URI using Uri.https so that the query string is
-    // encoded correctly on all platforms.  The previous string
-    // concatenation could produce invalid URLs on some systems which in
-    // turn caused the Overpass API request to fail silently.
-    final uri =
-        Uri.https('overpass-api.de', '/api/interpreter', {'data': query});
+    // Build the request URI.  POST is used so that the query is encoded in the
+    // request body which avoids issues with very long URLs on some platforms.
+    final uri = Uri.parse('https://overpass-api.de/api/interpreter');
     logger.printLogLine('triggerOsmLookup uri: $uri', logLevel: 'DEBUG');
     final http.Client httpClient = client ?? http.Client();
 
@@ -2028,11 +2028,15 @@ class RectangleCalculatorThread {
       final start = DateTime.now();
       try {
         final resp = await httpClient
-            .get(uri, headers: {
-              'User-Agent': 'speedcamwarner-dart',
-              'Accept': 'application/json',
-            })
-            .timeout(const Duration(seconds: 15));
+            .post(
+              uri,
+              headers: {
+                'User-Agent': 'speedcamwarner-dart',
+                'Accept': 'application/json',
+              },
+              body: {'data': query},
+            )
+            .timeout(osmRequestTimeout);
         final duration = DateTime.now().difference(start);
         reportDownloadTime(duration);
         logger.printLogLine(
