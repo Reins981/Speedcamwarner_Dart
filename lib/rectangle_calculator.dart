@@ -644,8 +644,6 @@ class RectangleCalculatorThread {
     speedCamLookAheadDistance = lookAheadKm;
     constructionAreaLookaheadDistance = lookAheadKm;
     final GeoRect rect = _computeBoundingRect(latitude, longitude, lookAheadKm);
-    rectSpeedCamLookahead = lastRect;
-    rectConstructionAreasLookahead = lastRect;
     currentRectAngle = bearing;
     _rectangleStreamController.add(rect);
 
@@ -1368,6 +1366,11 @@ class RectangleCalculatorThread {
       await func(trigger, 1, xtile, ytile, ccpLon, ccpLat);
       logger.printLogLine('$msg lookup finished');
       _lastLookaheadExecution[msg] = DateTime.now();
+      if (msg == 'Speed Camera lookahead') {
+        rectSpeedCamLookahead = lastRect;
+      } else if (msg == 'Construction area lookahead') {
+        rectConstructionAreasLookahead = lastRect;
+      }
     }
   }
 
