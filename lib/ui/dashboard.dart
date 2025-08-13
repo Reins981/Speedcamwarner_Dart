@@ -143,21 +143,33 @@ class _DashboardPageState extends State<DashboardPage> {
             _buildCameraInfo(),
             const SizedBox(height: 16),
             Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                Text(
-                  '${_speed.toStringAsFixed(0)} km/h',
-                  style: TextStyle(
-                    fontSize: 72,
-                    fontWeight: FontWeight.bold,
-                    color: _overspeedDiff != null ? Colors.red : Colors.green,
+                Expanded(
+                  child: FittedBox(
+                    alignment: Alignment.centerLeft,
+                    fit: BoxFit.scaleDown,
+                    child: Text(
+                      '${_speed.toStringAsFixed(0)} km/h',
+                      style: TextStyle(
+                        fontSize: 72,
+                        fontWeight: FontWeight.bold,
+                        color:
+                            _overspeedDiff != null ? Colors.red : Colors.green,
+                      ),
+                    ),
                   ),
                 ),
                 if (_maxSpeed != null)
-                  Text(
-                    'max ${_maxSpeed!} km/h',
-                    style:
-                        const TextStyle(fontSize: 32, color: Colors.white70),
+                  Flexible(
+                    child: FittedBox(
+                      alignment: Alignment.centerRight,
+                      fit: BoxFit.scaleDown,
+                      child: Text(
+                        'max ${_maxSpeed!} km/h',
+                        style: const TextStyle(
+                            fontSize: 32, color: Colors.white70),
+                      ),
+                    ),
                   ),
               ],
             ),
@@ -196,49 +208,60 @@ class _DashboardPageState extends State<DashboardPage> {
     if (_speedCamWarning == null && _activeCamera == null) {
       return const SizedBox.shrink();
     }
-    return Card(
-      color: Colors.grey[900],
-      child: Padding(
-        padding: const EdgeInsets.all(12),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
-              crossAxisAlignment: CrossAxisAlignment.center,
+    return Container(
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(12),
+        gradient: const LinearGradient(
+          colors: [Color(0xFFD32F2F), Color(0xFFFFA000)],
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+        ),
+        boxShadow: const [
+          BoxShadow(
+            color: Colors.black26,
+            blurRadius: 8,
+            offset: Offset(0, 4),
+          ),
+        ],
+      ),
+      padding: const EdgeInsets.all(16),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.center,
+        children: [
+          if (_speedCamIcon != null)
+            Image.asset(_speedCamIcon!, width: 56, height: 56),
+          const SizedBox(width: 16),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                if (_speedCamIcon != null)
-                  Image.asset(_speedCamIcon!, width: 48, height: 48),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      if (_cameraRoad != null)
-                        Text(
-                          _cameraRoad!,
-                          style: const TextStyle(
-                              color: Colors.white, fontSize: 18),
-                        ),
-                      if (_activeCamera != null)
-                        Text(
-                          'Lat: ' +
-                              _activeCamera!.latitude.toStringAsFixed(5) +
-                              ', Lon: ' +
-                              _activeCamera!.longitude.toStringAsFixed(5),
-                          style: const TextStyle(
-                              color: Colors.white54, fontSize: 14),
-                        ),
-                    ],
+                if (_cameraRoad != null)
+                  Text(
+                    _cameraRoad!,
+                    style: const TextStyle(
+                        color: Colors.white,
+                        fontSize: 20,
+                        fontWeight: FontWeight.w600),
                   ),
-                ),
-                if (_speedCamDistance != null && _speedCamDistance! > 1000)
-                  const Icon(Icons.warning, color: Colors.orange),
+                if (_speedCamWarning != null)
+                  Text(
+                    _speedCamWarning!,
+                    style:
+                        const TextStyle(color: Colors.white, fontSize: 16),
+                  ),
+                const SizedBox(height: 8),
+                _buildDistanceProgress(),
+                if (_activeCamera != null)
+                  Text(
+                    'Lat: ${_activeCamera!.latitude.toStringAsFixed(5)}, '
+                    'Lon: ${_activeCamera!.longitude.toStringAsFixed(5)}',
+                    style:
+                        const TextStyle(color: Colors.white70, fontSize: 12),
+                  ),
               ],
             ),
-            const SizedBox(height: 8),
-            _buildDistanceProgress(),
-          ],
-        ),
+          ),
+        ],
       ),
     );
   }
