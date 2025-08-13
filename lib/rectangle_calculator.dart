@@ -991,24 +991,16 @@ class RectangleCalculatorThread {
     return Rect(pointList: [minX, minY, maxX, maxY]);
   }
 
-  /// Create a GeoJSON polygon from rotated tile bounds.
+  /// Create a GeoJSON polygon from tile bounds.
   List<math.Point<double>> createGeoJsonTilePolygonAngle(
     int zoom,
     double xtileMin,
     double ytileMin,
     double xtileMax,
     double ytileMax,
-    double angle,
   ) {
-    final rotated = rotatePoints2Angle(
-      xtileMin,
-      xtileMax,
-      ytileMin,
-      ytileMax,
-      angle,
-    );
-    final p1 = tileToLongLat(rotated[0], rotated[2], zoom);
-    final p2 = tileToLongLat(rotated[1], rotated[3], zoom);
+    final p1 = tileToLongLat(xtileMin.abs(), ytileMin.abs(), zoom);
+    final p2 = tileToLongLat(xtileMax.abs(), ytileMax.abs(), zoom);
     return [
       p1,
       math.Point<double>(p2.x, p1.y),
@@ -1419,7 +1411,7 @@ class RectangleCalculatorThread {
       xtile,
       ytile,
       speedCamLookAheadDistance,
-      0,
+      currentRectAngle * math.pi / 180.0,
     );
     final poly = createGeoJsonTilePolygonAngle(
       zoom,
@@ -1427,7 +1419,6 @@ class RectangleCalculatorThread {
       pts[2],
       pts[1],
       pts[3],
-      currentRectAngle * math.pi / 180.0,
     );
     double minLat = poly[0].y;
     double maxLat = poly[0].y;
@@ -1488,7 +1479,6 @@ class RectangleCalculatorThread {
       pts[2],
       pts[1],
       pts[3],
-      currentRectAngle * math.pi / 180.0,
     );
     double minLat = poly[0].y;
     double maxLat = poly[0].y;
