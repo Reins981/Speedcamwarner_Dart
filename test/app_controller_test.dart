@@ -10,12 +10,15 @@ void main() {
     expect(controller.gps.isRunning, isTrue);
     expect(controller.locationManager.isRunning, isTrue);
     expect(controller.calculator.isRunning, isTrue);
+    expect(controller.overspeedNotifier.value, isNull);
+    expect(controller.overspeedThreadRunning, isTrue);
 
     await controller.stop();
 
     expect(controller.gps.isRunning, isFalse);
     expect(controller.locationManager.isRunning, isFalse);
     expect(controller.calculator.isRunning, isFalse);
+    expect(controller.overspeedThreadRunning, isFalse);
 
     await controller.dispose();
   });

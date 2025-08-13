@@ -27,17 +27,17 @@ class ActionsPage extends StatelessWidget {
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            _buildButton(context, 'Start', () async {
+            _buildButton('Start', () async {
               await controller.start();
               onFinished();
             }),
             const SizedBox(height: 16),
-            _buildButton(context, 'Stop', () async {
+            _buildButton('Stop', () async {
               await controller.stop();
               onFinished();
             }),
             const SizedBox(height: 16),
-            _buildButton(context, 'Exit', () async {
+            _buildButton('Exit', () async {
               await controller.dispose();
               SystemNavigator.pop();
             }),

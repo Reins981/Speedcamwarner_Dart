@@ -86,6 +86,16 @@ class SpeedCamWarner {
     print('SpeedCamWarner terminating');
   }
 
+  Future<void> stop() async {
+    cond.terminate = true;
+    speedcamQueue.produce({
+      'ccp': ['EXIT', 'EXIT'],
+      'fix_cam': [false],
+      'traffic_cam': [false],
+      'bearing': 0.0,
+    });
+  }
+
   Future<String?> process() async {
     var item = await speedcamQueue.consume(cvSpeedcam);
     cvSpeedcam.release();

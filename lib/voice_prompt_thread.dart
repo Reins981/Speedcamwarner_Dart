@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'package:flutter_tts/flutter_tts.dart';
 import 'package:audioplayers/audioplayers.dart';
 
@@ -76,6 +77,15 @@ class VoicePromptThread {
     voicePromptQueue.clearMaxSpeedExceededQueue();
     voicePromptQueue.clearOnlineQueue();
     voicePromptQueue.clearArQueue();
+  }
+
+  /// Stop consuming further voice prompts and release audio resources.
+  Future<void> stop() async {
+    _running = false;
+    try {
+      await flutterTts.stop();
+    } catch (_) {}
+    await _audioPlayer.stop();
   }
 
   Future<void> playSound(String fileName) async {
