@@ -29,6 +29,7 @@ class _DashboardPageState extends State<DashboardPage> {
   String _roadName = 'Unknown road';
   int? _overspeedDiff;
   String? _speedCamWarning;
+  String? _speedCamIcon;
   double? _speedCamDistance;
   String? _cameraRoad;
   int? _maxSpeed;
@@ -49,6 +50,7 @@ class _DashboardPageState extends State<DashboardPage> {
       _roadName = _calculator!.roadNameNotifier.value;
       _overspeedDiff = _calculator!.overspeedChecker.difference.value;
       _speedCamWarning = _calculator!.speedCamNotifier.value;
+      _speedCamIcon = _iconForWarning(_speedCamWarning);
       _speedCamDistance = _calculator!.speedCamDistanceNotifier.value;
       _cameraRoad = _calculator!.cameraRoadNotifier.value;
       _maxSpeed = _calculator!.maxspeedNotifier.value;
@@ -77,6 +79,7 @@ class _DashboardPageState extends State<DashboardPage> {
       _roadName = _calculator!.roadNameNotifier.value;
       _overspeedDiff = _calculator!.overspeedChecker.difference.value;
       _speedCamWarning = _calculator!.speedCamNotifier.value;
+      _speedCamIcon = _iconForWarning(_speedCamWarning);
       _speedCamDistance = _calculator!.speedCamDistanceNotifier.value;
       _cameraRoad = _calculator!.cameraRoadNotifier.value;
       _maxSpeed = _calculator!.maxspeedNotifier.value;
@@ -94,7 +97,7 @@ class _DashboardPageState extends State<DashboardPage> {
           point: LatLng(cam.latitude, cam.longitude),
           width: 40,
           height: 40,
-          child: const Icon(Icons.camera_alt, color: Colors.red),
+          child: Image.asset(_iconForCamera(cam)),
         ),
       ];
     });
@@ -198,11 +201,26 @@ class _DashboardPageState extends State<DashboardPage> {
                 ),
                 if (_speedCamWarning != null) ...[
                   const SizedBox(height: 8),
-                  Text(
-                    _speedCamDistance != null
-                        ? '${_speedCamWarning!} in ${_speedCamDistance!.toStringAsFixed(0)} m'
-                        : _speedCamWarning!,
-                    style: const TextStyle(color: Colors.orange, fontSize: 18),
+                  Row(
+                    children: [
+                      if (_speedCamIcon != null)
+                        Padding(
+                          padding: const EdgeInsets.only(right: 8.0),
+                          child:
+                              Image.asset(_speedCamIcon!, width: 24, height: 24),
+                        ),
+                      Expanded(
+                        child: Text(
+                          _speedCamDistance != null
+                              ? _speedCamDistance! <= 50
+                                  ? '${_speedCamWarning!} right in front'
+                                  : '${_speedCamWarning!} in ${_speedCamDistance!.toStringAsFixed(0)} m'
+                              : _speedCamWarning!,
+                          style:
+                              const TextStyle(color: Colors.orange, fontSize: 18),
+                        ),
+                      ),
+                    ],
                   ),
                   if (_cameraRoad != null)
                     Text(
@@ -244,6 +262,32 @@ class _DashboardPageState extends State<DashboardPage> {
         color: active ? Colors.red : Colors.white24,
       ),
     );
+  }
+
+  String? _iconForWarning(String? warning) {
+    switch (warning) {
+      case 'fix':
+        return 'images/fixcamera.png';
+      case 'traffic':
+        return 'images/trafficlightcamera.png';
+      case 'mobile':
+        return 'images/mobilcamera.png';
+      case 'distance':
+        return 'images/distancecamera.png';
+      case 'CAMERA_AHEAD':
+        return 'images/camera_ahead.png';
+      case 'FREEFLOW':
+        return 'images/freeflow.png';
+      default:
+        return null;
+    }
+  }
+
+  String _iconForCamera(SpeedCameraEvent cam) {
+    if (cam.fixed) return 'images/fixcamera_map.png';
+    if (cam.traffic) return 'images/trafficlightcamera_map.jpg';
+    if (cam.mobile) return 'images/mobilecamera_map.jpg';
+    return 'images/distancecamera_map.jpg';
   }
 }
 
