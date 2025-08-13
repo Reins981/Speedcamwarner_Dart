@@ -71,8 +71,7 @@ class SpeedCamWarner {
 
   // ----------------------------------------------------------------------
   void setConfigs() {
-    enableInsideRelevantAngleFeature =
-        AppConfig.get<bool>(
+    enableInsideRelevantAngleFeature = AppConfig.get<bool>(
           'speedCamWarner.enable_inside_relevant_angle_feature',
         ) ??
         enableInsideRelevantAngleFeature;
@@ -80,8 +79,7 @@ class SpeedCamWarner {
         (AppConfig.get<num>('speedCamWarner.emergency_angle_distance') ??
                 emergencyAngleDistance)
             .toDouble();
-    deleteCamerasOutsideLookaheadRectangle =
-        AppConfig.get<bool>(
+    deleteCamerasOutsideLookaheadRectangle = AppConfig.get<bool>(
           'speedCamWarner.delete_cameras_outside_lookahead_rectangle',
         ) ??
         deleteCamerasOutsideLookaheadRectangle;
@@ -89,10 +87,9 @@ class SpeedCamWarner {
         (AppConfig.get<num>('speedCamWarner.max_absolute_distance') ??
                 maxAbsoluteDistance)
             .toDouble();
-    maxStorageTime =
-        (AppConfig.get<num>('speedCamWarner.max_storage_time') ??
-                maxStorageTime)
-            .toDouble();
+    maxStorageTime = (AppConfig.get<num>('speedCamWarner.max_storage_time') ??
+            maxStorageTime)
+        .toDouble();
     traversedCamerasInterval =
         (AppConfig.get<num>('speedCamWarner.traversed_cameras_interval') ??
                 traversedCamerasInterval)
@@ -336,7 +333,10 @@ class SpeedCamWarner {
           'Add new mobile cam (${item['mobile_cam'][1]}, ${item['mobile_cam'][2]})',
         );
         camCoordinates = [item['mobile_cam'][1], item['mobile_cam'][2]];
-        ccpNodeCoordinates = [item['ccp_node'][0], item['ccp_node'][1]];
+        ccpNodeCoordinates = [
+          double.tryParse(item['ccp_node'][0].toString()),
+          double.tryParse(['ccp_node'][1].toString())
+        ];
         var linkedList = item['list_tree'][0];
         var tree = item['list_tree'][1];
         var startTime = DateTime.now().millisecondsSinceEpoch / 1000.0;
@@ -438,8 +438,7 @@ class SpeedCamWarner {
           if (queue != null && queue[12] == 'was_backup') {
             queue[12] = 'is_standard';
           } else {
-            var startTime =
-                DateTime.now().millisecondsSinceEpoch / 1000.0 -
+            var startTime = DateTime.now().millisecondsSinceEpoch / 1000.0 -
                 startTimes[cam]!;
             queue?[6] = startTime;
             queue?[11] = false;
@@ -1075,8 +1074,7 @@ class SpeedCamWarner {
     var radius = 6371; // km
     var dlat = _degToRad(lat2 - lat1);
     var dlon = _degToRad(lon2 - lon1);
-    var a =
-        pow(sin(dlat / 2), 2) +
+    var a = pow(sin(dlat / 2), 2) +
         cos(_degToRad(lat1)) * cos(_degToRad(lat2)) * pow(sin(dlon / 2), 2);
     var c = 2 * atan2(sqrt(a), sqrt(1 - a));
     var d = radius * c;
@@ -1133,9 +1131,8 @@ class SpeedCamWarner {
       if (ccpBearing != null && camDirection != null) {
         var directionCcp = calculateDirection(ccpBearing!);
         if (directionCcp == null) return true;
-        var directions = camDirection
-            .map((d) => calculateDirection(d as double))
-            .toList();
+        var directions =
+            camDirection.map((d) => calculateDirection(d as double)).toList();
         if (directions.contains(directionCcp)) {
           return true;
         } else {
@@ -1219,10 +1216,10 @@ class SpeedCamWarner {
           } else {
             var distance =
                 checkDistanceBetweenTwoPoints(cam, camAttributes[2]) -
-                checkDistanceBetweenTwoPoints([
-                  longitude,
-                  latitude,
-                ], camAttributes[2]);
+                    checkDistanceBetweenTwoPoints([
+                      longitude,
+                      latitude,
+                    ], camAttributes[2]);
             if (distance < 0 && distance.abs() >= maxAbsoluteDistance) {
               print(
                 'Deleting obsolete camera: $cam (max distance $maxAbsoluteDistance m < current distance ${distance.abs()} m)',
