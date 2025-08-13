@@ -514,6 +514,32 @@ class SpeedCamWarner {
     // regardless of the original numeric type.
     var distance = (attributes[8] as num?)?.toDouble() ?? 0.0;
 
+    // Calculate the follow-up distance to the already detected camera based on
+    // the latest CCP position.  Previously the stored distance value was reused
+    // which could lag behind the actual distance when the vehicle had moved in
+    // the meantime.  Recomputing here keeps the warning logic in sync with the
+    // current location before triggering any UI or voice updates.
+    if (attributes[1] == false) {
+      distance = checkDistanceBetweenTwoPoints(cam, [longitude, latitude]);
+      print(
+        ' Followup Distance to current speed cam (${cam[0]}, ${cam[1]}, $speedcamType): '
+        '${distance.toDouble()} meters , last distance: $lastDistance, '
+        'storage_time: ${attributes[6]} seconds, predictive: $predictive',
+      );
+      if (processNextCam) {
+        try {
+          print(
+            ' -> Future speed cam in queue is: coords: '
+            '(${nextCam[0]}, ${nextCam[1]}), road name: $nextCamRoad, distance: $nextCamDistance',
+          );
+        } catch (_) {
+          print(' -> Future speed cam information unavailable');
+        }
+      } else {
+        print(' No future speed cam in queue found');
+      }
+    }
+
     if (!matchCameraAgainstAngle(
       cam,
       distance,
@@ -539,6 +565,11 @@ class SpeedCamWarner {
       nextCamDistanceAsInt: nextCamDistanceAsInt,
       processNextCam: processNextCam,
     );
+    // Propagate the current camera processing state to the calculator thread.
+    // In the original Python implementation this mirrors
+    // `self.calculator.camera_in_progress(...)` to keep the UI and prediction
+    // logic in sync with whether a camera is actively being handled.
+    calculator.cameraInProgress(camInProgress);
 
     return null;
   }
@@ -639,6 +670,7 @@ class SpeedCamWarner {
       updateBarWidget300m(color: 2);
       updateBarWidget100m(color: 2);
       updateBarWidgetMeters('');
+      updateCamText(reset: true);
     }
   }
 
@@ -698,6 +730,7 @@ class SpeedCamWarner {
           updateBarWidget500m();
           updateBarWidget1000m();
           updateBarWidgetMeters(distance);
+          updateCamText(distance: distance.toInt());
         }
         if (itemQueue.containsKey(camCoordinates)) {
           try {
@@ -717,6 +750,7 @@ class SpeedCamWarner {
           updateBarWidget500m();
           updateBarWidget1000m();
           updateBarWidgetMeters(distance);
+          updateCamText(distance: distance.toInt());
         }
         if (itemQueue.containsKey(camCoordinates)) {
           try {
@@ -756,6 +790,7 @@ class SpeedCamWarner {
           updateBarWidget500m();
           updateBarWidget1000m();
           updateBarWidgetMeters(distance);
+          updateCamText(distance: distance.toInt());
         }
         if (itemQueue.containsKey(camCoordinates)) {
           try {
@@ -773,11 +808,12 @@ class SpeedCamWarner {
             updateSpeedcam(speedcam);
             updateBarWidget100m(color: 2);
             updateBarWidget300m();
-            updateBarWidget500m();
-            updateBarWidget1000m();
-            updateBarWidgetMeters(distance);
-          }
-          if (itemQueue.containsKey(camCoordinates)) {
+              updateBarWidget500m();
+              updateBarWidget1000m();
+              updateBarWidgetMeters(distance);
+              updateCamText(distance: distance.toInt());
+            }
+            if (itemQueue.containsKey(camCoordinates)) {
             try {
               updateCamRoad(road: itemQueue[camCoordinates]?[7]);
               updateMaxSpeed(maxSpeed: maxSpeed);
@@ -834,6 +870,7 @@ class SpeedCamWarner {
           updateBarWidget500m();
           updateBarWidget1000m();
           updateBarWidgetMeters(distance);
+          updateCamText(distance: distance.toInt());
         }
         if (itemQueue.containsKey(camCoordinates)) {
           try {
@@ -851,11 +888,12 @@ class SpeedCamWarner {
             updateSpeedcam(speedcam);
             updateBarWidget100m(color: 2);
             updateBarWidget300m(color: 2);
-            updateBarWidget500m();
-            updateBarWidget1000m();
-            updateBarWidgetMeters(distance);
-          }
-          if (itemQueue.containsKey(camCoordinates)) {
+              updateBarWidget500m();
+              updateBarWidget1000m();
+              updateBarWidgetMeters(distance);
+              updateCamText(distance: distance.toInt());
+            }
+            if (itemQueue.containsKey(camCoordinates)) {
             try {
               updateCamRoad(road: itemQueue[camCoordinates]?[7]);
               updateMaxSpeed(maxSpeed: maxSpeed);
@@ -895,6 +933,7 @@ class SpeedCamWarner {
         if (resume.isResumed()) {
           updateSpeedcam('CAMERA_AHEAD');
           updateBarWidgetMeters(distance);
+          updateCamText(distance: distance.toInt());
         }
       } else {
         if (lastDistance == 1001) {
@@ -902,6 +941,7 @@ class SpeedCamWarner {
           if (resume.isResumed()) {
             updateSpeedcam('CAMERA_AHEAD');
             updateBarWidgetMeters(distance);
+            updateCamText(distance: distance.toInt());
           }
           if (itemQueue.containsKey(camCoordinates)) {
             try {
@@ -1047,7 +1087,13 @@ class SpeedCamWarner {
     }
   }
 
-  void updateCamText({int distance = 0, bool reset = false}) {}
+  void updateCamText({int distance = 0, bool reset = false}) {
+    if (reset) {
+      calculator.updateCamText(null);
+    } else {
+      calculator.updateCamText('Camera in $distance m');
+    }
+  }
 
   void updateCamRoad({
     String? road,
