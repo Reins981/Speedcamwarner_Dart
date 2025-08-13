@@ -1,3 +1,5 @@
+import 'config.dart';
+
 class Maps {
   dynamic calculator;
   bool drawRects = true;
@@ -14,7 +16,10 @@ class Maps {
   }
 
   void setConfigs() {
-    drawRects = true;
+    drawRects =
+        AppConfig.get<bool>('osmWrapper.draw_rects') ??
+            AppConfig.get<bool>('osmWrapperPorted.draw_rects') ??
+            drawRects;
   }
 
   void osmUpdateCenter(double lat, double lng) {

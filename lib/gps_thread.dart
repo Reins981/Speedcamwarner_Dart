@@ -3,6 +3,7 @@ import 'dart:async';
 import 'logger.dart';
 import 'rectangle_calculator.dart';
 import 'voice_prompt_queue.dart';
+import 'config.dart';
 
 /// Simplified port of the GPS handling thread from the Python code base.  The
 /// original application relied on OS threads and condition variables to push
@@ -10,11 +11,29 @@ import 'voice_prompt_queue.dart';
 /// [Stream] of [VectorData] objects.  Consumers may listen to [stream] or
 /// forward the events to [RectangleCalculatorThread.addVectorSample].
 class GpsThread extends Logger {
-  GpsThread({this.voicePromptQueue, this.accuracyThreshold = 40})
-      : super('GpsThread');
+  GpsThread({this.voicePromptQueue, double? accuracyThreshold})
+      : accuracyThreshold =
+            (accuracyThreshold ??
+                    AppConfig.get<num>('gpsThread.gps_inaccuracy_treshold') ??
+                    4)
+                .toDouble(),
+        gpsTestData = AppConfig.get<bool>('gpsThread.gps_test_data') ?? false,
+        maxGpsEntries =
+            (AppConfig.get<num>('gpsThread.max_gps_entries') ?? 50000).toInt(),
+        gpxFile = AppConfig.get<String>('gpsThread.gpx_file') ??
+            'python/gpx/Weekend_Karntner_5SeenTour.gpx',
+        gpsTreshold =
+            (AppConfig.get<num>('gpsThread.gps_treshold') ?? 40).toDouble(),
+        recording = AppConfig.get<bool>('gpsThread.recording') ?? false,
+        super('GpsThread');
 
   final VoicePromptQueue? voicePromptQueue;
   final double accuracyThreshold;
+  final bool gpsTestData;
+  final int maxGpsEntries;
+  final String gpxFile;
+  final double gpsTreshold;
+  bool recording;
 
   final StreamController<VectorData> _controller =
       StreamController<VectorData>.broadcast();
@@ -34,7 +53,8 @@ class GpsThread extends Logger {
   void start({Stream<VectorData>? source}) {
     if (_running) return;
     _running = true;
-    printLogLine('GPS thread started');
+    printLogLine(
+        'GPS thread started testData=$gpsTestData maxEntries=$maxGpsEntries recording=$recording threshold=$gpsTreshold');
     _sourceSub = source?.listen((event) {
       if (_running) {
         printLogLine(

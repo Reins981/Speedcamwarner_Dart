@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'config.dart';
 
 /// ANSI color codes used for stdout logging.
 class BColors {
@@ -76,7 +77,9 @@ class Logger {
   StreamController<String>? logViewer;
   bool alwaysLogToStdOut = false;
 
-  Logger(this.moduleName, {this.logViewer});
+  Logger(this.moduleName, {this.logViewer}) {
+    setConfigs();
+  }
 
   void setLogViewer(StreamController<String> logViewer) {
     this.logViewer = logViewer;
@@ -84,7 +87,8 @@ class Logger {
 
   void setConfigs() {
     // Call this to disable logs to stdout when a log viewer is used.
-    alwaysLogToStdOut = false;
+    alwaysLogToStdOut =
+        AppConfig.get<bool>('logger.always_log_to_stdout') ?? false;
   }
 
   String createLogLinePrefix(String logLevel) {
