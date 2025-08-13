@@ -882,6 +882,9 @@ class RectangleCalculatorThread {
   /// Cache used to avoid adding duplicate construction areas.
   final Set<String> _constructionCache = {};
 
+  /// List of construction areas discovered so far.
+  List<GeoRect> constructionAreas = [];
+
   /// Replace the current list of construction areas and emit them in batches
   /// similar to [updateSpeedCams].
   Future<void> updateConstructionAreas(
@@ -1553,8 +1556,8 @@ class RectangleCalculatorThread {
       maxLon: maxLon,
     );
     logger.printLogLine('constructionsLookupAhead bounds: $rect');
-    logger.printLogLine(
-        'constructionsLookupAhead requesting construction_ahead');
+    logger
+        .printLogLine('constructionsLookupAhead requesting construction_ahead');
     final result = await triggerOsmLookup(
       rect,
       lookupType: 'construction_ahead',
@@ -1684,8 +1687,8 @@ class RectangleCalculatorThread {
       return cams.isEmpty ? null : cams;
     } else if (lookupType == 'construction_ahead') {
       final areas = constructionAreas
-          .where((r) =>
-              within(r.minLat, r.minLon) || within(r.maxLat, r.maxLon))
+          .where(
+              (r) => within(r.minLat, r.minLon) || within(r.maxLat, r.maxLon))
           .map((r) => {
                 'lat': r.minLat,
                 'lon': r.minLon,
@@ -2015,9 +2018,9 @@ class RectangleCalculatorThread {
     for (var attempt = 1; attempt <= osmRetryMaxAttempts; attempt++) {
       final start = DateTime.now();
       try {
-        final resp = await httpClient
-            .get(uri, headers: {'User-Agent': 'speedcamwarner-dart'})
-            .timeout(const Duration(seconds: 15));
+        final resp = await httpClient.get(uri, headers: {
+          'User-Agent': 'speedcamwarner-dart'
+        }).timeout(const Duration(seconds: 15));
         final duration = DateTime.now().difference(start);
         reportDownloadTime(duration);
         logger.printLogLine(
@@ -2070,8 +2073,7 @@ class RectangleCalculatorThread {
           );
           return OsmLookupResult(false, 'TIMEOUT', null, e.toString(), area);
         }
-        final delayMs =
-            osmRetryBaseDelay.inMilliseconds * (1 << (attempt - 1));
+        final delayMs = osmRetryBaseDelay.inMilliseconds * (1 << (attempt - 1));
         await Future.delayed(Duration(milliseconds: delayMs));
       } catch (e) {
         await checkWorkerThreadStatus();
