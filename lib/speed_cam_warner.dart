@@ -471,7 +471,7 @@ class SpeedCamWarner {
       } catch (_) {}
     }
 
-    var attributes = itemQueue[cam];
+    final attributes = itemQueue[cam];
     if (attributes == null) return null;
     var newCam = attributes[11];
     var camRoadName = attributes[7];

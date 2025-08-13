@@ -8,7 +8,6 @@ import 'rectangle_calculator.dart';
 import 'voice_prompt_queue.dart';
 import 'package:geolocator/geolocator.dart';
 import 'poi_reader.dart';
-import 'thread_base.dart';
 import 'gps_producer.dart';
 import 'speed_cam_warner.dart';
 import 'voice_prompt_thread.dart';

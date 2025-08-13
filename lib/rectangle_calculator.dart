@@ -1020,7 +1020,15 @@ class RectangleCalculatorThread {
   }
 
   /// Create a GeoJSON polygon from unrotated tile bounds.
-  List<math.Point<double>> createGeoJsonTilePolygon(
+  ///
+  /// The original Python implementation returned the bounding box as four
+  /// separate values `(LON_MIN, LAT_MIN, LON_MAX, LAT_MAX)`.  Several parts of
+  /// the Dart port – in particular [POIReader] – still expect this structure.
+  /// Returning the four coordinates keeps those call sites simple while the
+  /// higher level rectangle calculations continue to operate on tile based
+  /// geometry.  If consumers require the full polygon they can reconstruct it
+  /// easily from the returned bounds.
+  List<double> createGeoJsonTilePolygon(
     String direction,
     int zoom,
     double xtile,
@@ -1031,13 +1039,11 @@ class RectangleCalculatorThread {
     final double ytileMax = ytile + size;
     final p1 = tileToLongLat(xtile, ytile, zoom);
     final p2 = tileToLongLat(xtileMax, ytileMax, zoom);
-    return [
-      p1,
-      math.Point<double>(p2.x, p1.y),
-      p2,
-      math.Point<double>(p1.x, p2.y),
-      p1,
-    ];
+    final lonMin = p1.x;
+    final latMin = p2.y;
+    final lonMax = p2.x;
+    final latMax = p1.y;
+    return [lonMin, latMin, lonMax, latMax];
   }
 
   /// Determine the functional road class value from an OSM highway tag.
