@@ -318,30 +318,46 @@ class _DashboardPageState extends State<DashboardPage> {
 
 class _SpeedChartPainter extends CustomPainter {
   final List<double> history;
-  _SpeedChartPainter(this.history);
+  final double lowThreshold;
+  final double highThreshold;
+
+  _SpeedChartPainter(this.history,
+      {this.lowThreshold = 2.0, this.highThreshold = 5.0});
 
   @override
   void paint(Canvas canvas, Size size) {
-    if (history.isEmpty) return;
-    final paint = Paint()
-      ..color = Colors.blueAccent
-      ..strokeWidth = 2
-      ..style = PaintingStyle.stroke;
-    final path = ui.Path();
-    for (var i = 0; i < history.length; i++) {
-      final x = i / (history.length - 1) * size.width;
-      final y = size.height -
-          (history[i] / 120).clamp(0.0, 1.0) * size.height; // assume 120 km/h max
-      if (i == 0) {
-        path.moveTo(x, y);
+    if (history.length < 2) return;
+
+    for (var i = 1; i < history.length; i++) {
+      final x1 = (i - 1) / (history.length - 1) * size.width;
+      final y1 = size.height -
+          (history[i - 1] / 120).clamp(0.0, 1.0) * size.height;
+      final x2 = i / (history.length - 1) * size.width;
+      final y2 = size.height -
+          (history[i] / 120).clamp(0.0, 1.0) * size.height;
+
+      final diff = (history[i] - history[i - 1]).abs();
+      Color color;
+      if (diff < lowThreshold) {
+        color = Colors.green;
+      } else if (diff < highThreshold) {
+        color = Colors.yellow;
       } else {
-        path.lineTo(x, y);
+        color = Colors.red;
       }
+
+      final paint = Paint()
+        ..color = color
+        ..strokeWidth = 2
+        ..style = PaintingStyle.stroke;
+
+      canvas.drawLine(Offset(x1, y1), Offset(x2, y2), paint);
     }
-    canvas.drawPath(path, paint);
   }
 
   @override
   bool shouldRepaint(covariant _SpeedChartPainter oldDelegate) =>
-      oldDelegate.history != history;
+      oldDelegate.history != history ||
+      oldDelegate.lowThreshold != lowThreshold ||
+      oldDelegate.highThreshold != highThreshold;
 }
