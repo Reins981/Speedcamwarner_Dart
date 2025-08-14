@@ -1,4 +1,5 @@
 import 'dart:io';
+import 'dart:math' as math;
 import 'dart:typed_data';
 import 'package:flutter/scheduler.dart';
 
@@ -426,33 +427,63 @@ class ButtonsLayout extends StatelessWidget {
     final bool isPortrait = size.width < size.height;
 
     if (isPortrait) {
+      final double buttonSize =
+          math.min(size.width / 4, size.height * 0.2);
       return Align(
         alignment: Alignment.bottomCenter,
         child: SizedBox(
-          height: size.height * 0.2,
+          width: buttonSize * 4,
+          height: buttonSize,
           child: Row(
             mainAxisAlignment: MainAxisAlignment.spaceEvenly,
             children: <Widget>[
-              _button(icon: Icons.screen_share, onPressed: onConnectCamera),
-              _button(icon: Icons.camera_alt, onPressed: onScreenshot),
-              _button(icon: Icons.arrow_back, onPressed: onReturn),
-              _button(icon: Icons.cameraswitch, onPressed: onSelectCamera),
+              _button(
+                  icon: Icons.screen_share,
+                  onPressed: onConnectCamera,
+                  size: buttonSize),
+              _button(
+                  icon: Icons.camera_alt,
+                  onPressed: onScreenshot,
+                  size: buttonSize),
+              _button(
+                  icon: Icons.arrow_back,
+                  onPressed: onReturn,
+                  size: buttonSize),
+              _button(
+                  icon: Icons.cameraswitch,
+                  onPressed: onSelectCamera,
+                  size: buttonSize),
             ],
           ),
         ),
       );
     } else {
+      final double buttonSize =
+          math.min(size.width * 0.2, size.height / 4);
       return Align(
         alignment: Alignment.centerRight,
         child: SizedBox(
-          width: size.width * 0.2,
+          width: buttonSize,
+          height: buttonSize * 4,
           child: Column(
             mainAxisAlignment: MainAxisAlignment.spaceEvenly,
             children: <Widget>[
-              _button(icon: Icons.cameraswitch, onPressed: onSelectCamera),
-              _button(icon: Icons.arrow_back, onPressed: onReturn),
-              _button(icon: Icons.camera_alt, onPressed: onScreenshot),
-              _button(icon: Icons.screen_share, onPressed: onConnectCamera),
+              _button(
+                  icon: Icons.cameraswitch,
+                  onPressed: onSelectCamera,
+                  size: buttonSize),
+              _button(
+                  icon: Icons.arrow_back,
+                  onPressed: onReturn,
+                  size: buttonSize),
+              _button(
+                  icon: Icons.camera_alt,
+                  onPressed: onScreenshot,
+                  size: buttonSize),
+              _button(
+                  icon: Icons.screen_share,
+                  onPressed: onConnectCamera,
+                  size: buttonSize),
             ],
           ),
         ),
@@ -460,9 +491,13 @@ class ButtonsLayout extends StatelessWidget {
     }
   }
 
-  Widget _button({required IconData icon, required VoidCallback onPressed}) {
-    return AspectRatio(
-      aspectRatio: 1,
+  Widget _button(
+      {required IconData icon,
+      required VoidCallback onPressed,
+      required double size}) {
+    return SizedBox(
+      width: size,
+      height: size,
       child: ElevatedButton(
         onPressed: onPressed,
         child: Icon(icon),
