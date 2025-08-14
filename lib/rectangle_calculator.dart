@@ -272,6 +272,13 @@ class RectangleCalculatorThread {
   final StreamController<SpeedCameraEvent> _cameraStreamController =
       StreamController<SpeedCameraEvent>.broadcast();
 
+  /// Stream of legacy speed camera updates in the original map format.
+  /// Replaces the old [SpeedCamQueue] mechanism and includes a timestamp for
+  /// staleness checks.
+  final StreamController<Timestamped<Map<String, dynamic>>>
+      _speedCamEventController =
+      StreamController<Timestamped<Map<String, dynamic>>>.broadcast();
+
   /// Controller used to broadcast newly discovered construction areas.
   final StreamController<GeoRect> _constructionStreamController =
       StreamController<GeoRect>.broadcast();
@@ -651,6 +658,10 @@ class RectangleCalculatorThread {
   /// predictive analytics (machine learning) or from some external data source.
   Stream<SpeedCameraEvent> get cameras => _cameraStreamController.stream;
 
+  /// Stream of legacy speed camera map updates mirroring the old queue items.
+  Stream<Timestamped<Map<String, dynamic>>> get speedCamEvents =>
+      _speedCamEventController.stream;
+
   /// Stream of construction areas discovered during look‑ahead queries.
   Stream<GeoRect> get constructions => _constructionStreamController.stream;
 
@@ -682,6 +693,7 @@ class RectangleCalculatorThread {
     await _vectorStreamController.close();
     await _rectangleStreamController.close();
     await _cameraStreamController.close();
+    await _speedCamEventController.close();
     await _constructionStreamController.close();
   }
 
@@ -974,6 +986,22 @@ class RectangleCalculatorThread {
       for (final cam in batch) {
         _cameraStreamController.add(cam);
         logger.printLogLine('Emitting camera event: $cam');
+        _speedCamEventController.add(
+          Timestamped<Map<String, dynamic>>({
+            'bearing': 0.0,
+            'stable_ccp': true,
+            'ccp': ['IGNORE', 'IGNORE'],
+            'fix_cam': [cam.fixed, cam.longitude, cam.latitude, true],
+            'traffic_cam': [cam.traffic, cam.longitude, cam.latitude, true],
+            'distance_cam': [cam.distance, cam.longitude, cam.latitude, true],
+            'mobile_cam': [cam.mobile, cam.longitude, cam.latitude, true],
+            'ccp_node': ['IGNORE', 'IGNORE'],
+            'list_tree': [null, null],
+            'name': cam.name,
+            'maxspeed': 0,
+            'direction': '',
+          }),
+        );
       }
       if (i + batchSize < cams.length) {
         await Future.delayed(const Duration(milliseconds: 10));
@@ -1387,6 +1415,20 @@ class RectangleCalculatorThread {
     // through the [positionNotifier] so consumers always receive the latest
     // coordinates even while offline.
     positionNotifier.value = LatLng(latitudeCached, longitudeCached);
+
+    _speedCamEventController.add(
+      Timestamped<Map<String, dynamic>>({
+        'bearing': bearing,
+        'stable_ccp': ccpStable?.toLowerCase() != 'false',
+        'ccp': [longitudeCached, latitudeCached],
+        'fix_cam': [false, 0.0, 0.0, false],
+        'traffic_cam': [false, 0.0, 0.0, false],
+        'distance_cam': [false, 0.0, 0.0, false],
+        'mobile_cam': [false, 0.0, 0.0, false],
+        'ccp_node': [null, null],
+        'list_tree': [null, null],
+      }),
+    );
 
     overspeedThread?.clearQueues();
   }
