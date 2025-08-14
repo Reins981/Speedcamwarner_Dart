@@ -1761,14 +1761,53 @@ class RectangleCalculatorThread {
     for (final element in data) {
       if (element is! Map<String, dynamic>) continue;
       final tags = element['tags'] as Map<String, dynamic>? ?? {};
+      final lat = (element['lat'] as num?)?.toDouble();
+      final lon = (element['lon'] as num?)?.toDouble();
+      if (lat == null || lon == null) continue;
+
       if (lookupType == 'distance_cam') {
         updateNumberOfDistanceCameras(tags);
+        final role = tags['role'];
+        if (role == 'device') {
+          final cam = SpeedCameraEvent(
+            latitude: lat,
+            longitude: lon,
+            distance: true,
+            name: tags['name']?.toString() ?? '',
+          );
+          _cameraCache.add(cam);
+          cams.add(cam);
+          distance_cams += 1;
+        }
         continue;
       }
-      if (tags['highway'] == 'speed_camera') {
-        final lat = (element['lat'] as num?)?.toDouble();
-        final lon = (element['lon'] as num?)?.toDouble();
-        if (lat == null || lon == null) continue;
+
+      final camTypeTag = tags['camera:type']?.toString();
+      if (camTypeTag == 'mobile' || tags['mobile'] == 'yes') {
+        final cam = SpeedCameraEvent(
+          latitude: lat,
+          longitude: lon,
+          mobile: true,
+          name: tags['name']?.toString() ?? '',
+        );
+        _cameraCache.add(cam);
+        cams.add(cam);
+        mobile_cams += 1;
+        continue;
+      }
+
+      final speedCamVal = tags['speed_camera']?.toString();
+      if (speedCamVal == 'traffic_signals') {
+        final cam = SpeedCameraEvent(
+          latitude: lat,
+          longitude: lon,
+          traffic: true,
+          name: tags['name']?.toString() ?? '',
+        );
+        _cameraCache.add(cam);
+        cams.add(cam);
+        traffic_cams += 1;
+      } else {
         final cam = SpeedCameraEvent(
           latitude: lat,
           longitude: lon,
@@ -1777,6 +1816,7 @@ class RectangleCalculatorThread {
         );
         _cameraCache.add(cam);
         cams.add(cam);
+        fix_cams += 1;
       }
     }
     if (cams.isNotEmpty) {
@@ -1785,7 +1825,9 @@ class RectangleCalculatorThread {
       );
       unawaited(updateSpeedCams(cams));
       updateMapQueue();
-      updateInfoPage('SPEED_CAMERAS');
+      updateInfoPage(
+        'SPEED_CAMERAS:$fix_cams,$traffic_cams,$distance_cams,$mobile_cams',
+      );
     }
   }
 

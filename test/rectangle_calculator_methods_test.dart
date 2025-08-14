@@ -4,6 +4,7 @@ import 'dart:math' as math;
 
 import 'package:http/http.dart' as http;
 import 'package:http/testing.dart';
+import 'package:async/async.dart';
 import 'package:test/test.dart';
 
 import 'package:workspace/rectangle_calculator.dart';
@@ -252,7 +253,7 @@ void main() {
     });
 
     test(
-      'speedCamLookupAhead emits cameras and counts distance cams',
+      'speedCamLookupAhead emits camera markers and updates counts',
       () async {
         final calc = RectangleCalculatorThread();
         final queries = <String>[];
@@ -267,30 +268,51 @@ void main() {
               {
                 'lat': 1.0,
                 'lon': 2.0,
-                'tags': {'highway': 'speed_camera', 'name': 'A'},
+                'tags': {
+                  'highway': 'speed_camera',
+                  'name': 'A',
+                  'speed_camera': 'yes'
+                },
               },
               {
                 'lat': 3.0,
                 'lon': 4.0,
+                'tags': {
+                  'highway': 'speed_camera',
+                  'speed_camera': 'traffic_signals'
+                },
+              },
+              {
+                'lat': 5.0,
+                'lon': 6.0,
                 'tags': {'role': 'device'},
               },
             ],
           });
           return http.Response(body, 200);
         });
-        final events = <SpeedCameraEvent>[];
-        final sub = calc.cameras.listen(events.add);
+        final queue = StreamQueue(calc.cameras);
         await calc.speedCamLookupAhead(0, 0, 0, 0, client: mock);
-        await Future.delayed(const Duration(milliseconds: 10));
+        final cam1 = await queue.next;
+        final cam2 = await queue.next;
+        final cam3 = await queue.next;
         expect(queries.length, equals(2));
         expect(queries[0], contains('[highway=speed_camera]'));
-        expect(queries[1], contains('["some_distance_cam_tag"]'));
-        expect(events.length, equals(1));
-        expect(events.first.name, equals('A'));
-        expect(events.first.fixed, isTrue);
-        expect(calc.numberDistanceCams, equals(1));
-        expect(calc.infoPage, equals('SPEED_CAMERAS'));
-        await sub.cancel();
+        expect(queries[1], contains('mindistance'));
+        expect(cam1.fixed || cam2.fixed || cam3.fixed, isTrue);
+        expect(
+          [cam1, cam2, cam3].where((c) => c.traffic).length,
+          equals(1),
+        );
+        expect(
+          [cam1, cam2, cam3].where((c) => c.distance).length,
+          equals(1),
+        );
+        expect(calc.fix_cams, equals(1));
+        expect(calc.traffic_cams, equals(1));
+        expect(calc.distance_cams, equals(1));
+        expect(calc.infoPage, equals('SPEED_CAMERAS:1,1,1,0'));
+        await queue.cancel();
       },
     );
 
