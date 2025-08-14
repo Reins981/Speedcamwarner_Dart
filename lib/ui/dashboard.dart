@@ -454,7 +454,7 @@ class _SpeedChartPainter extends CustomPainter {
 
   @override
   bool shouldRepaint(covariant _SpeedChartPainter oldDelegate) =>
-      oldDelegate.history != history ||
+      !listEquals(oldDelegate.history, history) ||
       oldDelegate.lowThreshold != lowThreshold ||
       oldDelegate.highThreshold != highThreshold;
 }
