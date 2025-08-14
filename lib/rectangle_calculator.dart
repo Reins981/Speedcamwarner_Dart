@@ -2175,8 +2175,11 @@ class RectangleCalculatorThread {
               // Using a raw string body rather than a Map avoids URL encoding of
               // the query which can cause issues with some proxy setups.  The
               // Overpass API expects the payload to be provided under the `data`
-              // key as form data.
-              body: 'data=$query',
+              // key as form data.  Some configuration strings already include
+              // this prefix so ensure we don't duplicate it which would result
+              // in `data=data=...` and trigger HTTP 400 responses from the
+              // Overpass API.
+              body: query.startsWith('data=') ? query : 'data=$query',
             )
             .timeout(osmRequestTimeout);
         if (resp.statusCode == 200) {
