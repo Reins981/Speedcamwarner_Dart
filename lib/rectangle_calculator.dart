@@ -1398,8 +1398,8 @@ class RectangleCalculatorThread {
 
     if (speed > 0) {
       final double distance = speed / 3.6; // metres travelled in ~1 second
-      final Point newPos =
-          calculateExtrapolatedPosition(Point(startLon, startLat), bearing, distance);
+      final Point newPos = calculateExtrapolatedPosition(
+          Point(startLon, startLat), bearing, distance);
       longitudeCached = newPos.x;
       latitudeCached = newPos.y;
     } else {
@@ -1419,6 +1419,8 @@ class RectangleCalculatorThread {
       'ccp_node': [null, null],
       'list_tree': [null, null]
     });
+
+    overspeedThread?.clearQueues();
   }
 
   /// Perform a nominative road name lookup and update UI state accordingly.
@@ -1472,9 +1474,7 @@ class RectangleCalculatorThread {
   /// Trigger asynchronous look‑ahead downloads for speed cameras and
   /// construction areas.  ``previousCcp`` reuses cached coordinates from the
   /// last stable CCP.
-  Future<void> processLookaheadItems(
-    DateTime applicationStartTime, {
-  }) async {
+  Future<void> processLookaheadItems(DateTime applicationStartTime) async {
     logger.printLogLine('processLookaheadItems');
     double xtile;
     double ytile;
@@ -1490,7 +1490,6 @@ class RectangleCalculatorThread {
     latitudeCached = latitude;
     ccpLon = longitude;
     ccpLat = latitude;
-
 
     logger.printLogLine(
       'Lookahead for tiles ($xtile,$ytile) at ($ccpLat,$ccpLon)',

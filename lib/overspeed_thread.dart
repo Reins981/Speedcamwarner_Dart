@@ -50,6 +50,11 @@ class OverspeedThread extends Logger {
     _overspeedNotifier.add(null);
   }
 
+  void clearQueues() {
+    _currentSpeedQueue.clear();
+    _overspeedQueue.clear();
+  }
+
   Future<void> run() async {
     _running = true;
     while (_running && !cond.terminate) {
@@ -148,4 +153,3 @@ class OverspeedThread extends Logger {
     await _overspeedNotifier.close();
   }
 }
-
