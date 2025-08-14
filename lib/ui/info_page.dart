@@ -42,7 +42,7 @@ class InfoPage extends StatelessWidget {
             ValueListenableBuilder<int>(
               valueListenable: calculator.constructionAreaCountNotifier,
               builder: (context, count, _) =>
-                  Text('Construction zones found: $count'),
+                  Text('Construction areas found: $count'),
             ),
           ],
         ),

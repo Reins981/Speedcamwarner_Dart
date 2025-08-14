@@ -1585,27 +1585,89 @@ class RectangleCalculatorThread {
   }
 
   /// Process construction area lookup results and append them to the internal
-  /// list.  Only elements with valid latitude/longitude are considered.
-  void processConstructionAreasLookupAheadResults(
+  /// list. Resolves way nodes to coordinates and updates map and info page.
+  Future<void> processConstructionAreasLookupAheadResults(
     dynamic data,
     String lookupType,
     double ccpLon,
     double ccpLat,
-  ) {
+  ) async {
     if (data is! List) return;
     final newAreas = <GeoRect>[];
-    for (final element in data) {
-      if (element is! Map<String, dynamic>) continue;
-      final lat = (element['lat'] as num?)?.toDouble();
-      final lon = (element['lon'] as num?)?.toDouble();
-      if (lat == null || lon == null) continue;
+
+    // Helper to add a node if coordinates are known.
+    void addNode(double? lat, double? lon, int nodeId) {
+      if (lat == null || lon == null) {
+        logger.printLogLine('Failed to resolve node id $nodeId',
+            logLevel: 'WARNING');
+        return;
+      }
       final rect = GeoRect(minLat: lat, minLon: lon, maxLat: lat, maxLon: lon);
       logger.printLogLine('Adding construction area at ($lat, $lon)');
       newAreas.add(rect);
     }
+
+    for (final element in data) {
+      if (element is! Map<String, dynamic>) continue;
+      final type = element['type'];
+      if (type == 'way') {
+        final nodes = element['nodes'] as List? ?? [];
+        for (final n in nodes) {
+          final nodeId = n is int ? n : int.tryParse(n.toString());
+          if (nodeId == null) continue;
+          Map<String, dynamic>? nodeEl;
+          try {
+            nodeEl = data.firstWhere(
+              (e) =>
+                  e is Map<String, dynamic> &&
+                  e['type'] == 'node' &&
+                  e['id'] == nodeId,
+            ) as Map<String, dynamic>?;
+          } catch (_) {
+            nodeEl = null;
+          }
+          double? lat;
+          double? lon;
+          if (nodeEl != null) {
+            lat = (nodeEl['lat'] as num?)?.toDouble();
+            lon = (nodeEl['lon'] as num?)?.toDouble();
+          }
+
+          if (lat == null || lon == null) {
+            final result = await triggerOsmLookup(
+              GeoRect(
+                minLat: ccpLat,
+                minLon: ccpLon,
+                maxLat: ccpLat,
+                maxLon: ccpLon,
+              ),
+              lookupType: 'node',
+              nodeId: nodeId,
+            );
+            if (result.success &&
+                result.elements != null &&
+                result.elements!.isNotEmpty) {
+              final el = result.elements!.first;
+              lat = (el['lat'] as num?)?.toDouble();
+              lon = (el['lon'] as num?)?.toDouble();
+            }
+          }
+
+          addNode(lat, lon, nodeId);
+        }
+      } else if (type == 'node') {
+        final lat = (element['lat'] as num?)?.toDouble();
+        final lon = (element['lon'] as num?)?.toDouble();
+        final nodeId = element['id'] is int
+            ? element['id'] as int
+            : int.tryParse(element['id']?.toString() ?? '0') ?? 0;
+        addNode(lat, lon, nodeId);
+      }
+    }
+
     if (newAreas.isNotEmpty) {
       final total = constructionAreas.length + newAreas.length;
-      unawaited(updateConstructionAreas(newAreas));
+      await updateConstructionAreas(newAreas);
       updateMapQueue();
       updateInfoPage('CONSTRUCTION_AREAS:$total');
       logger.printLogLine('Total construction areas: $total');
@@ -1741,7 +1803,7 @@ class RectangleCalculatorThread {
       'constructionsLookupAhead result success=${result.success} elements=${result.elements?.length ?? 0}',
     );
     if (result.success && result.elements != null) {
-      processConstructionAreasLookupAheadResults(
+      await processConstructionAreasLookupAheadResults(
         result.elements!,
         'construction_ahead',
         ccpLon,
@@ -2255,6 +2317,18 @@ class RectangleCalculatorThread {
     } else if (lookupType == 'constructions_ahead') {
       query =
           '$querystringConstructionAreas$bbox$querystringConstructionAreas2$bbox$queryTermination';
+    } else if (lookupType == 'node') {
+      if (nodeId == null) {
+        return OsmLookupResult(
+          false,
+          'ERROR',
+          null,
+          'Missing nodeId for node lookup',
+          area,
+        );
+      }
+      query = 'node($nodeId);out body;';
+      queryTermination = '';
     } else {
       logger.printLogLine(
         'triggerOsmLookup: Unsupported lookup type $lookupType',

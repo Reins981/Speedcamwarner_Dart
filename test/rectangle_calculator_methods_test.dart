@@ -383,7 +383,8 @@ void main() {
       await calc.processOffline();
 
       expect(warner.lastPosition?.latitude, closeTo(calc.latitudeCached, 1e-6));
-      expect(warner.lastPosition?.longitude, closeTo(calc.longitudeCached, 1e-6));
+      expect(
+          warner.lastPosition?.longitude, closeTo(calc.longitudeCached, 1e-6));
 
       await warner.stop();
       await calc.dispose();
@@ -467,14 +468,20 @@ void main() {
       expect(calc.constructionCalls, equals(2));
     });
 
-    test('processConstructionAreasLookupAheadResults stores areas', () {
+    test('processConstructionAreasLookupAheadResults stores areas', () async {
       final calc = RectangleCalculatorThread();
-      calc.processConstructionAreasLookupAheadResults(
+      await calc.processConstructionAreasLookupAheadResults(
         [
           {
+            'type': 'way',
+            'nodes': [1],
+            'tags': {'construction': 'yes'},
+          },
+          {
+            'type': 'node',
+            'id': 1,
             'lat': 1.0,
             'lon': 2.0,
-            'tags': {'construction': 'yes'},
           },
         ],
         'construction_ahead',
@@ -523,7 +530,8 @@ class _TestCalc extends RectangleCalculatorThread {
   Future<SpeedCameraEvent?> processPredictiveCameras(
     double longitude,
     double latitude,
-  ) async => null;
+  ) async =>
+      null;
 }
 
 class _InterruptCalc extends RectangleCalculatorThread {
@@ -537,7 +545,7 @@ class _InterruptCalc extends RectangleCalculatorThread {
 
   @override
   Future<void> processLookaheadItems(DateTime startTime,
-          {bool previousCcp = false}) async {}
+      {bool previousCcp = false}) async {}
 
   @override
   Future<String?> getRoadNameViaNominatim(double lat, double lon) async =>
@@ -548,7 +556,7 @@ class _InterruptCalc extends RectangleCalculatorThread {
 
   @override
   Future<OsmLookupResult> triggerOsmLookup(GeoRect area,
-          {String? lookupType, int? nodeId, http.Client? client}) async {
+      {String? lookupType, int? nodeId, http.Client? client}) async {
     updateOnlineStatus(true);
     return OsmLookupResult(true, 'OK', [], null, area);
   }
@@ -596,5 +604,6 @@ class _RateLimitCalc extends RectangleCalculatorThread {
   Future<SpeedCameraEvent?> processPredictiveCameras(
     double longitude,
     double latitude,
-  ) async => null;
+  ) async =>
+      null;
 }
