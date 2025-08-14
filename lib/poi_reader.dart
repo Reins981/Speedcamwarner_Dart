@@ -32,7 +32,6 @@ class UserCamera {
 /// (SQLite access, Google Drive interaction) remains to be implemented in
 /// dedicated modules.
 class POIReader extends Logger {
-  final SpeedCamQueue<dynamic> speedCamQueue;
   final GpsProducer gpsProducer;
   final RectangleCalculatorThread calculator;
   final MapQueue<dynamic> mapQueue;
@@ -73,7 +72,6 @@ class POIReader extends Logger {
   late int poiDistance;
 
   POIReader(
-    this.speedCamQueue,
     this.gpsProducer,
     this.calculator,
     this.mapQueue,
@@ -220,20 +218,6 @@ class POIReader extends Logger {
     printLogLine(
       'Propagating $cameraType camera (${longitude.toStringAsFixed(5)}, ${latitude.toStringAsFixed(5)})',
     );
-    speedCamQueue.produce({
-      'bearing': 0.0,
-      'stable_ccp': true,
-      'ccp': ['IGNORE', 'IGNORE'],
-      'fix_cam': [cameraType == 'fix_cam', longitude, latitude, true],
-      'traffic_cam': [cameraType == 'traffic_cam', longitude, latitude, true],
-      'distance_cam': [cameraType == 'distance_cam', longitude, latitude, true],
-      'mobile_cam': [cameraType == 'mobile_cam', longitude, latitude, true],
-      'ccp_node': ['IGNORE', 'IGNORE'],
-      'list_tree': [null, null],
-      'name': name ?? '',
-      'maxspeed': 0,
-      'direction': '',
-    });
 
     unawaited(
       calculator.updateSpeedCams([

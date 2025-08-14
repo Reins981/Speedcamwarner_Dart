@@ -13,7 +13,7 @@ import 'package:google_mlkit_commons/google_mlkit_commons.dart';
 import 'package:path/path.dart' as p;
 import 'package:path_provider/path_provider.dart';
 
-import 'voice_prompt_queue.dart';
+import 'voice_prompt_events.dart';
 import 'app_controller.dart';
 
 /// Widget that manages the augmented reality camera preview and detection logic.
@@ -34,7 +34,7 @@ class EdgeDetectState extends State<EdgeDetect> {
   bool cameraConnected = false;
   String _cameraDirection = 'back';
 
-  late VoicePromptQueue voicePromptQueue;
+  late VoicePromptEvents voicePromptEvents;
   dynamic g;
   dynamic speedL;
   Function(String message)? _logViewer;
@@ -63,10 +63,10 @@ class EdgeDetectState extends State<EdgeDetect> {
   void init(
     dynamic gps,
     dynamic mainApp,
-    VoicePromptQueue voiceQueue,
+    VoicePromptEvents voiceQueue,
     dynamic speedL,
   ) {
-    voicePromptQueue = voiceQueue;
+    voicePromptEvents = voiceQueue;
     g = gps;
     this.speedL = speedL;
   }
@@ -227,7 +227,7 @@ class EdgeDetectState extends State<EdgeDetect> {
   }
 
   void _playArSound() {
-    voicePromptQueue.produceArStatus('AR_HUMAN');
+    voicePromptEvents.emit('AR_HUMAN');
   }
 
   @override
@@ -373,7 +373,6 @@ class _ARLayoutState extends State<ARLayout> {
 
   void _connectCamera() {
     final EdgeDetectState? state = _edgeKey.currentState;
-    state?.voicePromptQueue.clearArQueue();
     if (state?.cameraConnected ?? false) {
       state?.disconnectCamera();
       widget.mainApp?.arStatusNotifier.value = 'Idle';

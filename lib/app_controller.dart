@@ -5,7 +5,7 @@ import 'dart:async';
 import 'gps_thread.dart';
 import 'location_manager.dart';
 import 'rectangle_calculator.dart';
-import 'voice_prompt_queue.dart';
+import 'voice_prompt_events.dart';
 import 'package:geolocator/geolocator.dart';
 import 'poi_reader.dart';
 import 'gps_producer.dart';
@@ -27,9 +27,9 @@ import 'deviation_checker.dart' as deviation;
 /// hooks so the Flutter UI can control them.
 class AppController {
   AppController()
-      : voicePromptQueue = VoicePromptQueue(),
+      : voicePromptEvents = VoicePromptEvents(),
         locationManager = LocationManager() {
-    gps = GpsThread(voicePromptQueue: voicePromptQueue);
+    gps = GpsThread(voicePromptEvents: voicePromptEvents);
     overspeedChecker = OverspeedChecker();
     overspeedThread = overspeed.OverspeedThread(
       cond: overspeed.ThreadCondition(),
@@ -39,8 +39,7 @@ class AppController {
     unawaited(overspeedThread.run());
 
     calculator = RectangleCalculatorThread(
-      voicePromptQueue: voicePromptQueue,
-      speedCamQueue: speedCamQueue,
+      voicePromptEvents: voicePromptEvents,
       interruptQueue: interruptQueue,
       overspeedChecker: overspeedChecker,
       overspeedThread: overspeedThread,
@@ -68,7 +67,6 @@ class AppController {
     unawaited(osmThread.run());
 
     poiReader = POIReader(
-      speedCamQueue,
       gpsProducer,
       calculator,
       mapQueue,
@@ -76,8 +74,7 @@ class AppController {
     );
     camWarner = SpeedCamWarner(
       resume: _AlwaysResume(),
-      voicePromptQueue: voicePromptQueue,
-      speedcamQueue: speedCamQueue,
+      voicePromptEvents: voicePromptEvents,
       osmWrapper: osmWrapper,
       calculator: calculator,
     );
@@ -104,7 +101,7 @@ class AppController {
     }();
 
     voiceThread = VoicePromptThread(
-      voicePromptQueue: voicePromptQueue,
+      voicePromptEvents: voicePromptEvents,
       dialogflowClient: dialogflow,
       aiVoicePrompts:
           AppConfig.get<bool>('accusticWarner.ai_voice_prompts') ?? false,
@@ -122,8 +119,8 @@ class AppController {
   /// Provides real position updates using the device's sensors.
   final LocationManager locationManager;
 
-  /// Shared queue for delivering voice prompt entries.
-  final VoicePromptQueue voicePromptQueue;
+  /// Shared event bus for delivering voice prompt entries.
+  final VoicePromptEvents voicePromptEvents;
 
   /// Performs rectangle calculations and camera lookups.
   late final RectangleCalculatorThread calculator;
@@ -159,10 +156,6 @@ class AppController {
 
   /// Supplies direction and coordinates for POI queries.
   final GpsProducer gpsProducer = GpsProducer();
-
-  /// Queue delivering speed camera updates to interested consumers.
-  final SpeedCamQueue<Map<String, dynamic>> speedCamQueue =
-      SpeedCamQueue<Map<String, dynamic>>();
 
   // Interrupt queue for handling real-time interruptions.
   final InterruptQueue<String>? interruptQueue = InterruptQueue<String>();
@@ -215,8 +208,7 @@ class AppController {
     await locationManager.stop();
     calculator.stop();
     poiReader.stopTimer();
-    camWarner.cond.setTerminateState(true);
-    voiceThread.stop();
+    await voiceThread.stop();
     await overspeedThread.stop();
     stopDeviationCheckerThread();
     await osmThread.stop();
@@ -234,8 +226,7 @@ class AppController {
     await locationManager.dispose();
     await calculator.dispose();
     poiReader.stopTimer();
-    camWarner.cond.setTerminateState(true);
-    voiceThread.stop();
+    await voiceThread.stop();
     stopDeviationCheckerThread();
   }
 

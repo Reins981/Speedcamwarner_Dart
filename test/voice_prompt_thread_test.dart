@@ -1,6 +1,6 @@
 import 'package:test/test.dart';
 
-import '../lib/voice_prompt_queue.dart';
+import '../lib/voice_prompt_events.dart';
 import '../lib/voice_prompt_thread.dart';
 
 class FakeTts {
@@ -20,7 +20,7 @@ class FakeDialogflow {
 class TestVoicePromptThread extends VoicePromptThread {
   final List<String> played = [];
   TestVoicePromptThread({
-    required super.voicePromptQueue,
+    required super.voicePromptEvents,
     required super.dialogflowClient,
     super.tts,
     super.aiVoicePrompts,
@@ -35,7 +35,7 @@ class TestVoicePromptThread extends VoicePromptThread {
 void main() {
   test('ai voice prompts speak dialogflow response', () async {
     final thread = VoicePromptThread(
-      voicePromptQueue: VoicePromptQueue(),
+      voicePromptEvents: VoicePromptEvents(),
       dialogflowClient: FakeDialogflow(),
       tts: FakeTts(),
       aiVoicePrompts: true,
@@ -46,7 +46,7 @@ void main() {
 
   test('non ai mapping returns sound path', () {
     final thread = VoicePromptThread(
-      voicePromptQueue: VoicePromptQueue(),
+      voicePromptEvents: VoicePromptEvents(),
       dialogflowClient: FakeDialogflow(),
       tts: FakeTts(),
       aiVoicePrompts: false,
@@ -59,7 +59,7 @@ void main() {
 
   test('setConfigs toggles aiVoicePrompts', () {
     final thread = VoicePromptThread(
-      voicePromptQueue: VoicePromptQueue(),
+      voicePromptEvents: VoicePromptEvents(),
       dialogflowClient: FakeDialogflow(),
       tts: FakeTts(),
     );
@@ -67,35 +67,31 @@ void main() {
     expect(thread.aiVoicePrompts, isFalse);
   });
 
-  test('run clears queues when not resumed', () async {
-    final queue = VoicePromptQueue();
-    queue.produceGpsSignal('GPS_ON');
+  test('run ignores events when not resumed', () async {
+    final events = VoicePromptEvents();
     final tts = FakeTts();
     final thread = VoicePromptThread(
-      voicePromptQueue: queue,
+      voicePromptEvents: events,
       dialogflowClient: FakeDialogflow(),
       tts: tts,
       isResumed: () => false,
     );
 
-    final future = thread.run();
+    await thread.run();
+    events.emit('GPS_ON');
     await Future.delayed(const Duration(milliseconds: 100));
-    thread.stop();
-    await future;
+    await thread.stop();
     expect(tts.lastText, isNull);
   });
 
   test('ar events processed by voice thread', () async {
-    final queue = VoicePromptQueue();
     final thread = TestVoicePromptThread(
-      voicePromptQueue: queue,
+      voicePromptEvents: VoicePromptEvents(),
       dialogflowClient: FakeDialogflow(),
       tts: FakeTts(),
       aiVoicePrompts: false,
     );
-    queue.produceArStatus('AR_HUMAN');
-    final item = await queue.consumeItems();
-    await thread.process(item);
+    await thread.process('AR_HUMAN');
     expect(thread.played, contains('human.wav'));
   });
 }
