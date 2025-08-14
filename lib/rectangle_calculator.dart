@@ -1679,7 +1679,7 @@ class RectangleCalculatorThread {
         'speedCamLookupAhead result for $type success=${result.success} elements=${result.elements?.length ?? 0}',
       );
       if (result.success && result.elements != null) {
-        processSpeedCamLookupAheadResults(
+        await processSpeedCamLookupAheadResults(
           result.elements!,
           type,
           ccpLon,
@@ -1750,12 +1750,12 @@ class RectangleCalculatorThread {
     }
   }
 
-  void processSpeedCamLookupAheadResults(
+  Future<void> processSpeedCamLookupAheadResults(
     dynamic data,
     String lookupType,
     double ccpLon,
     double ccpLat,
-  ) {
+  ) async {
     if (data is! List) return;
     final List<SpeedCameraEvent> cams = [];
     for (final element in data) {
@@ -1765,6 +1765,7 @@ class RectangleCalculatorThread {
       final lon = (element['lon'] as num?)?.toDouble();
       if (lat == null || lon == null) continue;
 
+      final roadName = await getRoadNameViaNominatim(lat, lon);
       if (lookupType == 'distance_cam') {
         updateNumberOfDistanceCameras(tags);
         final role = tags['role'];
@@ -1773,7 +1774,7 @@ class RectangleCalculatorThread {
             latitude: lat,
             longitude: lon,
             distance: true,
-            name: tags['name']?.toString() ?? '',
+            name: tags['name']?.toString() ?? roadName ?? '',
           );
           _cameraCache.add(cam);
           cams.add(cam);
@@ -1788,7 +1789,7 @@ class RectangleCalculatorThread {
           latitude: lat,
           longitude: lon,
           mobile: true,
-          name: tags['name']?.toString() ?? '',
+          name: tags['name']?.toString() ?? roadName ?? '',
         );
         _cameraCache.add(cam);
         cams.add(cam);
@@ -1802,7 +1803,7 @@ class RectangleCalculatorThread {
           latitude: lat,
           longitude: lon,
           traffic: true,
-          name: tags['name']?.toString() ?? '',
+          name: tags['name']?.toString() ?? roadName ?? '',
         );
         _cameraCache.add(cam);
         cams.add(cam);
@@ -1812,7 +1813,7 @@ class RectangleCalculatorThread {
           latitude: lat,
           longitude: lon,
           fixed: true,
-          name: tags['name']?.toString() ?? '',
+          name: tags['name']?.toString() ?? roadName ?? '',
         );
         _cameraCache.add(cam);
         cams.add(cam);
