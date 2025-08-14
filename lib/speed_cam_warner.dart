@@ -1334,7 +1334,9 @@ class SpeedCamWarner {
       } else if (camAttributes[0] == 'mobile' && calculator.mobile_cams > 0) {
         calculator.mobile_cams -= 1;
       }
-      calculator.updateInfoPage('');
+      calculator.updateInfoPage(
+        'SPEED_CAMERAS:${calculator.fix_cams},${calculator.traffic_cams},${calculator.distance_cams},${calculator.mobile_cams}',
+      );
     }
   }
 
