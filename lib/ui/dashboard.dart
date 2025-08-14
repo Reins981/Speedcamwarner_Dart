@@ -248,11 +248,10 @@ class _DashboardPageState extends State<DashboardPage> {
 
   Widget _buildStatusRow() {
     return Row(
-      mainAxisAlignment: MainAxisAlignment.center,
       children: [
-        _buildGpsWidget(),
+        Expanded(child: _buildGpsWidget()),
         const SizedBox(width: 16),
-        _buildInternetWidget(),
+        Expanded(child: _buildInternetWidget()),
       ],
     );
   }
@@ -284,8 +283,10 @@ class _DashboardPageState extends State<DashboardPage> {
         color: color,
         borderRadius: BorderRadius.circular(12),
       ),
+      alignment: Alignment.center,
       child: Row(
         mainAxisSize: MainAxisSize.min,
+        mainAxisAlignment: MainAxisAlignment.center,
         children: [
           Icon(icon, color: Colors.white),
           const SizedBox(width: 4),
