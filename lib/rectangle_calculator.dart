@@ -752,11 +752,6 @@ class RectangleCalculatorThread {
     _tileCache['xtile'] = xtile;
     _tileCache['ytile'] = ytile;
 
-    // Update most probable way helper with the latest road information. In
-    // this simplified port we treat the [direction] field as the road name.
-    mostProbableWay.addRoadnameToRoadnameList(vector.direction);
-    mostProbableWay.setMostProbableRoad(vector.direction);
-
     // Compute the size of the rectangle based on the current speed.
     // In the original code ``calculate_rectangle_radius`` uses the diagonal
     // distance of a tile: here we define a simple linear relation where the
@@ -1383,7 +1378,6 @@ class RectangleCalculatorThread {
     if (lastMaxSpeed == '' || lastMaxSpeed == null) {
       updateMaxspeed('');
     }
-    updateRoadname('', false);
 
     // Extrapolate the current position based on cached values.  When the GPS
     // goes offline we keep emitting position updates by projecting the last
@@ -1420,6 +1414,24 @@ class RectangleCalculatorThread {
       'list_tree': [null, null]
     });
 
+    // Perform road name lookup for extrapolated positions
+    final roadName =
+        await getRoadNameViaNominatim(latitudeCached, longitudeCached);
+    if (roadName != null) {
+      if (roadName.startsWith('ERROR:')) {
+        if (!camInProgress) {
+          updateOnlineStatus(false);
+        }
+      } else {
+        processRoadName(
+          foundRoadName: true,
+          roadName: roadName,
+          foundCombinedTags: false,
+          roadClass: 'unclassified',
+        );
+      }
+    }
+
     overspeedThread?.clearQueues();
   }
 
@@ -1431,7 +1443,7 @@ class RectangleCalculatorThread {
     if (roadName != null) {
       if (roadName.startsWith('ERROR:')) {
         if (!camInProgress) {
-          updateMaxspeedStatus('ERROR');
+          updateOnlineStatus(false);
         }
       } else {
         processRoadName(
@@ -2385,8 +2397,6 @@ class RectangleCalculatorThread {
   void updateInfoPage(String value) => infoPageNotifier.value = value;
   void updateOnlineStatus(bool value) => onlineStatusNotifier.value = value;
   void updateGpsStatus(bool value) => gpsStatusNotifier.value = value;
-  void updateMaxspeedStatus(String value) =>
-      maxspeedStatusNotifier.value = value;
 
   void updateSpeedCam(String warning) => speedCamNotifier.value = warning;
 
