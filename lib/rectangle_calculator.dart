@@ -1452,37 +1452,23 @@ class RectangleCalculatorThread {
   /// last stable CCP.
   Future<void> processLookaheadItems(
     DateTime applicationStartTime, {
-    bool previousCcp = false,
   }) async {
-    logger.printLogLine('processLookaheadItems previousCcp:$previousCcp');
+    logger.printLogLine('processLookaheadItems');
     double xtile;
     double ytile;
     double ccpLon;
     double ccpLat;
 
-    if (previousCcp) {
-      if (longitudeCached > 0 &&
-          latitudeCached > 0 &&
-          xtileCached != null &&
-          ytileCached != null) {
-        xtile = xtileCached!;
-        ytile = ytileCached!;
-        ccpLon = longitudeCached;
-        ccpLat = latitudeCached;
-      } else {
-        return;
-      }
-    } else {
-      final p = longLatToTile(latitude, longitude, zoom);
-      xtile = p.x;
-      ytile = p.y;
-      xtileCached = xtile;
-      ytileCached = ytile;
-      longitudeCached = longitude;
-      latitudeCached = latitude;
-      ccpLon = longitude;
-      ccpLat = latitude;
-    }
+    final p = longLatToTile(latitude, longitude, zoom);
+    xtile = p.x;
+    ytile = p.y;
+    xtileCached = xtile;
+    ytileCached = ytile;
+    longitudeCached = longitude;
+    latitudeCached = latitude;
+    ccpLon = longitude;
+    ccpLat = latitude;
+
 
     logger.printLogLine(
       'Lookahead for tiles ($xtile,$ytile) at ($ccpLat,$ccpLon)',
