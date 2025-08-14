@@ -2290,7 +2290,7 @@ class RectangleCalculatorThread {
     );
 
     final bbox =
-        '(${area.minLat},${area.minLon},${area.maxLat},${area.maxLon})';
+        '(${area.minLat},${area.minLon},${area.maxLat},${area.maxLon});';
     final baseUrl = AppConfig.get<String>('speedCamWarner.baseurl') ??
         'https://overpass-api.de/api/interpreter?';
     final querystringCameras1 =
@@ -2309,7 +2309,7 @@ class RectangleCalculatorThread {
         '';
 
     String query;
-    String queryTermination = ");out+body;";
+    String queryTermination = ");out body;";
     if (lookupType == 'camera_ahead') {
       query =
           '$querystringCameras1$bbox$querystringCameras2$bbox$querystringCameras3$bbox$queryTermination';
