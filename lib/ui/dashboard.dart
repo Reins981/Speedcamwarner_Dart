@@ -153,8 +153,6 @@ class _DashboardPageState extends State<DashboardPage> {
           children: [
             _buildCameraInfo(),
             const SizedBox(height: 16),
-            _buildStatusRow(),
-            const SizedBox(height: 16),
             Expanded(
               child: Row(
                 children: [
@@ -172,6 +170,8 @@ class _DashboardPageState extends State<DashboardPage> {
                 ],
               ),
             ),
+            const SizedBox(height: 16),
+            _buildStatusRow(),
             if (_arStatus.isNotEmpty) ...[
               const SizedBox(height: 16),
               Text('AR: $_arStatus',
@@ -429,8 +429,11 @@ class _DashboardPageState extends State<DashboardPage> {
                 style: TextStyle(color: Colors.white70, fontSize: 16)),
             const SizedBox(height: 8),
             Expanded(
-              child: CustomPaint(
-                painter: _SpeedChartPainter(_speedHistory),
+              child: LayoutBuilder(
+                builder: (context, constraints) => CustomPaint(
+                  size: Size(constraints.maxWidth, constraints.maxHeight),
+                  painter: _SpeedChartPainter(_speedHistory),
+                ),
               ),
             ),
             const SizedBox(height: 8),
