@@ -296,6 +296,49 @@ void main() {
       expect(calc.lastMaxSpeed, equals(''));
     });
 
+    test('vector gpsStatus OFFLINE triggers offline handling', () async {
+      final calc = RectangleCalculatorThread();
+      calc.updateRoadname('Main', false);
+      calc.addVectorSample(
+        VectorData(
+          longitude: 1.0,
+          latitude: 1.0,
+          speed: 0,
+          bearing: 0,
+          direction: 'Main',
+          gpsStatus: 'OFFLINE',
+          accuracy: 5,
+        ),
+      );
+      await Future.delayed(const Duration(milliseconds: 50));
+      expect(calc.roadName, equals(''));
+      expect(calc.onlineStatusNotifier.value, isFalse);
+      expect(calc.gpsStatusNotifier.value, isFalse);
+      await calc.dispose();
+    });
+
+    test('CALCULATE action processes look-ahead interrupts', () async {
+      final calc = _InterruptCalc();
+      calc.camerasLookAheadMode = true;
+      calc.addVectorSample(
+        VectorData(
+          longitude: 1.0,
+          latitude: 1.0,
+          speed: 10,
+          bearing: 0,
+          direction: 'Main',
+          gpsStatus: 'CALCULATE',
+          accuracy: 5,
+        ),
+      );
+      await Future.delayed(const Duration(milliseconds: 100));
+      expect(calc.lookAheadCalled, isTrue);
+      expect(calc.roadName, equals('Test Road'));
+      expect(calc.onlineStatusNotifier.value, isTrue);
+      expect(calc.gpsStatusNotifier.value, isTrue);
+      await calc.dispose();
+    });
+
     test('processLookaheadItems triggers lookups', () async {
       final calc = _TestCalc();
       final start = DateTime.now().subtract(const Duration(seconds: 120));
@@ -380,6 +423,34 @@ class _TestCalc extends RectangleCalculatorThread {
     double longitude,
     double latitude,
   ) async => null;
+}
+
+class _InterruptCalc extends RectangleCalculatorThread {
+  bool lookAheadCalled = false;
+
+  @override
+  Future<void> processLookAheadInterrupts() async {
+    lookAheadCalled = true;
+    await super.processLookAheadInterrupts();
+  }
+
+  @override
+  Future<void> processLookaheadItems(DateTime startTime,
+          {bool previousCcp = false}) async {}
+
+  @override
+  Future<String?> getRoadNameViaNominatim(double lat, double lon) async =>
+      'Test Road';
+
+  @override
+  Future<bool> internetAvailable() async => true;
+
+  @override
+  Future<OsmLookupResult> triggerOsmLookup(GeoRect area,
+          {String? lookupType, int? nodeId, http.Client? client}) async {
+    updateOnlineStatus(true);
+    return OsmLookupResult(true, 'OK', [], null, area);
+  }
 }
 
 class _RateLimitCalc extends RectangleCalculatorThread {

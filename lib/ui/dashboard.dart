@@ -33,6 +33,8 @@ class _DashboardPageState extends State<DashboardPage> {
   double? _speedCamDistance;
   String? _cameraRoad;
   int? _maxSpeed;
+  bool _gpsOn = false;
+  bool _online = false;
   final List<double> _speedHistory = [];
   SpeedCameraEvent? _activeCamera;
   StreamSubscription<SpeedCameraEvent>? _cameraSub;
@@ -55,6 +57,8 @@ class _DashboardPageState extends State<DashboardPage> {
       _speedCamDistance = _calculator!.speedCamDistanceNotifier.value;
       _cameraRoad = _calculator!.cameraRoadNotifier.value;
       _maxSpeed = _calculator!.maxspeedNotifier.value;
+      _gpsOn = _calculator!.gpsStatusNotifier.value;
+      _online = _calculator!.onlineStatusNotifier.value;
       _calculator!.currentSpeedNotifier.addListener(_updateFromCalculator);
       _calculator!.roadNameNotifier.addListener(_updateFromCalculator);
       _calculator!.overspeedChecker.difference.addListener(_updateFromCalculator);
@@ -62,6 +66,8 @@ class _DashboardPageState extends State<DashboardPage> {
       _calculator!.speedCamDistanceNotifier.addListener(_updateFromCalculator);
       _calculator!.cameraRoadNotifier.addListener(_updateFromCalculator);
       _calculator!.maxspeedNotifier.addListener(_updateFromCalculator);
+      _calculator!.gpsStatusNotifier.addListener(_updateFromCalculator);
+      _calculator!.onlineStatusNotifier.addListener(_updateFromCalculator);
       _cameraSub = _calculator!.cameras.listen(_onCamera);
     }
 
@@ -82,6 +88,8 @@ class _DashboardPageState extends State<DashboardPage> {
       _speedCamDistance = _calculator!.speedCamDistanceNotifier.value;
       _cameraRoad = _calculator!.cameraRoadNotifier.value;
       _maxSpeed = _calculator!.maxspeedNotifier.value;
+      _gpsOn = _calculator!.gpsStatusNotifier.value;
+      _online = _calculator!.onlineStatusNotifier.value;
       _speedHistory.add(_speed);
       if (_speedHistory.length > 30) _speedHistory.removeAt(0);
       // Smooth the acceleration bar by easing toward the new acceleration
@@ -117,6 +125,8 @@ class _DashboardPageState extends State<DashboardPage> {
           .removeListener(_updateFromCalculator);
       _calculator!.cameraRoadNotifier.removeListener(_updateFromCalculator);
       _calculator!.maxspeedNotifier.removeListener(_updateFromCalculator);
+      _calculator!.gpsStatusNotifier.removeListener(_updateFromCalculator);
+      _calculator!.onlineStatusNotifier.removeListener(_updateFromCalculator);
       _cameraSub?.cancel();
     }
     _arNotifier?.removeListener(_updateArStatus);
@@ -142,6 +152,8 @@ class _DashboardPageState extends State<DashboardPage> {
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
             _buildCameraInfo(),
+            const SizedBox(height: 16),
+            _buildStatusRow(),
             const SizedBox(height: 16),
             Expanded(
               child: Row(
@@ -234,6 +246,55 @@ class _DashboardPageState extends State<DashboardPage> {
     );
   }
 
+  Widget _buildStatusRow() {
+    return Row(
+      mainAxisAlignment: MainAxisAlignment.center,
+      children: [
+        _buildGpsWidget(),
+        const SizedBox(width: 16),
+        _buildInternetWidget(),
+      ],
+    );
+  }
+
+  Widget _buildGpsWidget() {
+    return _statusTile(
+      icon: _gpsOn ? Icons.gps_fixed : Icons.gps_off,
+      text: _gpsOn ? 'GPS On' : 'GPS Off',
+      color: _gpsOn ? Colors.green : Colors.red,
+    );
+  }
+
+  Widget _buildInternetWidget() {
+    return _statusTile(
+      icon: _online ? Icons.wifi : Icons.wifi_off,
+      text: _online ? 'Online' : 'Offline',
+      color: _online ? Colors.green : Colors.red,
+    );
+  }
+
+  Widget _statusTile({
+    required IconData icon,
+    required String text,
+    required Color color,
+  }) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+      decoration: BoxDecoration(
+        color: color,
+        borderRadius: BorderRadius.circular(12),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(icon, color: Colors.white),
+          const SizedBox(width: 4),
+          Text(text, style: const TextStyle(color: Colors.white)),
+        ],
+      ),
+    );
+  }
+
   Widget _buildAccelerationWidget() {
     final ratio = ((_acceleration + 5) / 10).clamp(0.0, 1.0);
     // Use a full hue spectrum so braking (blue) and acceleration (red)
@@ -310,15 +371,37 @@ class _DashboardPageState extends State<DashboardPage> {
                   textAlign: TextAlign.center,
                   style:
                       const TextStyle(color: Colors.white70, fontSize: 16)),
-              if (_maxSpeed != null)
-                Text('limit ${_maxSpeed!} km/h',
-                    style: const TextStyle(color: Colors.white54)),
+              if (_maxSpeed != null) ...[
+                const SizedBox(height: 8),
+                _buildMaxSpeedWidget(),
+              ],
               if (_overspeedDiff != null)
                 Text('Slow down by ${_overspeedDiff!} km/h',
                     style: const TextStyle(color: Colors.redAccent)),
             ],
           ),
         ],
+      ),
+    );
+  }
+
+  Widget _buildMaxSpeedWidget() {
+    return Container(
+      width: 60,
+      height: 60,
+      decoration: BoxDecoration(
+        shape: BoxShape.circle,
+        color: Colors.white,
+        border: Border.all(color: Colors.red, width: 5),
+      ),
+      alignment: Alignment.center,
+      child: Text(
+        '${_maxSpeed!}',
+        style: const TextStyle(
+          fontSize: 20,
+          fontWeight: FontWeight.bold,
+          color: Colors.black,
+        ),
       ),
     );
   }
