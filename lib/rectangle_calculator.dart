@@ -51,7 +51,7 @@ class VectorData {
   final double speed;
   final double bearing;
   final String direction;
-  final int gpsStatus;
+  final dynamic gpsStatus;
   final double accuracy;
 
   VectorData({
@@ -374,18 +374,18 @@ class RectangleCalculatorThread {
   final ValueNotifier<int> constructionAreaCountNotifier = ValueNotifier<int>(
     0,
   );
-  final ValueNotifier<bool> maxspeedOnlineNotifier = ValueNotifier<bool>(false);
-  final ValueNotifier<String?> maxspeedStatusNotifier = ValueNotifier<String?>(
-    null,
-  );
+  final ValueNotifier<bool> onlineStatusNotifier =
+      ValueNotifier<bool>(false);
+  final ValueNotifier<bool> gpsStatusNotifier = ValueNotifier<bool>(false);
+  final ValueNotifier<String?> maxspeedStatusNotifier =
+      ValueNotifier<String?>(null);
   final ValueNotifier<double> currentSpeedNotifier = ValueNotifier<double>(0.0);
   final ValueNotifier<String?> speedCamNotifier = ValueNotifier<String?>(null);
   final ValueNotifier<double?> speedCamDistanceNotifier =
       ValueNotifier<double?>(null);
   final ValueNotifier<String?> camTextNotifier = ValueNotifier<String?>(null);
-  final ValueNotifier<String?> cameraRoadNotifier = ValueNotifier<String?>(
-    null,
-  );
+  final ValueNotifier<String?> cameraRoadNotifier =
+      ValueNotifier<String?>(null);
   final ValueNotifier<LatLng> positionNotifier = ValueNotifier<LatLng>(
     const LatLng(0, 0),
   );
@@ -712,6 +712,21 @@ class RectangleCalculatorThread {
   /// rectangle and publishes it.  It also invokes the predictive model to
   /// determine whether a speed camera might exist ahead on the current route.
   Future<void> _processVector(VectorData vector) async {
+    final status = vector.gpsStatus;
+    if (status is String) {
+      if (status == 'OFFLINE') {
+        await processOffline();
+        updateGpsStatus(false);
+        updateOnlineStatus(false);
+        return;
+      } else if (status != 'CALCULATE') {
+        updateGpsStatus(false);
+        updateOnlineStatus(false);
+        return;
+      }
+    }
+    updateGpsStatus(true);
+
     logger.printLogLine(
       'Processing vector lon:${vector.longitude}, lat:${vector.latitude}, speed:${vector.speed}, bearing:${vector.bearing}',
     );
@@ -720,11 +735,19 @@ class RectangleCalculatorThread {
     direction = vector.direction;
     final double speedKmH = vector.speed;
     final double bearing = vector.bearing;
+
+    // Cache vector data similar to the Python implementation.
+    _speedCache['last'] = speedKmH;
+    _directionCache['last'] = direction;
+    _bearingCache['last'] = bearing;
+
     currentSpeedNotifier.value = speedKmH;
     positionNotifier.value = LatLng(latitude, longitude);
     final tile = longLatToTile(latitude, longitude, zoom);
     xtile = tile.x;
     ytile = tile.y;
+    _tileCache['xtile'] = xtile;
+    _tileCache['ytile'] = ytile;
 
     // Update most probable way helper with the latest road information. In
     // this simplified port we treat the [direction] field as the road name.
@@ -780,6 +803,13 @@ class RectangleCalculatorThread {
     final dynamic lms = lastMaxSpeed;
     final int overspeedValue = (lms is int) ? lms : 10000;
     overspeedThread?.addOverspeedEntry({'maxspeed': overspeedValue});
+
+    // Handle possible look-ahead interrupts.
+    final interrupt = await processInterrupts();
+    if (interrupt == 'look_ahead') {
+      await processLookAheadInterrupts();
+    }
+
   }
 
   /// Compute a lookahead distance in kilometres based upon the current speed.
@@ -1373,7 +1403,9 @@ class RectangleCalculatorThread {
         );
       }
     }
-    if (!camInProgress && await internetAvailable()) {
+    final online = await internetAvailable();
+    updateOnlineStatus(online);
+    if (!camInProgress && online) {
       updateMaxspeed('');
       lastMaxSpeed = '';
     } else {
@@ -2156,6 +2188,7 @@ class RectangleCalculatorThread {
             'triggerOsmLookup returned ${elements?.length ?? 0} elements',
             logLevel: 'DEBUG',
           );
+          updateOnlineStatus(true);
           if (client == null) httpClient.close();
           return OsmLookupResult(true, 'OK', elements, null, area);
         } else {
@@ -2164,6 +2197,7 @@ class RectangleCalculatorThread {
             'triggerOsmLookup non-200 HTTP ${resp.statusCode}',
             logLevel: 'WARNING',
           );
+          updateOnlineStatus(false);
           if (client == null) httpClient.close();
           return OsmLookupResult(
             false,
@@ -2187,12 +2221,14 @@ class RectangleCalculatorThread {
               'triggerOsmLookup returning cached data after timeout',
               logLevel: 'WARNING',
             );
+            updateOnlineStatus(false);
             return OsmLookupResult(true, 'CACHE', cached, e.toString(), area);
           }
           logger.printLogLine(
             'triggerOsmLookup timeout after $osmRetryMaxAttempts attempts',
             logLevel: 'ERROR',
           );
+          updateOnlineStatus(false);
           return OsmLookupResult(false, 'TIMEOUT', null, e.toString(), area);
         }
         final delayMs = osmRetryBaseDelay.inMilliseconds * (1 << (attempt - 1));
@@ -2203,6 +2239,7 @@ class RectangleCalculatorThread {
           'triggerOsmLookup exception: $e',
           logLevel: 'ERROR',
         );
+        updateOnlineStatus(false);
         if (client == null) httpClient.close();
         return OsmLookupResult(false, 'NOINET', null, e.toString(), area);
       } finally {
@@ -2217,6 +2254,7 @@ class RectangleCalculatorThread {
     }
 
     if (client == null) httpClient.close();
+    updateOnlineStatus(false);
     return OsmLookupResult(false, 'UNKNOWN', null, 'Unexpected error', area);
   }
 
@@ -2308,8 +2346,8 @@ class RectangleCalculatorThread {
 
   void updateCamRadius(double value) => camRadiusNotifier.value = value;
   void updateInfoPage(String value) => infoPageNotifier.value = value;
-  void updateMaxspeedOnlinecheck(bool value) =>
-      maxspeedOnlineNotifier.value = value;
+  void updateOnlineStatus(bool value) => onlineStatusNotifier.value = value;
+  void updateGpsStatus(bool value) => gpsStatusNotifier.value = value;
   void updateMaxspeedStatus(String value) =>
       maxspeedStatusNotifier.value = value;
 
