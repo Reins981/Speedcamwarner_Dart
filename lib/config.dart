@@ -15,6 +15,13 @@ class AppConfig {
     _values = jsonDecode(jsonStr) as Map<String, dynamic>;
   }
 
+  /// Directly assign configuration [values]. Primarily intended for tests
+  /// where loading from the bundled asset is either undesirable or
+  /// impractical.  Existing values are replaced.
+  static void loadFromMap(Map<String, dynamic> values) {
+    _values = values;
+  }
+
   /// Retrieve a configuration value using dot separated [path] notation.
   /// Returns `null` if the key does not exist or if [T] does not match.
   static T? get<T>(String path) {

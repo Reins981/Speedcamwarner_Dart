@@ -7,6 +7,7 @@ import 'package:http/testing.dart';
 import 'package:test/test.dart';
 
 import 'package:workspace/rectangle_calculator.dart';
+import 'package:workspace/config.dart';
 import 'package:workspace/linked_list_generator.dart';
 import 'package:workspace/rect.dart';
 import 'package:workspace/tree_generator.dart';
@@ -153,6 +154,36 @@ void main() {
       expect(result.success, isTrue);
       expect(result.elements, isNotNull);
       expect(result.elements!.length, equals(1));
+    });
+
+    test('triggerOsmLookup avoids duplicate data prefix', () async {
+      // Mimic configuration that already contains the `data=` prefix
+      AppConfig.loadFromMap({
+        'speedCamWarner': {
+          'querystring1': 'data=[out:json];',
+          'querystring2': 'node[highway=speed_camera]',
+          'querystring3': '(around:5,0,0)',
+          'querystring4': ';out;'
+        }
+      });
+
+      String? capturedBody;
+      final mock = MockClient((req) async {
+        capturedBody = req.body;
+        return http.Response(jsonEncode({'elements': []}), 200);
+      });
+
+      await calc.triggerOsmLookup(
+        const GeoRect(minLat: 0, minLon: 0, maxLat: 1, maxLon: 1),
+        client: mock,
+      );
+
+      // Ensure the request body contains exactly one `data=` prefix
+      expect(capturedBody, startsWith('data='));
+      expect(capturedBody, isNot(startsWith('data=data=')));
+
+      // Reset configuration for subsequent tests
+      AppConfig.loadFromMap({});
     });
 
     test('triggerOsmLookup retries on timeout and falls back to cache',
