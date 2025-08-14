@@ -3,6 +3,7 @@ import 'dart:async';
 import 'rectangle_calculator.dart';
 import 'voice_prompt_events.dart';
 import 'logger.dart';
+import 'package:latlong2/latlong.dart';
 
 /// Simplified speed camera warner that reacts to camera events emitted by the
 /// [RectangleCalculatorThread].
@@ -16,6 +17,8 @@ class SpeedCamWarner {
 
   final Set<String> _seenCameras = <String>{};
   StreamSubscription<SpeedCameraEvent>? _sub;
+  void Function()? _positionListener;
+  LatLng? _lastPosition;
 
   SpeedCamWarner({
     required this.resume,
@@ -27,12 +30,19 @@ class SpeedCamWarner {
   /// Start listening for camera events.
   Future<void> run() async {
     logger.printLogLine('SpeedCamWarner thread started');
+    _positionListener = () {
+      _lastPosition = calculator.positionNotifier.value;
+    };
+    calculator.positionNotifier.addListener(_positionListener!);
     _sub = calculator.cameras.listen(_onCamera);
   }
 
   /// Stop listening for camera events.
   Future<void> stop() async {
     await _sub?.cancel();
+    if (_positionListener != null) {
+      calculator.positionNotifier.removeListener(_positionListener!);
+    }
     logger.printLogLine('SpeedCamWarner terminating');
   }
 
@@ -55,5 +65,9 @@ class SpeedCamWarner {
     if (cam.mobile) return 'mobile';
     return 'unknown';
   }
+
+  /// Exposes the latest CCP coordinates received from the
+  /// [RectangleCalculatorThread]. Primarily used for testing.
+  LatLng? get lastPosition => _lastPosition;
 }
 

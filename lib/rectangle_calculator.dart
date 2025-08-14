@@ -1381,6 +1381,13 @@ class RectangleCalculatorThread {
       latitudeCached = startLat;
     }
 
+    // Notify listeners, such as the speed camera warner thread, about the
+    // updated extrapolated position.  In the original Python implementation
+    // this data was propagated via ``speed_cam_queue``; here we emit an event
+    // through the [positionNotifier] so consumers always receive the latest
+    // coordinates even while offline.
+    positionNotifier.value = LatLng(latitudeCached, longitudeCached);
+
     overspeedThread?.clearQueues();
   }
 

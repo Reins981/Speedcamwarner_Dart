@@ -11,6 +11,8 @@ import 'package:workspace/linked_list_generator.dart';
 import 'package:workspace/rect.dart';
 import 'package:workspace/tree_generator.dart';
 import 'package:workspace/point.dart';
+import 'package:workspace/speed_cam_warner.dart';
+import 'package:workspace/voice_prompt_events.dart';
 
 void main() {
   group('RectangleCalculatorThread helpers', () {
@@ -304,7 +306,33 @@ void main() {
 
       expect(calc.longitudeCached, closeTo(expected.x, 1e-6));
       expect(calc.latitudeCached, closeTo(expected.y, 1e-6));
+      expect(calc.positionNotifier.value.longitude, closeTo(expected.x, 1e-6));
+      expect(calc.positionNotifier.value.latitude, closeTo(expected.y, 1e-6));
 
+      await calc.dispose();
+    });
+
+    test('SpeedCamWarner receives extrapolated position updates', () async {
+      final calc = RectangleCalculatorThread();
+      final warner = SpeedCamWarner(
+        resume: null,
+        voicePromptEvents: VoicePromptEvents(),
+        osmWrapper: null,
+        calculator: calc,
+      );
+      await warner.run();
+
+      calc.longitudeCached = 5.0;
+      calc.latitudeCached = 6.0;
+      calc.cacheCspeed('last', 18.0); // 18 km/h -> 5 m/s
+      calc.cacheBearing('last', 0.0);
+
+      await calc.processOffline();
+
+      expect(warner.lastPosition?.latitude, closeTo(calc.latitudeCached, 1e-6));
+      expect(warner.lastPosition?.longitude, closeTo(calc.longitudeCached, 1e-6));
+
+      await warner.stop();
       await calc.dispose();
     });
 
