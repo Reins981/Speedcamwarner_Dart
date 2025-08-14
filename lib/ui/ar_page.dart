@@ -27,7 +27,7 @@ class _ArPageState extends State<ArPage> {
       _arKey.currentState?.init(
         widget.controller.gps,
         widget.controller,
-        widget.controller.voicePromptQueue,
+        widget.controller.voicePromptEvents,
         null,
       );
     });
