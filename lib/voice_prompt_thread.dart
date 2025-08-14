@@ -1,13 +1,13 @@
 import 'package:flutter_tts/flutter_tts.dart';
 import 'package:audioplayers/audioplayers.dart';
 
-import 'voice_prompt_queue.dart';
+import 'voice_prompt_events.dart';
 
 /// Port of the Python `VoicePromptThread` used for acoustic warnings.
 class VoicePromptThread {
   final dynamic flutterTts;
   final AudioPlayer _audioPlayer = AudioPlayer();
-  final dynamic voicePromptQueue;
+  final VoicePromptEvents voicePromptEvents;
   final dynamic dialogflowClient;
   bool aiVoicePrompts;
   final bool Function()? isResumed;
@@ -20,7 +20,7 @@ class VoicePromptThread {
   static const String _basePath = 'python/sounds';
 
   VoicePromptThread({
-    required this.voicePromptQueue,
+    required this.voicePromptEvents,
     required this.dialogflowClient,
     dynamic tts,
     this.aiVoicePrompts = true,
@@ -54,28 +54,27 @@ class VoicePromptThread {
     this.aiVoicePrompts = aiVoicePrompts;
   }
 
-  /// Start consuming items from [voicePromptQueue] until [stop] is called.
+  /// Start consuming items from [voicePromptEvents] until [stop] is called.
+  StreamSubscription<dynamic>? _sub;
+
   Future<void> run() async {
-    while (_running) {
+    _sub = voicePromptEvents.stream.listen((event) async {
+      if (!_running) return;
       if (runInBackground?.call() ?? false) {
         await (waitForMainEvent?.call() ?? Future.value());
       }
       if (!(isResumed?.call() ?? true)) {
-        voicePromptQueue.clearGpsSignalQueue();
-        voicePromptQueue.clearMaxSpeedExceededQueue();
-        voicePromptQueue.clearOnlineQueue();
-        voicePromptQueue.clearArQueue();
-        continue;
+        return;
       }
+      if (event is String) {
+        await process(event);
+      }
+    });
+  }
 
-      final voiceEntry = await voicePromptQueue.consumeItems();
-      if (!_running) break;
-      await process(voiceEntry);
-    }
-    voicePromptQueue.clearGpsSignalQueue();
-    voicePromptQueue.clearMaxSpeedExceededQueue();
-    voicePromptQueue.clearOnlineQueue();
-    voicePromptQueue.clearArQueue();
+  Future<void> stop() async {
+    _running = false;
+    await _sub?.cancel();
   }
 
   Future<void> playSound(String fileName) async {

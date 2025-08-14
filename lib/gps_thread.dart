@@ -2,7 +2,7 @@ import 'dart:async';
 
 import 'logger.dart';
 import 'rectangle_calculator.dart';
-import 'voice_prompt_queue.dart';
+import 'voice_prompt_events.dart';
 import 'config.dart';
 
 /// Simplified port of the GPS handling thread from the Python code base.  The
@@ -11,7 +11,7 @@ import 'config.dart';
 /// [Stream] of [VectorData] objects.  Consumers may listen to [stream] or
 /// forward the events to [RectangleCalculatorThread.addVectorSample].
 class GpsThread extends Logger {
-  GpsThread({this.voicePromptQueue, double? accuracyThreshold})
+  GpsThread({this.voicePromptEvents, double? accuracyThreshold})
       : accuracyThreshold =
             (accuracyThreshold ??
                     AppConfig.get<num>('gpsThread.gps_inaccuracy_treshold') ??
@@ -27,7 +27,7 @@ class GpsThread extends Logger {
         recording = AppConfig.get<bool>('gpsThread.recording') ?? false,
         super('GpsThread');
 
-  final VoicePromptQueue? voicePromptQueue;
+  final VoicePromptEvents? voicePromptEvents;
   final double accuracyThreshold;
   final bool gpsTestData;
   final int maxGpsEntries;
@@ -79,8 +79,8 @@ class GpsThread extends Logger {
     printLogLine('GPS thread stopping');
     await _sourceSub?.cancel();
     _sourceSub = null;
-    if (voicePromptQueue != null && _lastSignal != 'GPS_OFF') {
-      voicePromptQueue!.produceGpsSignal('GPS_OFF');
+    if (voicePromptEvents != null && _lastSignal != 'GPS_OFF') {
+      voicePromptEvents!.emit('GPS_OFF');
       _lastSignal = 'GPS_OFF';
     }
   }
@@ -93,7 +93,7 @@ class GpsThread extends Logger {
 
   void _handleSample(VectorData vector) {
     _controller.add(vector);
-    if (voicePromptQueue != null) {
+    if (voicePromptEvents != null) {
       String signal;
       if (vector.gpsStatus != 1) {
         signal = 'GPS_OFF';
@@ -103,7 +103,7 @@ class GpsThread extends Logger {
         signal = 'GPS_ON';
       }
       if (signal != _lastSignal) {
-        voicePromptQueue!.produceGpsSignal(signal);
+        voicePromptEvents!.emit(signal);
         _lastSignal = signal;
       }
     }

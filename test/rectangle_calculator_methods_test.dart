@@ -10,7 +10,6 @@ import 'package:workspace/rectangle_calculator.dart';
 import 'package:workspace/linked_list_generator.dart';
 import 'package:workspace/rect.dart';
 import 'package:workspace/tree_generator.dart';
-import 'package:workspace/thread_base.dart';
 import 'package:workspace/point.dart';
 
 void main() {
@@ -291,8 +290,7 @@ void main() {
     });
 
     test('processOffline extrapolates position using cached data', () async {
-      final queue = SpeedCamQueue<Map<String, dynamic>>();
-      final calc = RectangleCalculatorThread(speedCamQueue: queue);
+      final calc = RectangleCalculatorThread();
       // Set initial cached values.
       calc.longitudeCached = 10.0;
       calc.latitudeCached = 20.0;
@@ -301,16 +299,11 @@ void main() {
 
       await calc.processOffline();
 
-      final timestamped = await queue.consume();
-      final ccp = timestamped.item['ccp'] as List<dynamic>;
-
       final expected =
           calc.calculateExtrapolatedPosition(Point(10.0, 20.0), 90.0, 10.0);
 
       expect(calc.longitudeCached, closeTo(expected.x, 1e-6));
       expect(calc.latitudeCached, closeTo(expected.y, 1e-6));
-      expect(ccp[0] as double, closeTo(expected.x, 1e-6));
-      expect(ccp[1] as double, closeTo(expected.y, 1e-6));
 
       await calc.dispose();
     });

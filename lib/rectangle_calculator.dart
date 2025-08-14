@@ -33,7 +33,7 @@ import 'road_resolver.dart';
 import 'point.dart';
 import 'linked_list_generator.dart';
 import 'tree_generator.dart';
-import 'voice_prompt_queue.dart';
+import 'voice_prompt_events.dart';
 import 'thread_base.dart';
 import 'package:http/http.dart' as http;
 import 'logger.dart';
@@ -279,12 +279,8 @@ class RectangleCalculatorThread {
   /// The predictive model used by [predictSpeedCamera].
   final PredictiveModel _predictiveModel;
 
-  /// Queue used to emit voice prompts for camera events and system messages.
-  final VoicePromptQueue voicePromptQueue;
-
-  /// Optional queue for notifying the legacy [SpeedCamWarner] thread about
-  /// newly detected cameras.
-  final SpeedCamQueue<Map<String, dynamic>>? speedCamQueue;
+  /// Event bus used to emit voice prompts for camera events and system messages.
+  final VoicePromptEvents voicePromptEvents;
 
   final InterruptQueue<String>? interruptQueue;
 
@@ -537,14 +533,12 @@ class RectangleCalculatorThread {
 
   RectangleCalculatorThread({
     PredictiveModel? model,
-    VoicePromptQueue? voicePromptQueue,
-    SpeedCamQueue<Map<String, dynamic>>? speedCamQueue,
+    VoicePromptEvents? voicePromptEvents,
     InterruptQueue<String>? interruptQueue,
     OverspeedChecker? overspeedChecker,
     this.overspeedThread,
   })  : _predictiveModel = model ?? PredictiveModel(),
-        voicePromptQueue = voicePromptQueue ?? VoicePromptQueue(),
-        speedCamQueue = speedCamQueue,
+        voicePromptEvents = voicePromptEvents ?? VoicePromptEvents(),
         interruptQueue = interruptQueue,
         mostProbableWay = MostProbableWay(),
         overspeedChecker = overspeedChecker ?? OverspeedChecker() {
@@ -980,20 +974,6 @@ class RectangleCalculatorThread {
       for (final cam in batch) {
         _cameraStreamController.add(cam);
         logger.printLogLine('Emitting camera event: $cam');
-        speedCamQueue?.produce({
-          'bearing': 0.0,
-          'stable_ccp': true,
-          'ccp': ['IGNORE', 'IGNORE'],
-          'fix_cam': [cam.fixed, cam.longitude, cam.latitude, true],
-          'traffic_cam': [cam.traffic, cam.longitude, cam.latitude, true],
-          'distance_cam': [cam.distance, cam.longitude, cam.latitude, true],
-          'mobile_cam': [cam.mobile, cam.longitude, cam.latitude, true],
-          'ccp_node': ['IGNORE', 'IGNORE'],
-          'list_tree': [null, null],
-          'name': cam.name,
-          'maxspeed': 0,
-          'direction': '',
-        });
       }
       if (i + batchSize < cams.length) {
         await Future.delayed(const Duration(milliseconds: 10));
@@ -1399,37 +1379,6 @@ class RectangleCalculatorThread {
     } else {
       longitudeCached = startLon;
       latitudeCached = startLat;
-    }
-
-    /// Make sure we always send position updates
-    speedCamQueue?.produce({
-      'bearing': bearing,
-      'stable_ccp': ccpStable,
-      'ccp': [longitudeCached, latitudeCached],
-      'fix_cam': [false, 0.0, 0.0, false],
-      'traffic_cam': [false, 0.0, 0.0, false],
-      'distance_cam': [false, 0.0, 0.0, false],
-      'mobile_cam': [false, 0.0, 0.0, false],
-      'ccp_node': [null, null],
-      'list_tree': [null, null]
-    });
-
-    // Perform road name lookup for extrapolated positions
-    final roadName =
-        await getRoadNameViaNominatim(latitudeCached, longitudeCached);
-    if (roadName != null) {
-      if (roadName.startsWith('ERROR:')) {
-        if (!camInProgress) {
-          updateOnlineStatus(false);
-        }
-      } else {
-        processRoadName(
-          foundRoadName: true,
-          roadName: roadName,
-          foundCombinedTags: false,
-          roadClass: 'unclassified',
-        );
-      }
     }
 
     overspeedThread?.clearQueues();
