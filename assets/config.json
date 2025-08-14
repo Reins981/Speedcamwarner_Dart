@@ -65,10 +65,19 @@
     "max_dismiss_counter": 5,
     "max_distance_to_future_camera": 5000,
     "baseurl": "http://overpass-api.de/api/interpreter?",
-    "querystring1": "data=[out:json];",
-    "querystring2": "way[\"highway\"~\".\"](around:5,",
-    "querystring3": "50.7528080,2.0377858",
-    "querystring4": ");out geom;"
+    "querystring_amenity": "data=[out:json];(node[\"amenity\"=\"*\"]",
+    "querystring_cameras1": "data=[out:json][timeout:25];(node[\"highway\"=\"speed_camera\"])",
+    "querystring_cameras2": "way[\"highway\"=\"speed_camera\"]",
+    "querystring_cameras3": "relation[\"highway\"=\"speed_camera\"]",
+    "querystring_hazard1": "data=[out:json][timeout:20];(node[\"hazard\"=\"falling_rocks\"])",
+    "querystring_hazard2": "node[\"hazard\"=\"road_narrows\"]",
+    "querystring_hazard3": "node[\"hazard\"=\"slippery\"]",
+    "querystring_hazard4": "node[\"hazard\"=\"damaged_road\"]",
+    "querystring_hazard5": "node[\"hazard\"=\"ice\"]",
+    "querystring_hazard6": "node[\"hazard\"=\"fog\"]",
+    "querystring_distance_cams": "data=[out:json][timeout:25];(relation[\"enforcement\"=\"mindistance\"])",
+    "querystring_construction_areas": "data=[out:json][timeout:25];(way[\"highway\"=\"construction\"])",
+    "querystring_construction_areas2": "relation[\"highway\"=\"construction\"]"
   },
   "accusticWarner": {
     "ai_voice_prompts": true

@@ -1,5 +1,6 @@
 import 'package:flutter_tts/flutter_tts.dart';
 import 'package:audioplayers/audioplayers.dart';
+import 'dart:async';
 
 import 'voice_prompt_events.dart';
 
@@ -294,10 +295,5 @@ class VoicePromptThread {
     };
     final file = map[voiceEntry];
     return file != null ? '$_basePath/$file' : null;
-  }
-
-  /// Stop consuming new voice prompts and terminate the thread loop.
-  void stop() {
-    _running = false;
   }
 }

@@ -1632,10 +1632,14 @@ class RectangleCalculatorThread {
     double ccpLat, {
     http.Client? client,
   }) async {
+    // Convert lookahead distance from kilometers to tile units for correct area size
+    final double kmPerTile =
+        111.32 / math.pow(2, zoom); // Approximate km per tile at current zoom
+    final double tileDistance = speedCamLookAheadDistance / kmPerTile;
     final pts = calculatePoints2Angle(
       xtile,
       ytile,
-      speedCamLookAheadDistance,
+      tileDistance,
       currentRectAngle * math.pi / 180.0,
     );
     final poly = createGeoJsonTilePolygonAngle(
@@ -1692,10 +1696,14 @@ class RectangleCalculatorThread {
     double ccpLat, {
     http.Client? client,
   }) async {
+    // Convert lookahead distance from kilometers to tile units for correct area size
+    final double kmPerTile =
+        111.32 / math.pow(2, zoom); // Approximate km per tile at current zoom
+    final double tileDistance = constructionAreaLookaheadDistance / kmPerTile;
     final pts = calculatePoints2Angle(
       xtile,
       ytile,
-      constructionAreaLookaheadDistance,
+      tileDistance,
       currentRectAngle * math.pi / 180.0,
     );
     final poly = createGeoJsonTilePolygonAngle(
@@ -2180,26 +2188,43 @@ class RectangleCalculatorThread {
         '(${area.minLat},${area.minLon},${area.maxLat},${area.maxLon})';
     final baseUrl = AppConfig.get<String>('speedCamWarner.baseurl') ??
         'https://overpass-api.de/api/interpreter?';
-    final qs1 = AppConfig.get<String>('speedCamWarner.querystring1') ?? '';
-    final qs2 = AppConfig.get<String>('speedCamWarner.querystring2') ?? '';
-    final qs3 = AppConfig.get<String>('speedCamWarner.querystring3') ?? '';
-    final qs4 = AppConfig.get<String>('speedCamWarner.querystring4') ?? '';
-    String defaultQuery = '$qs1$qs2$qs3$qs4';
+    final querystringCameras1 =
+        AppConfig.get<String>('speedCamWarner.querystring_cameras1') ?? '';
+    final querystringCameras2 =
+        AppConfig.get<String>('speedCamWarner.querystring_cameras2') ?? '';
+    final querystringCameras3 =
+        AppConfig.get<String>('speedCamWarner.querystring_cameras3') ?? '';
+    final querystringDistanceCams =
+        AppConfig.get<String>('speedCamWarner.querystring_distance_cams') ?? '';
+    final querystringConstructionAreas = AppConfig.get<String>(
+            'speedCamWarner.querystring_construction_areas') ??
+        '';
+    final querystringConstructionAreas2 = AppConfig.get<String>(
+            'speedCamWarner.querystring_construction_areas2') ??
+        '';
+
     String query;
+    String queryTermination = ");out+body;";
     if (lookupType == 'camera_ahead') {
-      query = defaultQuery.isNotEmpty
-          ? defaultQuery
-          : '[out:json];node[highway=speed_camera]$bbox;out;';
+      query =
+          '$querystringCameras1$bbox$querystringCameras2$bbox$querystringCameras3$bbox$queryTermination';
     } else if (lookupType == 'distance_cam') {
-      query = defaultQuery.isNotEmpty
-          ? defaultQuery
-          : '[out:json];node["some_distance_cam_tag"]$bbox;out;';
-    } else if (lookupType == 'node' && nodeId != null) {
-      query = '[out:json];node($nodeId);out;';
+      query = '$querystringDistanceCams$bbox$queryTermination';
+    } else if (lookupType == 'constructions_ahead') {
+      query =
+          '$querystringConstructionAreas$bbox$querystringConstructionAreas2$bbox$queryTermination';
     } else {
-      query = defaultQuery.isNotEmpty
-          ? defaultQuery
-          : '[out:json];(node$bbox;);out;';
+      logger.printLogLine(
+        'triggerOsmLookup: Unsupported lookup type $lookupType',
+        logLevel: 'ERROR',
+      );
+      return OsmLookupResult(
+        false,
+        'ERROR',
+        null,
+        'Unsupported lookup type $lookupType',
+        area,
+      );
     }
     logger.printLogLine('triggerOsmLookup query: $query', logLevel: 'DEBUG');
 
