@@ -808,12 +808,12 @@ class SpeedCamWarner {
             updateSpeedcam(speedcam);
             updateBarWidget100m(color: 2);
             updateBarWidget300m();
-              updateBarWidget500m();
-              updateBarWidget1000m();
-              updateBarWidgetMeters(distance);
-              updateCamText(distance: distance.toInt());
-            }
-            if (itemQueue.containsKey(camCoordinates)) {
+            updateBarWidget500m();
+            updateBarWidget1000m();
+            updateBarWidgetMeters(distance);
+            updateCamText(distance: distance.toInt());
+          }
+          if (itemQueue.containsKey(camCoordinates)) {
             try {
               updateCamRoad(road: itemQueue[camCoordinates]?[7]);
               updateMaxSpeed(maxSpeed: maxSpeed);
@@ -888,12 +888,12 @@ class SpeedCamWarner {
             updateSpeedcam(speedcam);
             updateBarWidget100m(color: 2);
             updateBarWidget300m(color: 2);
-              updateBarWidget500m();
-              updateBarWidget1000m();
-              updateBarWidgetMeters(distance);
-              updateCamText(distance: distance.toInt());
-            }
-            if (itemQueue.containsKey(camCoordinates)) {
+            updateBarWidget500m();
+            updateBarWidget1000m();
+            updateBarWidgetMeters(distance);
+            updateCamText(distance: distance.toInt());
+          }
+          if (itemQueue.containsKey(camCoordinates)) {
             try {
               updateCamRoad(road: itemQueue[camCoordinates]?[7]);
               updateMaxSpeed(maxSpeed: maxSpeed);

@@ -41,6 +41,7 @@ class AppController {
     calculator = RectangleCalculatorThread(
       voicePromptQueue: voicePromptQueue,
       speedCamQueue: speedCamQueue,
+      interruptQueue: interruptQueue,
       overspeedChecker: overspeedChecker,
       overspeedThread: overspeedThread,
     );
@@ -163,6 +164,9 @@ class AppController {
   final SpeedCamQueue<Map<String, dynamic>> speedCamQueue =
       SpeedCamQueue<Map<String, dynamic>>();
 
+  // Interrupt queue for handling real-time interruptions.
+  final InterruptQueue<String>? interruptQueue = InterruptQueue<String>();
+
   /// Queue distributing map updates.
   final MapQueue<dynamic> mapQueue = MapQueue<dynamic>();
 
@@ -279,4 +283,3 @@ class _OverspeedLayout implements overspeed.SpeedLayout {
 class _AlwaysResume {
   bool isResumed() => true;
 }
-

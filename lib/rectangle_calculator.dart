@@ -286,6 +286,8 @@ class RectangleCalculatorThread {
   /// newly detected cameras.
   final SpeedCamQueue<Map<String, dynamic>>? speedCamQueue;
 
+  final InterruptQueue<String>? interruptQueue;
+
   /// Helper that tracks the most probable road based on recent updates.
   final MostProbableWay mostProbableWay;
 
@@ -374,8 +376,7 @@ class RectangleCalculatorThread {
   final ValueNotifier<int> constructionAreaCountNotifier = ValueNotifier<int>(
     0,
   );
-  final ValueNotifier<bool> onlineStatusNotifier =
-      ValueNotifier<bool>(false);
+  final ValueNotifier<bool> onlineStatusNotifier = ValueNotifier<bool>(false);
   final ValueNotifier<bool> gpsStatusNotifier = ValueNotifier<bool>(false);
   final ValueNotifier<String?> maxspeedStatusNotifier =
       ValueNotifier<String?>(null);
@@ -417,6 +418,9 @@ class RectangleCalculatorThread {
   int traffic_cams = 0;
   int distance_cams = 0;
   int mobile_cams = 0;
+
+  // Variable storing the state of the ccp
+  String? ccpStable;
 
   /// Distance in kilometres used for construction area look‑ahead.
   double constructionAreaLookaheadDistance = 30.0;
@@ -535,11 +539,13 @@ class RectangleCalculatorThread {
     PredictiveModel? model,
     VoicePromptQueue? voicePromptQueue,
     SpeedCamQueue<Map<String, dynamic>>? speedCamQueue,
+    InterruptQueue<String>? interruptQueue,
     OverspeedChecker? overspeedChecker,
     this.overspeedThread,
   })  : _predictiveModel = model ?? PredictiveModel(),
         voicePromptQueue = voicePromptQueue ?? VoicePromptQueue(),
         speedCamQueue = speedCamQueue,
+        interruptQueue = interruptQueue,
         mostProbableWay = MostProbableWay(),
         overspeedChecker = overspeedChecker ?? OverspeedChecker() {
     _loadConfigs();
@@ -558,19 +564,18 @@ class RectangleCalculatorThread {
 
   void _loadConfigs() {
     maxDownloadTime = Duration(
-        seconds: (AppConfig.get<num>('calculator.max_download_time') ?? 20)
-            .toInt());
+        seconds:
+            (AppConfig.get<num>('calculator.max_download_time') ?? 20).toInt());
     osmTimeout = Duration(
         seconds: (AppConfig.get<num>('calculator.osm_timeout') ?? 20).toInt());
     osmTimeoutMotorway = Duration(
-        seconds:
-            (AppConfig.get<num>('calculator.osm_timeout_motorway') ?? 30)
-                .toInt());
+        seconds: (AppConfig.get<num>('calculator.osm_timeout_motorway') ?? 30)
+            .toInt());
     osmRequestTimeout = osmTimeout;
-    speedCamLookAheadDistance = (AppConfig.get<num>(
-                'calculator.speed_cam_look_ahead_distance') ??
-            speedCamLookAheadDistance)
-        .toDouble();
+    speedCamLookAheadDistance =
+        (AppConfig.get<num>('calculator.speed_cam_look_ahead_distance') ??
+                speedCamLookAheadDistance)
+            .toDouble();
     constructionAreaLookaheadDistance = (AppConfig.get<num>(
                 'calculator.construction_area_lookahead_distance') ??
             constructionAreaLookaheadDistance)
@@ -583,14 +588,14 @@ class RectangleCalculatorThread {
                 'calculator.construction_area_startup_trigger_max') ??
             constructionAreaStartupTriggerMax)
         .toDouble();
-    initialRectDistance = (AppConfig.get<num>('calculator.initial_rect_distance')
-                ??
+    initialRectDistance =
+        (AppConfig.get<num>('calculator.initial_rect_distance') ??
                 initialRectDistance)
             .toDouble();
-    speedInfluenceOnRectBoundary = (AppConfig.get<num>(
-                'calculator.speed_influence_on_rect_boundary') ??
-            speedInfluenceOnRectBoundary)
-        .toDouble();
+    speedInfluenceOnRectBoundary =
+        (AppConfig.get<num>('calculator.speed_influence_on_rect_boundary') ??
+                speedInfluenceOnRectBoundary)
+            .toDouble();
     currentRectAngle = (AppConfig.get<num>('calculator.current_rect_angle') ??
             currentRectAngle)
         .toDouble();
@@ -601,9 +606,8 @@ class RectangleCalculatorThread {
     maxCrossRoads =
         (AppConfig.get<num>('calculator.max_cross_roads') ?? maxCrossRoads)
             .toInt();
-    disableRoadLookup =
-        AppConfig.get<bool>('calculator.disable_road_lookup') ??
-            disableRoadLookup;
+    disableRoadLookup = AppConfig.get<bool>('calculator.disable_road_lookup') ??
+        disableRoadLookup;
     camerasLookAheadMode =
         AppConfig.get<bool>('calculator.cameras_look_ahead_mode') ??
             camerasLookAheadMode;
@@ -616,18 +620,17 @@ class RectangleCalculatorThread {
     considerBackupRects =
         AppConfig.get<bool>('calculator.consider_backup_rects') ??
             considerBackupRects;
-    dismissPois =
-        AppConfig.get<bool>('calculator.dismiss_pois') ?? dismissPois;
+    dismissPois = AppConfig.get<bool>('calculator.dismiss_pois') ?? dismissPois;
     enableOrderedRectsExtrapolated =
         AppConfig.get<bool>('calculator.enable_ordered_rects_extrapolated') ??
             enableOrderedRectsExtrapolated;
-    maxNumberExtrapolatedRects = (AppConfig.get<num>(
-                'calculator.max_number_extrapolated_rects') ??
-            maxNumberExtrapolatedRects)
-        .toInt();
-    maxspeedCountries = AppConfig.get<Map<String, dynamic>>(
-            'calculator.maxspeed_countries') ??
-        maxspeedCountries;
+    maxNumberExtrapolatedRects =
+        (AppConfig.get<num>('calculator.max_number_extrapolated_rects') ??
+                maxNumberExtrapolatedRects)
+            .toInt();
+    maxspeedCountries =
+        AppConfig.get<Map<String, dynamic>>('calculator.maxspeed_countries') ??
+            maxspeedCountries;
     roadClassesToSpeedConfig = AppConfig.get<Map<String, dynamic>>(
             'calculator.road_classes_to_speed') ??
         roadClassesToSpeedConfig;
@@ -809,7 +812,6 @@ class RectangleCalculatorThread {
     if (interrupt == 'look_ahead') {
       await processLookAheadInterrupts();
     }
-
   }
 
   /// Compute a lookahead distance in kilometres based upon the current speed.
@@ -1379,9 +1381,22 @@ class RectangleCalculatorThread {
   /// previously shown, displays a placeholder value.
   Future<void> processOffline() async {
     if (lastMaxSpeed == '' || lastMaxSpeed == null) {
-      updateMaxspeed('<<<', color: [1, 0, 0, 3]);
+      updateMaxspeed('');
     }
     updateRoadname('', false);
+
+    /// Make sure we always send position updates
+    speedCamQueue?.produce({
+      'bearing': 0.0,
+      'stable_ccp': ccpStable,
+      'ccp': [extrapolated, extrapolated],
+      'fix_cam': [false, 0.0, 0.0, false],
+      'traffic_cam': [false, 0.0, 0.0, false],
+      'distance_cam': [false, 0.0, 0.0, false],
+      'mobile_cam': [false, 0.0, 0.0, false],
+      'ccp_node': [null, null],
+      'list_tree': [null, null]
+    });
   }
 
   /// Perform a nominative road name lookup and update UI state accordingly.
@@ -1417,6 +1432,8 @@ class RectangleCalculatorThread {
   /// mode is active, otherwise ``0``.  The rich rectangle update logic from the
   /// Python version has not been ported.
   Future<dynamic> processInterrupts() async {
+    ccpStable = await interruptQueue?.consume();
+
     if (camerasLookAheadMode) {
       return 'look_ahead';
     }
@@ -2130,9 +2147,8 @@ class RectangleCalculatorThread {
 
     final bbox =
         '(${area.minLat},${area.minLon},${area.maxLat},${area.maxLon})';
-    final baseUrl =
-        AppConfig.get<String>('speedCamWarner.baseurl') ??
-            'https://overpass-api.de/api/interpreter?';
+    final baseUrl = AppConfig.get<String>('speedCamWarner.baseurl') ??
+        'https://overpass-api.de/api/interpreter?';
     final qs1 = AppConfig.get<String>('speedCamWarner.querystring1') ?? '';
     final qs2 = AppConfig.get<String>('speedCamWarner.querystring2') ?? '';
     final qs3 = AppConfig.get<String>('speedCamWarner.querystring3') ?? '';
@@ -2351,12 +2367,12 @@ class RectangleCalculatorThread {
   void updateMaxspeedStatus(String value) =>
       maxspeedStatusNotifier.value = value;
 
-void updateSpeedCam(String warning) => speedCamNotifier.value = warning;
+  void updateSpeedCam(String warning) => speedCamNotifier.value = warning;
 
-void updateSpeedCamDistance(double? meter) =>
-    speedCamDistanceNotifier.value = meter;
+  void updateSpeedCamDistance(double? meter) =>
+      speedCamDistanceNotifier.value = meter;
 
-void updateCamText(String? text) => camTextNotifier.value = text;
+  void updateCamText(String? text) => camTextNotifier.value = text;
 
-void updateCameraRoad(String? road) => cameraRoadNotifier.value = road;
+  void updateCameraRoad(String? road) => cameraRoadNotifier.value = road;
 }
