@@ -1385,11 +1385,33 @@ class RectangleCalculatorThread {
     }
     updateRoadname('', false);
 
+    // Extrapolate the current position based on cached values.  When the GPS
+    // goes offline we keep emitting position updates by projecting the last
+    // known coordinates forward using the cached speed and bearing.
+    final double speed = (_speedCache['last'] as double?) ?? 0.0; // km/h
+    final double bearing = (_bearingCache['last'] as double?) ?? 0.0;
+
+    // Use cached coordinates if available, otherwise fall back to the last
+    // known "online" position.
+    double startLon = longitudeCached != 0.0 ? longitudeCached : longitude;
+    double startLat = latitudeCached != 0.0 ? latitudeCached : latitude;
+
+    if (speed > 0) {
+      final double distance = speed / 3.6; // metres travelled in ~1 second
+      final Point newPos =
+          calculateExtrapolatedPosition(Point(startLon, startLat), bearing, distance);
+      longitudeCached = newPos.x;
+      latitudeCached = newPos.y;
+    } else {
+      longitudeCached = startLon;
+      latitudeCached = startLat;
+    }
+
     /// Make sure we always send position updates
     speedCamQueue?.produce({
-      'bearing': 0.0,
+      'bearing': bearing,
       'stable_ccp': ccpStable,
-      'ccp': [extrapolated, extrapolated],
+      'ccp': [longitudeCached, latitudeCached],
       'fix_cam': [false, 0.0, 0.0, false],
       'traffic_cam': [false, 0.0, 0.0, false],
       'distance_cam': [false, 0.0, 0.0, false],
@@ -1874,10 +1896,24 @@ class RectangleCalculatorThread {
     double bearingDeg,
     double distanceMeters,
   ) {
-    final rad = bearingDeg * math.pi / 180.0;
-    final dx = distanceMeters * math.sin(rad) / 111000.0;
-    final dy = distanceMeters * math.cos(rad) / 111000.0;
-    return Point(start.x + dx, start.y + dy);
+    // Use the "destination point" formula on a sphere to extrapolate a new
+    // geographic position.  [start] holds ``longitude`` (x) and ``latitude``
+    // (y) in degrees.  [bearingDeg] is the direction of travel and
+    // [distanceMeters] the travelled distance.
+    const double earthRadius = 6378137.0; // WGS84 equatorial radius in metres
+
+    final double brng = bearingDeg * math.pi / 180.0;
+    final double lat1 = start.y * math.pi / 180.0;
+    final double lon1 = start.x * math.pi / 180.0;
+    final double dr = distanceMeters / earthRadius;
+
+    final double lat2 = math.asin(math.sin(lat1) * math.cos(dr) +
+        math.cos(lat1) * math.sin(dr) * math.cos(brng));
+    final double lon2 = lon1 +
+        math.atan2(math.sin(brng) * math.sin(dr) * math.cos(lat1),
+            math.cos(dr) - math.sin(lat1) * math.sin(lat2));
+
+    return Point(lon2 * 180.0 / math.pi, lat2 * 180.0 / math.pi);
   }
 
   double _distance(double lon1, double lat1, double lon2, double lat2) {

@@ -10,6 +10,8 @@ import 'package:workspace/rectangle_calculator.dart';
 import 'package:workspace/linked_list_generator.dart';
 import 'package:workspace/rect.dart';
 import 'package:workspace/tree_generator.dart';
+import 'package:workspace/thread_base.dart';
+import 'package:workspace/point.dart';
 
 void main() {
   group('RectangleCalculatorThread helpers', () {
@@ -286,6 +288,31 @@ void main() {
       calc.updateRoadname('Main', false);
       await calc.processOffline();
       expect(calc.roadName, equals(''));
+    });
+
+    test('processOffline extrapolates position using cached data', () async {
+      final queue = SpeedCamQueue<Map<String, dynamic>>();
+      final calc = RectangleCalculatorThread(speedCamQueue: queue);
+      // Set initial cached values.
+      calc.longitudeCached = 10.0;
+      calc.latitudeCached = 20.0;
+      calc.cacheCspeed('last', 36.0); // 36 km/h -> 10 m/s
+      calc.cacheBearing('last', 90.0);
+
+      await calc.processOffline();
+
+      final timestamped = await queue.consume();
+      final ccp = timestamped.item['ccp'] as List<dynamic>;
+
+      final expected =
+          calc.calculateExtrapolatedPosition(Point(10.0, 20.0), 90.0, 10.0);
+
+      expect(calc.longitudeCached, closeTo(expected.x, 1e-6));
+      expect(calc.latitudeCached, closeTo(expected.y, 1e-6));
+      expect(ccp[0] as double, closeTo(expected.x, 1e-6));
+      expect(ccp[1] as double, closeTo(expected.y, 1e-6));
+
+      await calc.dispose();
     });
 
     test('processLookAheadInterrupts resolves road name', () async {
