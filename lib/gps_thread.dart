@@ -154,45 +154,48 @@ class GpsThread extends Logger {
   }
 
   void _handleSample(VectorData vector) {
-    final direction = _calculateDirection(vector.bearing);
-    final enriched = VectorData(
-      longitude: vector.longitude,
-      latitude: vector.latitude,
-      speed: vector.speed,
-      bearing: vector.bearing,
-      direction: direction ?? '',
-      gpsStatus: vector.gpsStatus,
-      accuracy: vector.accuracy,
-    );
+    if (vector.speed > 0) {
+      final direction = _calculateDirection(vector.bearing);
+      final enriched = VectorData(
+        longitude: vector.longitude,
+        latitude: vector.latitude,
+        speed: vector.speed,
+        bearing: vector.bearing,
+        direction: direction ?? '',
+        gpsStatus: vector.gpsStatus,
+        accuracy: vector.accuracy,
+      );
 
-    _controller.add(enriched);
-    _speedCamEventController?.add(
-      Timestamped<Map<String, dynamic>>({
-        'bearing': enriched.bearing,
-        'stable_ccp': null,
-        'ccp': [enriched.longitude, enriched.latitude],
-        'fix_cam': [false, 0.0, 0.0, false],
-        'traffic_cam': [false, 0.0, 0.0, false],
-        'distance_cam': [false, 0.0, 0.0, false],
-        'mobile_cam': [false, 0.0, 0.0, false],
-        'ccp_node': [null, null],
-        'list_tree': [null, null],
-      }),
-    );
-    _produceBearingSet(enriched.bearing);
-    if (recording) {
-      _routeData.add(Wpt(
-        lat: enriched.latitude,
-        lon: enriched.longitude,
-        time: DateTime.now(),
-        extensions: {'speed': enriched.speed},
-      ));
+      _controller.add(enriched);
+      _speedCamEventController?.add(
+        Timestamped<Map<String, dynamic>>({
+          'bearing': enriched.bearing,
+          'stable_ccp': null,
+          'ccp': [enriched.longitude, enriched.latitude],
+          'fix_cam': [false, 0.0, 0.0, false],
+          'traffic_cam': [false, 0.0, 0.0, false],
+          'distance_cam': [false, 0.0, 0.0, false],
+          'mobile_cam': [false, 0.0, 0.0, false],
+          'ccp_node': [null, null],
+          'list_tree': [null, null],
+        }),
+      );
+      _produceBearingSet(enriched.bearing);
+      if (recording) {
+        _routeData.add(Wpt(
+          lat: enriched.latitude,
+          lon: enriched.longitude,
+          time: DateTime.now(),
+          extensions: {'speed': enriched.speed},
+        ));
+      }
     }
+
     if (voicePromptEvents != null) {
       String signal;
-      if (enriched.gpsStatus != 1) {
+      if (vector.gpsStatus != 1) {
         signal = 'GPS_OFF';
-      } else if (enriched.accuracy > accuracyThreshold) {
+      } else if (vector.accuracy > accuracyThreshold) {
         signal = 'GPS_LOW';
       } else {
         signal = 'GPS_ON';
