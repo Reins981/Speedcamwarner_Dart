@@ -1431,6 +1431,7 @@ class RectangleCalculatorThread {
         vector.latitude,
         vector.longitude,
         _computeLookAheadDistance(0, maxSpeedCamLookAheadDistance),
+        'camera',
       );
       _rectangleStreamController.add(rect);
     } else {
