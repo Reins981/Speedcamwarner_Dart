@@ -67,22 +67,22 @@ def check_rate_limit(user: str) -> bool:
     return True
 
 
-def add_camera_to_json(name: str, coordinates: Tuple[float, float]):
+def add_camera_to_json(name: str, road_name: str, coordinates: Tuple[float, float]):
     if not check_rate_limit('master_user'):
         logger.print_log_line(f"Dismiss Camera upload: "
                               f"Rate limit exceeded for user: 'master_user'", log_level="WARNING")
         return False, "RATE_LIMIT_EXCEEDED"
 
-    new_camera = \
-        {
-          "name": name,
-          "coordinates": [
+    new_camera = {
+        "name": name,
+        "road_name": road_name,
+        "coordinates": [
             {
-              "latitude": coordinates[0],
-              "longitude": coordinates[1]
+                "latitude": coordinates[0],
+                "longitude": coordinates[1]
             }
-          ]
-        }
+        ]
+    }
     logger.print_log_line(f"Adding new camera: {new_camera}")
 
     try:
@@ -96,11 +96,12 @@ def add_camera_to_json(name: str, coordinates: Tuple[float, float]):
         # Check for duplicate coordinates
     existing_cameras = content.get('cameras', [])
     for camera in existing_cameras:
-        if camera['coordinates'][0]['latitude'] == coordinates[0] and \
-                camera['coordinates'][0]['longitude'] == coordinates[1]:
-            logger.print_log_line(f"Dismiss Camera upload: Duplicate coordinates detected: "
-                                  f"{coordinates}", log_level="WARNING")
-            return False, "DUPLICATE_COORDINATES"
+        if (camera['coordinates'][0]['latitude'] == coordinates[0] and
+                camera['coordinates'][0]['longitude'] == coordinates[1]):
+            logger.print_log_line(
+                f"Dismiss Camera upload: Duplicate coordinates detected: {coordinates}",
+                log_level="WARNING")
+            return False, "DUPLICATE_CAMERA"
 
     # Append the new camera to the JSON file
     content['cameras'].append(new_camera)
@@ -180,8 +181,8 @@ def download_file_from_google_drive(f_id: str, drive: Any) -> str:
 
 
 if __name__ == "__main__":
-    add_camera_to_json('FrannkfurterStree', coordinates=(43.758896, -44.985130))
-    status = upload_file_to_google_drive(build_drive_from_credentials())
+    add_camera_to_json('Manual Camera', 'FrannkfurterStree', coordinates=(43.758896, -44.985130))
+    status = upload_file_to_google_drive(FILE_ID, FOLDER_ID, build_drive_from_credentials())
     if status == 'success':
         success = download_file_from_google_drive(FILE_ID, build_drive_from_credentials())
 

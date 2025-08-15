@@ -199,48 +199,34 @@ Future<SpeedCameraEvent?> predictSpeedCamera({
 /// Record a newly detected camera to persistent storage (a JSON file) and
 /// optionally upload that file to Google Drive.  In the original application
 /// these responsibilities are delegated to the ``ServiceAccount`` module.  The
-/// implementation here appends the camera to ``cameras.json`` and leaves the
-/// actual Drive upload as a no-op placeholder.
-Future<bool> uploadCameraToDrive({
+/// implementation here forwards the request to that module and returns whether
+/// the upload succeeded.
+Future<(bool, String?)> uploadCameraToDrive({
   required String name,
+  required String roadName,
   required double latitude,
   required double longitude,
-  String? camerasJsonPath,
 }) async {
   await ServiceAccount.init();
-  final path = camerasJsonPath ?? ServiceAccount.fileName;
+  final (added, status) =
+      await ServiceAccount.addCameraToJson(name, roadName, latitude, longitude);
+  if (!added) {
+    return (false, status);
+  }
   try {
-    final file = File(path);
-    Map<String, dynamic> content;
-    if (await file.exists()) {
-      content = jsonDecode(await file.readAsString()) as Map<String, dynamic>;
+    final client = await ServiceAccount.buildDriveFromCredentials();
+    final res = await ServiceAccount.uploadFileToGoogleDrive(
+      ServiceAccount.fileId,
+      ServiceAccount.folderId,
+      client,
+    );
+    if (res == 'success') {
+      return (true, null);
     } else {
-      content = {'cameras': []};
+      return (false, res);
     }
-    final cameras = content['cameras'] as List<dynamic>;
-    final duplicate = cameras.any((cam) {
-      final coords = cam['coordinates'][0];
-      return coords['latitude'] == latitude && coords['longitude'] == longitude;
-    });
-    if (duplicate) {
-      return false;
-    }
-
-    cameras.add({
-      'name': name,
-      'coordinates': [
-        {'latitude': latitude, 'longitude': longitude},
-      ],
-    });
-
-    final encoder = const JsonEncoder.withIndent('  ');
-    await file.writeAsString(encoder.convert(content));
-
-    // Placeholder for Google Drive upload.  Replace with googleapis integration
-    // if required.  We simply log success here.
-    return true;
-  } catch (_) {
-    return false;
+  } catch (e) {
+    return (false, e.toString());
   }
 }
 
@@ -789,10 +775,11 @@ class RectangleCalculatorThread {
       // If a camera was predicted ahead, publish it on the camera stream and
       // optionally record it to persistent storage.
       _cameraStreamController.add(predicted);
-      await uploadCameraToDrive(
-        name: predicted.name,
-        latitude: predicted.latitude,
-        longitude: predicted.longitude,
+      await uploadCameraToDriveMethod(
+        roadNameNotifier.value,
+        predicted.latitude,
+        predicted.longitude,
+        camType: predicted.name,
       );
     }
 
@@ -1474,12 +1461,32 @@ class RectangleCalculatorThread {
     return 0;
   }
 
-  Future<bool> uploadCameraToDriveMethod(
-    String name,
+  Future<(bool, String?)> uploadCameraToDriveMethod(
+    String roadName,
     double latitude,
-    double longitude,
-  ) async =>
-      uploadCameraToDrive(name: name, latitude: latitude, longitude: longitude);
+    double longitude, {
+    String camType = 'Manual Camera',
+  }) async {
+    final (success, status) = await uploadCameraToDrive(
+      name: camType,
+      roadName: roadName,
+      latitude: latitude,
+      longitude: longitude,
+    );
+    if (success) {
+      voicePromptEvents.emit('ADDED_POLICE');
+    } else {
+      const knownErrors = {
+        'RATE_LIMIT_EXCEEDED',
+        'CAM_FILE_NOT_FOUND',
+        'DUPLICATE_COORDINATES',
+      };
+      voicePromptEvents.emit(
+        knownErrors.contains(status) ? status! : 'ADDING_POLICE_FAILED',
+      );
+    }
+    return (success, status);
+  }
 
   /// Trigger asynchronous look‑ahead downloads for speed cameras and
   /// construction areas.  ``previousCcp`` reuses cached coordinates from the

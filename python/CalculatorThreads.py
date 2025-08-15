@@ -1698,8 +1698,8 @@ class RectangleCalculatorThread(StoppableThread, Logger):
                     self.osm_wrapper.first_start = False
             return 0
 
-    def upload_camera_to_drive(self, name, latitude, longitude):
-        success, status = add_camera_to_json(name, coordinates=(latitude, longitude))
+    def upload_camera_to_drive(self, road_name, latitude, longitude, cam_type="Manual Camera"):
+        success, status = add_camera_to_json(cam_type, road_name, coordinates=(latitude, longitude))
         if success:
             res = upload_file_to_google_drive(FILE_ID, FOLDER_ID, build_drive_from_credentials())
             if res == 'success':
@@ -1956,7 +1956,7 @@ class RectangleCalculatorThread(StoppableThread, Logger):
             self.update_speed_cams(speed_l)
             self.update_map_queue()
             self.cleanup_map_content()
-            self.upload_camera_to_drive(name, camera_latitude, camera_longitude)
+            self.upload_camera_to_drive(name, camera_latitude, camera_longitude, cam_type="AI Camera")
             self.predictive_cam_list.append(is_speed_camera)
 
         else:
@@ -2337,13 +2337,13 @@ class RectangleCalculatorThread(StoppableThread, Logger):
 
     @staticmethod
     def start_thread_pool_upload_speed_camera_to_drive(func, worker_threads,
-                                                       name, latitude, longitude):
+                                                       road_name, latitude, longitude):
         # upload a camera to google drive
 
         pool = ThreadPool(num_threads=worker_threads,
                           action='UPLOAD',
                           log_viewer=RectangleCalculatorThread.log_viewer)
-        pool.add_task(func, name, latitude, longitude)
+        pool.add_task(func, road_name, latitude, longitude)
 
     @staticmethod
     def start_thread_pool_process_look_ahead_interrupts(func, worker_threads=1):

@@ -113,6 +113,20 @@ class _DashboardPageState extends State<DashboardPage> {
     });
   }
 
+  Future<void> _addCamera() async {
+    if (_calculator == null) return;
+    final pos = _calculator!.positionNotifier.value;
+    final road = _calculator!.roadNameNotifier.value;
+    var (success, status) =
+        await _calculator!.uploadCameraToDriveMethod(road, pos.latitude, pos.longitude);
+    if (!mounted) return;
+    final msg = success
+        ? 'Camera added'
+        : 'Camera not added: ${status ?? 'unknown error'}';
+    ScaffoldMessenger.of(context)
+        .showSnackBar(SnackBar(content: Text(msg)));
+  }
+
   @override
   void dispose() {
     if (_calculator != null) {
@@ -180,6 +194,11 @@ class _DashboardPageState extends State<DashboardPage> {
             ],
           ],
         ),
+      ),
+      floatingActionButton: FloatingActionButton(
+        onPressed: _addCamera,
+        tooltip: 'Add police camera',
+        child: const Icon(Icons.camera_alt),
       ),
     );
   }
