@@ -147,6 +147,7 @@ class _DashboardPageState extends State<DashboardPage> {
         : 'Camera not added: ${status ?? 'unknown error'}';
     ScaffoldMessenger.of(context)
         .showSnackBar(SnackBar(content: Text(msg)));
+  }
 
   void _updateDirectionBearing() {
     setState(() {
@@ -154,7 +155,6 @@ class _DashboardPageState extends State<DashboardPage> {
       _averageBearing =
           _averageBearingNotifier?.value ?? _averageBearing;
     });
-
   }
 
   @override
