@@ -101,7 +101,8 @@ class SpeedCameraEvent {
   final bool distance;
   final bool mobile;
   final bool predictive;
-  final String name;
+  String name;
+  final int maxspeed;
 
   SpeedCameraEvent({
     required this.latitude,
@@ -112,6 +113,7 @@ class SpeedCameraEvent {
     this.mobile = false,
     this.predictive = false,
     this.name = '',
+    this.maxspeed = 0,
   });
 
   @override
@@ -189,11 +191,9 @@ Future<SpeedCameraEvent?> predictSpeedCamera({
   final deltaLon =
       cameraDistanceKm / (111.0 * math.cos(latitude * math.pi / 180.0));
   return SpeedCameraEvent(
-    latitude: latitude + deltaLat,
-    longitude: longitude + deltaLon,
-    predictive: true,
-    name: 'Predictive Camera',
-  );
+      latitude: latitude + deltaLat,
+      longitude: longitude + deltaLon,
+      predictive: true);
 }
 
 /// Record a newly detected camera to persistent storage (a JSON file) and
@@ -252,12 +252,15 @@ class RectangleCalculatorThread {
   /// as a [Rect] object for geometric helper methods such as
   /// [Rect.pointInRect].
   Rect? lastRect;
+  Rect? lastRectConstruction;
 
   /// Geographic representation of [lastRect].
   GeoRect? lastGeoRect;
+  GeoRect? lastGeoRectConstruction;
 
   /// flag to calculate a new rect with will be used as last rect
   var calculateNewRect = true;
+  var calculateNewRectConstruction = true;
 
   /// Controller used to broadcast detected speed camera events.  Multiple
   /// listeners may subscribe and react (e.g. warn the user or annotate a map).
@@ -776,7 +779,13 @@ class RectangleCalculatorThread {
     constructionAreaLookaheadDistance = constructionLookAheadKm;
     if (calculateNewRect) {
       final GeoRect rect =
-          _computeBoundingRect(latitude, longitude, camLookAheadKm);
+          _computeBoundingRect(latitude, longitude, camLookAheadKm, 'camera');
+      currentRectAngle = bearing;
+      _rectangleStreamController.add(rect);
+    }
+    if (calculateNewRectConstruction) {
+      final GeoRect rect = _computeBoundingRect(
+          latitude, longitude, constructionLookAheadKm, 'construction');
       currentRectAngle = bearing;
       _rectangleStreamController.add(rect);
     }
@@ -798,9 +807,30 @@ class RectangleCalculatorThread {
       logger.printLogLine(
         'Predictive camera detected at ${predicted.latitude}, ${predicted.longitude}',
       );
+      final roadName = await getRoadNameViaNominatim(latitude, longitude);
+      predicted.name = roadName ?? '';
       // If a camera was predicted ahead, publish it on the camera stream and
       // optionally record it to persistent storage.
       _cameraStreamController.add(predicted);
+
+      logger.printLogLine('Emitting camera event: $predicted');
+      _speedCamEventController.add(
+        Timestamped<Map<String, dynamic>>({
+          'bearing': 0.0,
+          'stable_ccp': ccpStable,
+          'ccp': ['IGNORE', 'IGNORE'],
+          'fix_cam': [false, 0.0, 0.0, true],
+          'traffic_cam': [false, 0.0, 0.0, true],
+          'distance_cam': [false, 0.0, 0.0, true],
+          'mobile_cam': [true, predicted.longitude, predicted.latitude, true],
+          'ccp_node': ['IGNORE', 'IGNORE'],
+          'list_tree': [null, null],
+          'name': predicted.name,
+          'maxspeed': 0,
+          'direction': '',
+          'predictive': true
+        }),
+      );
       await uploadCameraToDriveMethod(
         roadNameNotifier.value,
         predicted.latitude,
@@ -843,10 +873,7 @@ class RectangleCalculatorThread {
   /// (north, south, east, west).  The calculation assumes a spherical Earth
   /// with radius 6371 km and converts the linear distances into degrees.
   GeoRect _computeBoundingRect(
-    double latitude,
-    double longitude,
-    double lookAheadKm,
-  ) {
+      double latitude, double longitude, double lookAheadKm, var rectType) {
     const double earthRadiusKm = 6371.0;
     final double latRadians = latitude * math.pi / 180.0;
 
@@ -865,17 +892,32 @@ class RectangleCalculatorThread {
     // such as [Rect.pointInRect] or [Rect.pointsCloseToBorder].
     final minTile = longLatToTile(minLat, minLon, zoom);
     final maxTile = longLatToTile(maxLat, maxLon, zoom);
-    lastRect = Rect(
-      pt1: Point(minTile.x, minTile.y),
-      pt2: Point(maxTile.x, maxTile.y),
-    );
-    final rect = GeoRect(
-      minLat: minLat,
-      minLon: minLon,
-      maxLat: maxLat,
-      maxLon: maxLon,
-    );
-    lastGeoRect = rect;
+    GeoRect rect;
+    if (rectType == 'camera') {
+      lastRect = Rect(
+        pt1: Point(minTile.x, minTile.y),
+        pt2: Point(maxTile.x, maxTile.y),
+      );
+      rect = GeoRect(
+        minLat: minLat,
+        minLon: minLon,
+        maxLat: maxLat,
+        maxLon: maxLon,
+      );
+      lastGeoRect = rect;
+    } else {
+      lastRectConstruction = Rect(
+        pt1: Point(minTile.x, minTile.y),
+        pt2: Point(maxTile.x, maxTile.y),
+      );
+      rect = GeoRect(
+        minLat: minLat,
+        minLon: minLon,
+        maxLat: maxLat,
+        maxLon: maxLon,
+      );
+      lastGeoRectConstruction = rect;
+    }
     return rect;
   }
 
@@ -1009,7 +1051,7 @@ class RectangleCalculatorThread {
             'ccp_node': ['IGNORE', 'IGNORE'],
             'list_tree': [null, null],
             'name': cam.name,
-            'maxspeed': 0,
+            'maxspeed': cam.maxspeed,
             'direction': '',
           }),
         );
@@ -1555,6 +1597,7 @@ class RectangleCalculatorThread {
         'func': RectangleCalculatorThread.startThreadPoolSpeedCamera,
         'msg': 'Speed Camera lookahead',
         'trigger': speedCamLookupAhead,
+        'type': 'camera'
       },
       {
         'rect': rectConstructionAreasLookahead,
@@ -1562,12 +1605,14 @@ class RectangleCalculatorThread {
         'func': RectangleCalculatorThread.startThreadPoolConstructionAreas,
         'msg': 'Construction area lookahead',
         'trigger': constructionsLookupAhead,
+        'type': 'construction'
       },
     ];
 
     for (final item in lookups) {
       final Rect? rect = item['rect'] as Rect?;
       final String msg = item['msg'] as String;
+      final String rectType = item['type'] as String;
       final func = item['func'] as Future<void> Function(
         Future<void> Function(double, double, double, double),
         int,
@@ -1591,10 +1636,14 @@ class RectangleCalculatorThread {
           );
           if (inside && !close) {
             logger.printLogLine('Skipping $msg - inside existing lookahead');
-            calculateNewRect = false;
+            if (rectType == 'camera') calculateNewRect = false;
+            if (rectType == 'construction') {
+              calculateNewRectConstruction = false;
+            }
             continue;
           }
-          calculateNewRect = true;
+          if (rectType == 'camera') calculateNewRect = true;
+          if (rectType == 'construction') calculateNewRectConstruction = true;
         }
       }
 
@@ -1627,8 +1676,8 @@ class RectangleCalculatorThread {
         rectSpeedCamLookahead = lastRect;
         rectSpeedCamLookaheadGeo = lastGeoRect;
       } else if (msg == 'Construction area lookahead') {
-        rectConstructionAreasLookahead = lastRect;
-        rectConstructionAreasLookaheadGeo = lastGeoRect;
+        rectConstructionAreasLookahead = lastRectConstruction;
+        rectConstructionAreasLookaheadGeo = lastGeoRectConstruction;
       }
     }
   }
@@ -1878,6 +1927,7 @@ class RectangleCalculatorThread {
       final tags = element['tags'] as Map<String, dynamic>? ?? {};
       final lat = (element['lat'] as num?)?.toDouble();
       final lon = (element['lon'] as num?)?.toDouble();
+      final maxspeed = (tags['maxspeed'] as num?)?.toInt() ?? 0;
       if (lat == null || lon == null) continue;
 
       final roadName = await getRoadNameViaNominatim(lat, lon);
@@ -1890,6 +1940,7 @@ class RectangleCalculatorThread {
             longitude: lon,
             distance: true,
             name: tags['name']?.toString() ?? roadName ?? '',
+            maxspeed: maxspeed,
           );
           _cameraCache.add(cam);
           cams.add(cam);
@@ -1905,6 +1956,7 @@ class RectangleCalculatorThread {
           longitude: lon,
           mobile: true,
           name: tags['name']?.toString() ?? roadName ?? '',
+          maxspeed: maxspeed,
         );
         _cameraCache.add(cam);
         cams.add(cam);
@@ -1919,6 +1971,7 @@ class RectangleCalculatorThread {
           longitude: lon,
           traffic: true,
           name: tags['name']?.toString() ?? roadName ?? '',
+          maxspeed: maxspeed,
         );
         _cameraCache.add(cam);
         cams.add(cam);
@@ -1929,6 +1982,7 @@ class RectangleCalculatorThread {
           longitude: lon,
           fixed: true,
           name: tags['name']?.toString() ?? roadName ?? '',
+          maxspeed: maxspeed,
         );
         _cameraCache.add(cam);
         cams.add(cam);
