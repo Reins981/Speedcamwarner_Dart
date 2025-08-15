@@ -1694,9 +1694,12 @@ class RectangleCalculatorThread {
     double ccpLat, {
     http.Client? client,
   }) async {
-    // Convert lookahead distance from kilometers to tile units for correct area size
-    final double kmPerTile =
-        111.32 / math.pow(2, zoom); // Approximate km per tile at current zoom
+    // Convert lookahead distance in kilometres to tile units at the current
+    // latitude/zoom.  Each slippy map tile spans ``40075.016686 / 2^zoom`` km at
+    // the equator and shrinks by ``cos(lat)`` towards the poles.
+    final double kmPerTile = (40075.016686 *
+            math.cos(ccpLat * math.pi / 180.0)) /
+        math.pow(2, zoom);
     final double tileDistance = speedCamLookAheadDistance / kmPerTile;
     final pts = calculatePoints2Angle(
       xtile,
@@ -1758,9 +1761,12 @@ class RectangleCalculatorThread {
     double ccpLat, {
     http.Client? client,
   }) async {
-    // Convert lookahead distance from kilometers to tile units for correct area size
-    final double kmPerTile =
-        111.32 / math.pow(2, zoom); // Approximate km per tile at current zoom
+    // Convert lookahead distance in kilometres to tile units at the current
+    // latitude/zoom.  Each slippy map tile spans ``40075.016686 / 2^zoom`` km at
+    // the equator and shrinks by ``cos(lat)`` towards the poles.
+    final double kmPerTile = (40075.016686 *
+            math.cos(ccpLat * math.pi / 180.0)) /
+        math.pow(2, zoom);
     final double tileDistance = constructionAreaLookaheadDistance / kmPerTile;
     final pts = calculatePoints2Angle(
       xtile,
@@ -2291,8 +2297,13 @@ class RectangleCalculatorThread {
 
     final bbox =
         '(${area.minLat},${area.minLon},${area.maxLat},${area.maxLon});';
-    final baseUrl = AppConfig.get<String>('speedCamWarner.baseurl') ??
-        'https://overpass-api.de/api/interpreter?';
+    final baseUrlRaw = AppConfig.get<String>('speedCamWarner.baseurl') ??
+        'https://overpass-api.de/api/interpreter';
+    // Strip a trailing "?" which would otherwise make the path `/interpreter?`
+    // and lead to HTTP 400 responses from the Overpass API.
+    final baseUrl = baseUrlRaw.endsWith('?')
+        ? baseUrlRaw.substring(0, baseUrlRaw.length - 1)
+        : baseUrlRaw;
     final querystringCameras1 =
         AppConfig.get<String>('speedCamWarner.querystring_cameras1') ?? '';
     final querystringCameras2 =
@@ -2345,9 +2356,15 @@ class RectangleCalculatorThread {
     }
     logger.printLogLine('triggerOsmLookup query: $query', logLevel: 'DEBUG');
 
-    // Build the request URI.  POST is used so that the query is encoded in the
-    // request body which avoids issues with very long URLs on some platforms.
-    final uri = Uri.parse(baseUrl);
+    // Build the request URI using a GET with the query supplied via the
+    // `data` parameter.  ``Uri.replace`` handles proper URL encoding so that
+    // characters such as quotes and spaces are percent encoded.  Strip any
+    // leading ``data=`` from the configured query to avoid duplicated prefixes.
+    final queryParam =
+        query.startsWith('data=') ? query.substring(5) : query;
+    final uri = Uri.parse(baseUrl).replace(queryParameters: {
+      'data': queryParam,
+    });
     logger.printLogLine('triggerOsmLookup uri: $uri', logLevel: 'DEBUG');
     final http.Client httpClient = client ?? http.Client();
 
@@ -2356,21 +2373,12 @@ class RectangleCalculatorThread {
       http.Response? resp;
       try {
         resp = await httpClient
-            .post(
+            .get(
               uri,
               headers: {
                 'User-Agent': 'speedcamwarner-dart',
                 'Accept': 'application/json',
-                'Content-Type': 'application/x-www-form-urlencoded',
               },
-              // Using a raw string body rather than a Map avoids URL encoding of
-              // the query which can cause issues with some proxy setups.  The
-              // Overpass API expects the payload to be provided under the `data`
-              // key as form data.  Some configuration strings already include
-              // this prefix so ensure we don't duplicate it which would result
-              // in `data=data=...` and trigger HTTP 400 responses from the
-              // Overpass API.
-              body: query.startsWith('data=') ? query : 'data=$query',
             )
             .timeout(osmRequestTimeout);
         if (resp.statusCode == 200) {
