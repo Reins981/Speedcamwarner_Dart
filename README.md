@@ -6,6 +6,7 @@ This is a Flutter-based Android application that predicts the nearest speed came
 - Predicts the nearest speed camera coordinates.
 - Uses machine learning models for accurate predictions.
 - User-friendly interface built with Flutter.
+- Real-time dashboard displays current direction and average bearing.
 
 ## Getting Started
 1. Install Flutter: [Flutter Installation Guide](https://docs.flutter.dev/get-started/install).
