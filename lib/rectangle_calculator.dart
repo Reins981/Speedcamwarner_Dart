@@ -1948,6 +1948,7 @@ class RectangleCalculatorThread {
       maxLat: maxLat,
       maxLon: maxLon,
     );
+    _rectangleStreamController.add(rect);
     logger.printLogLine('constructionsLookupAhead bounds: $rect');
     logger.printLogLine(
       'constructionsLookupAhead requesting construction_ahead',
@@ -2529,7 +2530,7 @@ class RectangleCalculatorThread {
           '$querystringCameras1$bbox$querystringCameras2$bbox$querystringCameras3$bbox$queryTermination';
     } else if (lookupType == 'distance_cam') {
       query = '$querystringDistanceCams$bbox$queryTermination';
-    } else if (lookupType == 'constructions_ahead') {
+    } else if (lookupType == 'construction_ahead') {
       query =
           '$querystringConstructionAreas$bbox$querystringConstructionAreas2$bbox$queryTermination';
     } else if (lookupType == 'node') {
