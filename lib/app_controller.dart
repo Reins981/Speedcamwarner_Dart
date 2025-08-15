@@ -162,8 +162,7 @@ class AppController {
       ValueNotifier<String>('---.-°');
 
   /// Publishes the current driving direction to the dashboard.
-  final ValueNotifier<String> directionNotifier =
-      ValueNotifier<String>('-');
+  final ValueNotifier<String> directionNotifier = ValueNotifier<String>('-');
 
   /// Supplies direction and coordinates for POI queries.
   final GpsProducer gpsProducer = GpsProducer();
@@ -259,8 +258,7 @@ class AppController {
     while (_routeMonitoring) {
       await Future.delayed(const Duration(seconds: 2));
       final coords = gpsProducer.get_lon_lat();
-      final distance =
-          camWarner.checkDistanceBetweenTwoPoints(poi, coords);
+      final distance = camWarner.checkDistanceBetweenTwoPoints(poi, coords);
       if (distance <= 50) {
         voicePromptEvents.emit('POI_REACHED');
         _routeMonitoring = false;

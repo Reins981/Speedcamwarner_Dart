@@ -675,8 +675,8 @@ class RectangleCalculatorThread {
 
   /// Controller backing [speedCamEvents]. Exposed so that other components,
   /// such as [GpsThread], can publish updates into the shared stream.
-  StreamController<Timestamped<Map<String, dynamic>>> get speedCamEventController =>
-      _speedCamEventController;
+  StreamController<Timestamped<Map<String, dynamic>>>
+      get speedCamEventController => _speedCamEventController;
 
   /// Stream of construction areas discovered during look‑ahead queries.
   Stream<GeoRect> get constructions => _constructionStreamController.stream;
