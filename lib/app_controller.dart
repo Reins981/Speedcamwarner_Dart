@@ -29,7 +29,6 @@ class AppController {
   AppController()
       : voicePromptEvents = VoicePromptEvents(),
         locationManager = LocationManager() {
-    gps = GpsThread(voicePromptEvents: voicePromptEvents);
     overspeedChecker = OverspeedChecker();
     overspeedThread = overspeed.OverspeedThread(
       cond: overspeed.ThreadCondition(),
@@ -44,15 +43,18 @@ class AppController {
       overspeedChecker: overspeedChecker,
       overspeedThread: overspeedThread,
     );
+    gps = GpsThread(
+      voicePromptEvents: voicePromptEvents,
+      speedCamEventController: calculator.speedCamEventController,
+    );
     // Pipe GPS samples into the calculator and GPS producer and expose
     // direction updates to the UI and other threads. Position updates are
-    // forwarded to the speed camera warner so it can react to every GPS
-    // sample.
+    // forwarded to the shared speed camera event controller so the
+    // speed cam warner can react to every GPS sample.
     gps.stream.listen((vector) {
       calculator.addVectorSample(vector);
       gpsProducer.update(vector);
       directionNotifier.value = vector.direction;
-      camWarner.updatePosition(vector);
     });
 
     // Forward bearing sets to the deviation checker.

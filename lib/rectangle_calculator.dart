@@ -667,6 +667,11 @@ class RectangleCalculatorThread {
   Stream<Timestamped<Map<String, dynamic>>> get speedCamEvents =>
       _speedCamEventController.stream;
 
+  /// Exposes the shared controller so other threads can publish position
+  /// updates and camera notifications through the same channel.
+  StreamController<Timestamped<Map<String, dynamic>>> get speedCamEventController =>
+      _speedCamEventController;
+
   /// Stream of construction areas discovered during look‑ahead queries.
   Stream<GeoRect> get constructions => _constructionStreamController.stream;
 
