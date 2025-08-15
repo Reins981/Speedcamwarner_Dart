@@ -690,12 +690,9 @@ class SpeedCamWarner {
   void triggerFreeFlow() {
     if (resume?.isResumed() ?? true) {
       updateSpeedcam('FREEFLOW');
-      updateBarWidget1000m(color: 2);
-      updateBarWidget500m(color: 2);
-      updateBarWidget300m(color: 2);
-      updateBarWidget100m(color: 2);
       updateBarWidgetMeters('');
       updateCamText(reset: true);
+      updateCamRoad(reset: true);
     }
   }
 
