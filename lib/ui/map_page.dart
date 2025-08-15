@@ -27,7 +27,7 @@ class _MapPageState extends State<MapPage> {
   final PopupController _popupController = PopupController();
   final MapController _mapController = MapController();
   StreamSubscription<SpeedCameraEvent>? _camSub;
-  StreamSubscription<GeoRect>? _rectSub;
+  StreamSubscription<GeoRect?>? _rectSub;
   StreamSubscription<GeoRect>? _constructionSub;
   final List<Polygon> _rectPolygons = [];
 
@@ -103,7 +103,13 @@ class _MapPageState extends State<MapPage> {
     });
   }
 
-  void _onRect(GeoRect rect) {
+  void _onRect(GeoRect? rect) {
+    if (rect == null) {
+      setState(() {
+        _rectPolygons.clear();
+      });
+      return;
+    }
     final points = [
       LatLng(rect.minLat, rect.minLon),
       LatLng(rect.minLat, rect.maxLon),
