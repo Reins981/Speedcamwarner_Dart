@@ -7,6 +7,7 @@ import 'logger.dart';
 import 'rectangle_calculator.dart';
 import 'voice_prompt_events.dart';
 import 'config.dart';
+import 'thread_base.dart';
 
 /// Simplified port of the GPS handling thread from the Python code base.  The
 /// original application relied on OS threads and condition variables to push
@@ -14,8 +15,12 @@ import 'config.dart';
 /// [Stream] of [VectorData] objects.  Consumers may listen to [stream] or
 /// forward the events to [RectangleCalculatorThread.addVectorSample].
 class GpsThread extends Logger {
-  GpsThread({this.voicePromptEvents, double? accuracyThreshold})
-      : accuracyThreshold =
+  GpsThread({
+    this.voicePromptEvents,
+    double? accuracyThreshold,
+    StreamController<Timestamped<Map<String, dynamic>>>?
+        speedCamEventController,
+  })  : accuracyThreshold =
             (accuracyThreshold ??
                     AppConfig.get<num>('gpsThread.gps_inaccuracy_treshold') ??
                     4)
@@ -28,6 +33,7 @@ class GpsThread extends Logger {
         gpsTreshold =
             (AppConfig.get<num>('gpsThread.gps_treshold') ?? 40).toDouble(),
         recording = AppConfig.get<bool>('gpsThread.recording') ?? false,
+        _speedCamEventController = speedCamEventController,
         super('GpsThread');
 
   final VoicePromptEvents? voicePromptEvents;
@@ -39,14 +45,14 @@ class GpsThread extends Logger {
   bool recording;
   final List<Wpt> _routeData = [];
 
+  final StreamController<Timestamped<Map<String, dynamic>>>?
+      _speedCamEventController;
+
   final StreamController<VectorData> _controller =
       StreamController<VectorData>.broadcast();
   // Stream distributing bearing sets for the deviation checker.
   final StreamController<dynamic> _bearingSetController =
       StreamController<dynamic>.broadcast();
-  // Position update stream for the speed cam warner.
-  final StreamController<VectorData> _positionController =
-      StreamController<VectorData>.broadcast();
 
   StreamSubscription<VectorData>? _sourceSub;
   bool _running = false;
@@ -67,8 +73,8 @@ class GpsThread extends Logger {
   Stream<dynamic> get bearingSets => _bearingSetController.stream;
 
   /// Plain position updates which other components (e.g. the speed cam warner)
-  /// may listen to.
-  Stream<VectorData> get positionUpdates => _positionController.stream;
+  /// may listen to. Uses the same underlying stream as [stream].
+  Stream<VectorData> get positionUpdates => _controller.stream;
 
   /// Start emitting samples.  If a [source] stream is provided its events are
   /// forwarded to listeners.  Otherwise samples can be pushed manually via
@@ -118,7 +124,6 @@ class GpsThread extends Logger {
     await _sourceSub?.cancel();
     await _controller.close();
     await _bearingSetController.close();
-    await _positionController.close();
   }
 
   void startRecording() {
@@ -162,7 +167,19 @@ class GpsThread extends Logger {
     );
 
     _controller.add(enriched);
-    _positionController.add(enriched);
+    _speedCamEventController?.add(
+      Timestamped<Map<String, dynamic>>({
+        'bearing': enriched.bearing,
+        'stable_ccp': true,
+        'ccp': [enriched.longitude, enriched.latitude],
+        'fix_cam': [false, 0.0, 0.0, false],
+        'traffic_cam': [false, 0.0, 0.0, false],
+        'distance_cam': [false, 0.0, 0.0, false],
+        'mobile_cam': [false, 0.0, 0.0, false],
+        'ccp_node': [null, null],
+        'list_tree': [null, null],
+      }),
+    );
     _produceBearingSet(enriched.bearing);
     if (recording) {
       _routeData.add(Wpt(
