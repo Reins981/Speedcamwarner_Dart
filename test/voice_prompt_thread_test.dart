@@ -17,6 +17,15 @@ class FakeDialogflow {
   Future<String> detectIntent(String text) async => 'response:$text';
 }
 
+class RecordingFakeDialogflow extends FakeDialogflow {
+  String? lastText;
+  @override
+  Future<String> detectIntent(String text) async {
+    lastText = text;
+    return super.detectIntent(text);
+  }
+}
+
 class TestVoicePromptThread extends VoicePromptThread {
   final List<String> played = [];
   TestVoicePromptThread({
@@ -42,6 +51,18 @@ void main() {
     );
     await thread.process('hello');
     expect((thread.flutterTts as FakeTts).lastText, 'response:hello');
+  });
+
+  test('voice entries map to phrases before dialogflow call', () async {
+    final df = RecordingFakeDialogflow();
+    final thread = VoicePromptThread(
+      voicePromptEvents: VoicePromptEvents(),
+      dialogflowClient: df,
+      tts: FakeTts(),
+      aiVoicePrompts: true,
+    );
+    await thread.process('GPS_OFF');
+    expect(df.lastText, 'GPS is off');
   });
 
   test('non ai mapping returns sound path', () {
