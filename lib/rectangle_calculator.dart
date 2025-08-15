@@ -787,12 +787,16 @@ class RectangleCalculatorThread {
           _computeBoundingRect(latitude, longitude, camLookAheadKm, 'camera');
       currentRectAngle = bearing;
       _rectangleStreamController.add(rect);
+    } else {
+      logger.printLogLine('No new camera rectangle to add');
     }
     if (calculateNewRectConstruction) {
       final GeoRect rect = _computeBoundingRect(
           latitude, longitude, constructionLookAheadKm, 'construction');
       currentRectAngle = bearing;
       _rectangleStreamController.add(rect);
+    } else {
+      logger.printLogLine('No new construction area rectangle to add');
     }
 
     // Predictive camera detection.  Evaluate the model with the current
