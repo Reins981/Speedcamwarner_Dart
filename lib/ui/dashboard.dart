@@ -72,9 +72,23 @@ class _DashboardPageState extends State<DashboardPage> {
       if (_speedCamWarning == 'FREEFLOW') {
         _clearCameraInfo();
       } else {
-        _speedCamIcon = _iconForWarning(_speedCamWarning);
-        _speedCamDistance = _calculator!.speedCamDistanceNotifier.value;
-        _cameraRoad = _calculator!.cameraRoadNotifier.value;
+        final parts = _speedCamWarning?.split(' ');
+        if (parts != null && parts.length > 1) {
+          final dist = double.tryParse(parts.first);
+          if (dist == 0 && _speed <= 1) {
+            _clearCameraInfo();
+          } else {
+            _speedCamWarning = parts.last;
+            _speedCamIcon = _iconForWarning(_speedCamWarning);
+            _speedCamDistance =
+                _calculator!.speedCamDistanceNotifier.value;
+            _cameraRoad = _calculator!.cameraRoadNotifier.value;
+          }
+        } else {
+          _speedCamIcon = _iconForWarning(_speedCamWarning);
+          _speedCamDistance = _calculator!.speedCamDistanceNotifier.value;
+          _cameraRoad = _calculator!.cameraRoadNotifier.value;
+        }
       }
       _maxSpeed = _calculator!.maxspeedNotifier.value;
       _gpsOn = _calculator!.gpsStatusNotifier.value;
@@ -118,9 +132,23 @@ class _DashboardPageState extends State<DashboardPage> {
       if (_speedCamWarning == 'FREEFLOW') {
         _clearCameraInfo();
       } else {
-        _speedCamIcon = _iconForWarning(_speedCamWarning);
-        _speedCamDistance = _calculator!.speedCamDistanceNotifier.value;
-        _cameraRoad = _calculator!.cameraRoadNotifier.value;
+        final parts = _speedCamWarning?.split(' ');
+        if (parts != null && parts.length > 1) {
+          final dist = double.tryParse(parts.first);
+          if (dist == 0 && _speed <= 1) {
+            _clearCameraInfo();
+          } else {
+            _speedCamWarning = parts.last;
+            _speedCamIcon = _iconForWarning(_speedCamWarning);
+            _speedCamDistance =
+                _calculator!.speedCamDistanceNotifier.value;
+            _cameraRoad = _calculator!.cameraRoadNotifier.value;
+          }
+        } else {
+          _speedCamIcon = _iconForWarning(_speedCamWarning);
+          _speedCamDistance = _calculator!.speedCamDistanceNotifier.value;
+          _cameraRoad = _calculator!.cameraRoadNotifier.value;
+        }
       }
       _maxSpeed = _calculator!.maxspeedNotifier.value;
       _gpsOn = _calculator!.gpsStatusNotifier.value;
@@ -146,7 +174,7 @@ class _DashboardPageState extends State<DashboardPage> {
   void _onCamera(SpeedCameraEvent cam) {
     setState(() {
       _activeCamera = cam;
-      _speedCamIcon = _iconForCamera(cam);
+      _speedCamIcon = _iconForWarning(_cameraTypeString(cam));
     });
   }
 
@@ -609,6 +637,15 @@ class _DashboardPageState extends State<DashboardPage> {
         ),
       ],
     );
+  }
+
+  String _cameraTypeString(SpeedCameraEvent cam) {
+    if (cam.fixed) return 'fix';
+    if (cam.traffic) return 'traffic';
+    if (cam.distance) return 'distance';
+    if (cam.mobile) return 'mobile';
+    if (cam.predictive) return 'CAMERA_AHEAD';
+    return '';
   }
 
   String? _iconForWarning(String? warning) {
