@@ -253,6 +253,9 @@ class RectangleCalculatorThread {
   /// [Rect.pointInRect].
   Rect? lastRect;
 
+  /// Geographic representation of [lastRect].
+  GeoRect? lastGeoRect;
+
   /// Controller used to broadcast detected speed camera events.  Multiple
   /// listeners may subscribe and react (e.g. warn the user or annotate a map).
   final StreamController<SpeedCameraEvent> _cameraStreamController =
@@ -397,8 +400,12 @@ class RectangleCalculatorThread {
   /// Number of distance cameras encountered in the current data set.
   int numberDistanceCams = 0;
 
-  /// Distance in kilometres used for look‑ahead camera searches.
-  double speedCamLookAheadDistance = 300.0;
+  /// Distance in kilometres used for look‑ahead camera searches. Updated
+  /// dynamically based on the current speed.
+  double speedCamLookAheadDistance = 0.0;
+
+  /// Maximum distance in kilometres for speed camera look‑ahead.
+  double maxSpeedCamLookAheadDistance = 300.0;
 
   /// Size of the rectangle used by the legacy POI reader. The original
   /// implementation exposed a full lookup table keyed by driving direction.
@@ -417,8 +424,12 @@ class RectangleCalculatorThread {
   // Variable storing the state of the ccp
   String? ccpStable;
 
-  /// Distance in kilometres used for construction area look‑ahead.
-  double constructionAreaLookaheadDistance = 30.0;
+  /// Distance in kilometres used for construction area look‑ahead. Updated
+  /// dynamically based on the current speed.
+  double constructionAreaLookaheadDistance = 0.0;
+
+  /// Maximum distance in kilometres for construction area look‑ahead.
+  double maxConstructionAreaLookaheadDistance = 30.0;
 
   /// Minimum interval between network lookups to avoid excessive requests.
   double dosAttackPreventionIntervalDownloads = 30.0;
@@ -462,6 +473,8 @@ class RectangleCalculatorThread {
   /// Rectangles representing the last look‑ahead search areas.
   Rect? rectSpeedCamLookahead;
   Rect? rectConstructionAreasLookahead;
+  GeoRect? rectSpeedCamLookaheadGeo;
+  GeoRect? rectConstructionAreasLookaheadGeo;
 
   /// Default speed limits per road class (km/h).
   static const Map<String, int> roadClassesToSpeed = {
@@ -565,13 +578,13 @@ class RectangleCalculatorThread {
         seconds: (AppConfig.get<num>('calculator.osm_timeout_motorway') ?? 30)
             .toInt());
     osmRequestTimeout = osmTimeout;
-    speedCamLookAheadDistance =
+    maxSpeedCamLookAheadDistance =
         (AppConfig.get<num>('calculator.speed_cam_look_ahead_distance') ??
-                speedCamLookAheadDistance)
+                maxSpeedCamLookAheadDistance)
             .toDouble();
-    constructionAreaLookaheadDistance = (AppConfig.get<num>(
+    maxConstructionAreaLookaheadDistance = (AppConfig.get<num>(
                 'calculator.construction_area_lookahead_distance') ??
-            constructionAreaLookaheadDistance)
+            maxConstructionAreaLookaheadDistance)
         .toDouble();
     dosAttackPreventionIntervalDownloads = (AppConfig.get<num>(
                 'calculator.dos_attack_prevention_interval_downloads') ??
@@ -750,14 +763,16 @@ class RectangleCalculatorThread {
     _tileCache['xtile'] = xtile;
     _tileCache['ytile'] = ytile;
 
-    // Compute the size of the rectangle based on the current speed.
-    // In the original code ``calculate_rectangle_radius`` uses the diagonal
-    // distance of a tile: here we define a simple linear relation where the
-    // lookahead distance grows with speed.  Vehicles above 110 km/h
-    // translate into a larger lookahead rectangle.
-    final double lookAheadKm = _computeLookAheadDistance(speedKmH);
-    speedCamLookAheadDistance = lookAheadKm;
-    final GeoRect rect = _computeBoundingRect(latitude, longitude, lookAheadKm);
+    // Compute look-ahead distances based on the current speed.  Separate
+    // maxima are used for cameras and construction areas.
+    final double camLookAheadKm =
+        _computeLookAheadDistance(speedKmH, maxSpeedCamLookAheadDistance);
+    speedCamLookAheadDistance = camLookAheadKm;
+    final double constructionLookAheadKm = _computeLookAheadDistance(
+        speedKmH, maxConstructionAreaLookaheadDistance);
+    constructionAreaLookaheadDistance = constructionLookAheadKm;
+    final GeoRect rect =
+        _computeBoundingRect(latitude, longitude, camLookAheadKm);
     currentRectAngle = bearing;
     _rectangleStreamController.add(rect);
 
@@ -808,18 +823,14 @@ class RectangleCalculatorThread {
     }
   }
 
-  /// Compute a lookahead distance in kilometres based upon the current speed.
-  /// This function loosely mirrors the behaviour of ``speed_influence_on_rect_boundary``
-  /// and related configuration in the original code.  At low speeds the
-  /// rectangle covers roughly three kilometres ahead; as the speed increases
-  /// the distance scales linearly.  You may adjust the coefficients to suit
-  /// your application’s needs.
-  double _computeLookAheadDistance(double speedKmH) {
-    if (speedKmH <= 0) return 3.0;
-    // Baseline 3 km plus 0.05 km per km/h above 50 km/h.  A cap of 10 km is
-    // applied to prevent excessive lookahead ranges.
-    final extra = math.max(0.0, speedKmH - 50.0) * 0.05;
-    return math.min(3.0 + extra, 10.0);
+  /// Compute a lookahead distance in kilometres based on [speedKmH].  The
+  /// distance grows linearly with speed and is clamped to [maxDistanceKm].  A
+  /// baseline of three kilometres ensures a reasonable search radius even at
+  /// low speeds.
+  double _computeLookAheadDistance(double speedKmH, double maxDistanceKm) {
+    const double base = 3.0;
+    final double dynamicDistance = base + speedKmH * (2 / 60); // ~2 min ahead
+    return math.min(math.max(dynamicDistance, base), maxDistanceKm);
   }
 
   /// Given a centre point and a lookahead distance in kilometres, compute a
@@ -853,12 +864,14 @@ class RectangleCalculatorThread {
       pt1: Point(minTile.x, minTile.y),
       pt2: Point(maxTile.x, maxTile.y),
     );
-    return GeoRect(
+    final rect = GeoRect(
       minLat: minLat,
       minLon: minLon,
       maxLat: maxLat,
       maxLon: maxLon,
     );
+    lastGeoRect = rect;
+    return rect;
   }
 
   /// Convert a longitude/latitude pair into tile coordinates.  This is
@@ -1044,6 +1057,7 @@ class RectangleCalculatorThread {
   /// Reset transient state and clear construction areas.
   void cleanup() {
     lastRect = null;
+    lastGeoRect = null;
     constructionAreas = [];
   }
 
@@ -1076,6 +1090,14 @@ class RectangleCalculatorThread {
     final double distance = tile2hypotenuse(xtile, ytile);
     final double angle = math.atan2(ytile, xtile) * 180.0 / math.pi;
     return math.Point<double>(distance, angle);
+  }
+
+  /// Check if a geographic point lies inside [rect].
+  bool _geoPointInRect(double lat, double lon, GeoRect rect) {
+    return lat >= rect.minLat &&
+        lat <= rect.maxLat &&
+        lon >= rect.minLon &&
+        lon <= rect.maxLon;
   }
 
   /// Calculate opposite tile bounds when looking ahead from a given
@@ -1361,7 +1383,7 @@ class RectangleCalculatorThread {
       final rect = _computeBoundingRect(
         vector.latitude,
         vector.longitude,
-        _computeLookAheadDistance(0),
+        _computeLookAheadDistance(0, maxSpeedCamLookAheadDistance),
       );
       _rectangleStreamController.add(rect);
     } else {
@@ -1524,12 +1546,14 @@ class RectangleCalculatorThread {
     final lookups = [
       {
         'rect': rectSpeedCamLookahead,
+        'geoRect': rectSpeedCamLookaheadGeo,
         'func': RectangleCalculatorThread.startThreadPoolSpeedCamera,
         'msg': 'Speed Camera lookahead',
         'trigger': speedCamLookupAhead,
       },
       {
         'rect': rectConstructionAreasLookahead,
+        'geoRect': rectConstructionAreasLookaheadGeo,
         'func': RectangleCalculatorThread.startThreadPoolConstructionAreas,
         'msg': 'Construction area lookahead',
         'trigger': constructionsLookupAhead,
@@ -1551,16 +1575,20 @@ class RectangleCalculatorThread {
           double, double, double, double);
 
       if (rect != null) {
-        final inside = rect.pointInRect(xtile, ytile);
-        final close = rect.pointsCloseToBorder(
-          xtile,
-          ytile,
-          lookAhead: true,
-          lookAheadMode: msg,
-        );
-        if (inside && !close) {
-          logger.printLogLine('Skipping $msg - inside existing lookahead');
-          continue;
+        final GeoRect? geoRect = item['geoRect'] as GeoRect?;
+        if (geoRect != null) {
+          final inside = _geoPointInRect(ccpLat, ccpLon, geoRect);
+          final close = rect.pointsCloseToBorder(
+            xtile,
+            ytile,
+            lookAhead: true,
+            lookAheadMode: msg,
+          );
+          if (inside && !close) {
+            logger
+                .printLogLine('Skipping $msg - inside existing lookahead');
+            continue;
+          }
         }
       }
 
@@ -1591,8 +1619,10 @@ class RectangleCalculatorThread {
       _lastLookaheadExecution[msg] = DateTime.now();
       if (msg == 'Speed Camera lookahead') {
         rectSpeedCamLookahead = lastRect;
+        rectSpeedCamLookaheadGeo = lastGeoRect;
       } else if (msg == 'Construction area lookahead') {
         rectConstructionAreasLookahead = lastRect;
+        rectConstructionAreasLookaheadGeo = lastGeoRect;
       }
     }
   }
@@ -1960,6 +1990,7 @@ class RectangleCalculatorThread {
 
   void updateRectanglePeriphery(Rect rect) {
     lastRect = rect;
+    lastGeoRect = null;
   }
 
   void processAllSpeedCameras(List<SpeedCameraEvent> cams) {
