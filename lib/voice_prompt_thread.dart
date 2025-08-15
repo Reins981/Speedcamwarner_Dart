@@ -89,7 +89,8 @@ class VoicePromptThread {
     }
 
     if (aiVoicePrompts) {
-      final response = await dialogflowClient.detectIntent(voiceEntry);
+      final phrase = mapVoiceEntryToPhrase(voiceEntry) ?? voiceEntry;
+      final response = await dialogflowClient.detectIntent(phrase);
       _lock = true;
       await synthesizeSpeech(response);
       _lock = false;
@@ -315,5 +316,66 @@ class VoicePromptThread {
     };
     final file = map[voiceEntry];
     return file != null ? '$_basePath/$file' : null;
+  }
+
+  /// Map a [voiceEntry] identifier to a natural language phrase that can be
+  /// understood by Dialogflow. Returns `null` if no phrase mapping exists.
+  String? mapVoiceEntryToPhrase(String voiceEntry) {
+    const phrases = {
+      'EXIT_APPLICATION': 'Exit the app',
+      'ADDED_POLICE': 'I saw a police car',
+      'ADDING_POLICE_FAILED': "Adding police didn't work",
+      'STOP_APPLICATION': 'Stop the app',
+      'OSM_DATA_ERROR': 'No map data from the server',
+      'INTERNET_CONN_FAILED': 'No internet connection',
+      'HAZARD': 'There’s a hazard ahead',
+      'EMPTY_DATASET_FROM_SERVER': 'No data from server',
+      'LOW_DOWNLOAD_DATA_RATE': 'Download rate is low',
+      'GPS_OFF': 'GPS is off',
+      'GPS_LOW': 'Low GPS signal',
+      'GPS_ON': 'GPS is back online',
+      'SPEEDCAM_BACKUP': 'Speed camera backup',
+      'SPEEDCAM_REINSERT': 'Reinsert speed camera data',
+      'FIX_100': 'Fixed camera 100 meters ahead',
+      'TRAFFIC_100': 'Traffic camera 100 meters ahead',
+      'MOBILE_100': 'Mobile speed trap 100 meters ahead',
+      'MOBILE_PREDICTIVE_100':
+          'Predictive mobile speed trap 100 meters ahead',
+      'DISTANCE_100': '100 meters',
+      'FIX_300': 'Fixed camera 300 meters ahead',
+      'TRAFFIC_300': 'Traffic camera 300 meters ahead',
+      'MOBILE_300': 'Mobile speed trap 300 meters ahead',
+      'MOBILE_PREDICTIVE_300':
+          'Predictive mobile speed trap 300 meters ahead',
+      'DISTANCE_300': '300 meters',
+      'FIX_500': 'Fixed camera 500 meters ahead',
+      'TRAFFIC_500': 'Traffic camera 500 meters ahead',
+      'MOBILE_500': 'Mobile speed trap 500 meters ahead',
+      'MOBILE_PREDICTIVE_500':
+          'Predictive mobile speed trap 500 meters ahead',
+      'DISTANCE_500': '500 meters',
+      'FIX_1000': 'Fixed camera 1000 meters ahead',
+      'TRAFFIC_1000': 'Traffic camera 1000 meters ahead',
+      'MOBILE_1000': 'Mobile speed trap 1000 meters ahead',
+      'MOBILE_PREDICTIVE_1000':
+          'Predictive mobile speed trap 1000 meters ahead',
+      'DISTANCE_1000': '1000 meters',
+      'FIX_NOW': 'Fixed camera ahead',
+      'TRAFFIC_NOW': 'Traffic camera ahead',
+      'MOBILE_NOW': 'Mobile speed trap ahead',
+      'MOBILE_PREDICTIVE_NOW': 'Predictive mobile speed trap ahead',
+      'DISTANCE_NOW': 'Now',
+      'CAMERA_AHEAD': 'Camera ahead',
+      'WATER': 'Water on road',
+      'ACCESS_CONTROL': 'Access control',
+      'POI_SUCCESS': 'Point of interest added successfully',
+      'POI_FAILED': 'Point of interest failed',
+      'NO_ROUTE': 'No route available',
+      'ROUTE_STOPPED': 'Route stopped',
+      'POI_REACHED': 'Point of interest reached',
+      'ANGLE_MISMATCH': 'Angle mismatch',
+      'AR_HUMAN': 'Human ahead',
+    };
+    return phrases[voiceEntry];
   }
 }
