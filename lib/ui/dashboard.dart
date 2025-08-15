@@ -180,7 +180,6 @@ class _DashboardPageState extends State<DashboardPage> {
       _averageBearing =
           _averageBearingNotifier?.value ?? _averageBearing;
     });
-
   }
 
   @override
