@@ -108,6 +108,7 @@ class ServiceAccount {
 
   static Future<(bool, String?)> addCameraToJson(
     String name,
+    String roadName,
     double latitude,
     double longitude,
   ) async {
@@ -122,6 +123,7 @@ class ServiceAccount {
 
     final newCamera = {
       'name': name,
+      'road_name': roadName,
       'coordinates': [
         {'latitude': latitude, 'longitude': longitude},
       ],
