@@ -181,7 +181,10 @@ class SpeedCamWarner {
           'Add new fix cam (${item['fix_cam'][1]}, ${item['fix_cam'][2]})',
         );
         camCoordinates = [item['fix_cam'][1], item['fix_cam'][2]];
-        ccpNodeCoordinates = [item['ccp_node'][0], item['ccp_node'][1]];
+        ccpNodeCoordinates = [
+          double.tryParse(item['ccp_node'][0].toString()),
+          double.tryParse(item['ccp_node'][1].toString())
+        ];
         var linkedList = item['list_tree'][0];
         var tree = item['list_tree'][1];
         var startTime = DateTime.now().millisecondsSinceEpoch / 1000.0;
@@ -236,7 +239,10 @@ class SpeedCamWarner {
           'Add new traffic cam (${item['traffic_cam'][1]}, ${item['traffic_cam'][2]})',
         );
         camCoordinates = [item['traffic_cam'][1], item['traffic_cam'][2]];
-        ccpNodeCoordinates = [item['ccp_node'][0], item['ccp_node'][1]];
+        ccpNodeCoordinates = [
+          double.tryParse(item['ccp_node'][0].toString()),
+          double.tryParse(item['ccp_node'][1].toString())
+        ];
         var linkedList = item['list_tree'][0];
         var tree = item['list_tree'][1];
         var startTime = DateTime.now().millisecondsSinceEpoch / 1000.0;
@@ -291,7 +297,10 @@ class SpeedCamWarner {
           'Add new distance cam (${item['distance_cam'][1]}, ${item['distance_cam'][2]})',
         );
         camCoordinates = [item['distance_cam'][1], item['distance_cam'][2]];
-        ccpNodeCoordinates = [item['ccp_node'][0], item['ccp_node'][1]];
+        ccpNodeCoordinates = [
+          double.tryParse(item['ccp_node'][0].toString()),
+          double.tryParse(item['ccp_node'][1].toString())
+        ];
         var linkedList = item['list_tree'][0];
         var tree = item['list_tree'][1];
         var startTime = DateTime.now().millisecondsSinceEpoch / 1000.0;
