@@ -36,6 +36,8 @@ class _HomePageState extends State<HomePage> {
       DashboardPage(
         calculator: widget.controller.calculator,
         arStatus: widget.controller.arStatusNotifier,
+        direction: widget.controller.directionNotifier,
+        averageBearing: widget.controller.averageBearingValue,
       ),
       MapPage(calculator: widget.controller.calculator),
       ArPage(

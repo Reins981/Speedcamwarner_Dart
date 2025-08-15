@@ -126,6 +126,15 @@ class SpeedCamWarner {
     logger.printLogLine('SpeedCamWarner terminating');
   }
 
+  /// Receive a raw position update from the GPS thread.  This mirrors the
+  /// ``ccp`` updates produced by the original Python implementation.
+  void updatePosition(VectorData vector) {
+    longitude = vector.longitude;
+    latitude = vector.latitude;
+    ccpBearing = vector.bearing;
+    _lastPosition = LatLng(vector.latitude, vector.longitude);
+  }
+
   void process(Timestamped<Map<String, dynamic>> envelope) {
     logger.printLogLine('Processing speedcam event');
     if (DateTime.now().difference(envelope.timestamp) > _staleThreshold) {

@@ -44,17 +44,21 @@ class AppController {
       overspeedChecker: overspeedChecker,
       overspeedThread: overspeedThread,
     );
-    // Pipe GPS samples into the calculator and GPS producer.
+    // Pipe GPS samples into the calculator and GPS producer and expose
+    // direction updates to the UI and other threads. Position updates are
+    // forwarded to the speed camera warner so it can react to every GPS
+    // sample.
     gps.stream.listen((vector) {
       calculator.addVectorSample(vector);
       gpsProducer.update(vector);
-      _bearingBuffer.add(vector.bearing);
-      if (_bearingBuffer.length == 5) {
-        final data = List<double>.from(_bearingBuffer);
-        averageAngleQueue.produce(data);
-        deviationChecker.addAverageAngleData(data);
-        _bearingBuffer.clear();
-      }
+      directionNotifier.value = vector.direction;
+      camWarner.updatePosition(vector);
+    });
+
+    // Forward bearing sets to the deviation checker.
+    gps.bearingSets.listen((data) {
+      averageAngleQueue.produce(data);
+      deviationChecker.addAverageAngleData(data);
     });
 
     osmWrapper = Maps();
@@ -150,9 +154,11 @@ class AppController {
 
   /// Publishes the current average bearing to the UI.
   final ValueNotifier<String> averageBearingValue =
-      ValueNotifier<String>('---.-');
+      ValueNotifier<String>('---.-°');
 
-  final List<double> _bearingBuffer = <double>[];
+  /// Publishes the current driving direction to the dashboard.
+  final ValueNotifier<String> directionNotifier =
+      ValueNotifier<String>('-');
 
   /// Supplies direction and coordinates for POI queries.
   final GpsProducer gpsProducer = GpsProducer();
@@ -214,7 +220,6 @@ class AppController {
     await osmThread.stop();
     deviationChecker.terminate();
     averageAngleQueue.clearAverageAngleData();
-    _bearingBuffer.clear();
     _running = false;
   }
 
@@ -252,7 +257,6 @@ class AppController {
     _deviationRunning = false;
     deviationChecker.terminate();
     averageAngleQueue.clearAverageAngleData();
-    _bearingBuffer.clear();
   }
 }
 
