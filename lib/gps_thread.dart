@@ -20,11 +20,10 @@ class GpsThread extends Logger {
     double? accuracyThreshold,
     StreamController<Timestamped<Map<String, dynamic>>>?
         speedCamEventController,
-  })  : accuracyThreshold =
-            (accuracyThreshold ??
-                    AppConfig.get<num>('gpsThread.gps_inaccuracy_treshold') ??
-                    4)
-                .toDouble(),
+  })  : accuracyThreshold = (accuracyThreshold ??
+                AppConfig.get<num>('gpsThread.gps_inaccuracy_treshold') ??
+                4)
+            .toDouble(),
         gpsTestData = AppConfig.get<bool>('gpsThread.gps_test_data') ?? false,
         maxGpsEntries =
             (AppConfig.get<num>('gpsThread.max_gps_entries') ?? 50000).toInt(),
@@ -170,7 +169,7 @@ class GpsThread extends Logger {
     _speedCamEventController?.add(
       Timestamped<Map<String, dynamic>>({
         'bearing': enriched.bearing,
-        'stable_ccp': true,
+        'stable_ccp': null,
         'ccp': [enriched.longitude, enriched.latitude],
         'fix_cam': [false, 0.0, 0.0, false],
         'traffic_cam': [false, 0.0, 0.0, false],

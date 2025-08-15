@@ -256,6 +256,9 @@ class RectangleCalculatorThread {
   /// Geographic representation of [lastRect].
   GeoRect? lastGeoRect;
 
+  /// flag to calculate a new rect with will be used as last rect
+  var calculateNewRect = true;
+
   /// Controller used to broadcast detected speed camera events.  Multiple
   /// listeners may subscribe and react (e.g. warn the user or annotate a map).
   final StreamController<SpeedCameraEvent> _cameraStreamController =
@@ -579,11 +582,11 @@ class RectangleCalculatorThread {
             .toInt());
     osmRequestTimeout = osmTimeout;
     maxSpeedCamLookAheadDistance =
-        (AppConfig.get<num>('calculator.speed_cam_look_ahead_distance') ??
+        (AppConfig.get<num>('calculator.speed_cam_look_ahead_distance_max') ??
                 maxSpeedCamLookAheadDistance)
             .toDouble();
     maxConstructionAreaLookaheadDistance = (AppConfig.get<num>(
-                'calculator.construction_area_lookahead_distance') ??
+                'calculator.construction_area_lookahead_distance_max') ??
             maxConstructionAreaLookaheadDistance)
         .toDouble();
     dosAttackPreventionIntervalDownloads = (AppConfig.get<num>(
@@ -666,11 +669,6 @@ class RectangleCalculatorThread {
   /// Stream of legacy speed camera map updates mirroring the old queue items.
   Stream<Timestamped<Map<String, dynamic>>> get speedCamEvents =>
       _speedCamEventController.stream;
-
-  /// Exposes the shared controller so other threads can publish position
-  /// updates and camera notifications through the same channel.
-  StreamController<Timestamped<Map<String, dynamic>>> get speedCamEventController =>
-      _speedCamEventController;
 
   /// Stream of construction areas discovered during look‑ahead queries.
   Stream<GeoRect> get constructions => _constructionStreamController.stream;
@@ -776,10 +774,12 @@ class RectangleCalculatorThread {
     final double constructionLookAheadKm = _computeLookAheadDistance(
         speedKmH, maxConstructionAreaLookaheadDistance);
     constructionAreaLookaheadDistance = constructionLookAheadKm;
-    final GeoRect rect =
-        _computeBoundingRect(latitude, longitude, camLookAheadKm);
-    currentRectAngle = bearing;
-    _rectangleStreamController.add(rect);
+    if (calculateNewRect) {
+      final GeoRect rect =
+          _computeBoundingRect(latitude, longitude, camLookAheadKm);
+      currentRectAngle = bearing;
+      _rectangleStreamController.add(rect);
+    }
 
     // Predictive camera detection.  Evaluate the model with the current
     // coordinates and time.  This call is asynchronous to permit future
@@ -1000,7 +1000,7 @@ class RectangleCalculatorThread {
         _speedCamEventController.add(
           Timestamped<Map<String, dynamic>>({
             'bearing': 0.0,
-            'stable_ccp': true,
+            'stable_ccp': ccpStable,
             'ccp': ['IGNORE', 'IGNORE'],
             'fix_cam': [cam.fixed, cam.longitude, cam.latitude, true],
             'traffic_cam': [cam.traffic, cam.longitude, cam.latitude, true],
@@ -1439,7 +1439,7 @@ class RectangleCalculatorThread {
     _speedCamEventController.add(
       Timestamped<Map<String, dynamic>>({
         'bearing': bearing,
-        'stable_ccp': ccpStable?.toLowerCase() != 'false',
+        'stable_ccp': ccpStable,
         'ccp': [longitudeCached, latitudeCached],
         'fix_cam': [false, 0.0, 0.0, false],
         'traffic_cam': [false, 0.0, 0.0, false],
@@ -1590,10 +1590,11 @@ class RectangleCalculatorThread {
             lookAheadMode: msg,
           );
           if (inside && !close) {
-            logger
-                .printLogLine('Skipping $msg - inside existing lookahead');
+            logger.printLogLine('Skipping $msg - inside existing lookahead');
+            calculateNewRect = false;
             continue;
           }
+          calculateNewRect = true;
         }
       }
 
@@ -1745,9 +1746,8 @@ class RectangleCalculatorThread {
     // Convert lookahead distance in kilometres to tile units at the current
     // latitude/zoom.  Each slippy map tile spans ``40075.016686 / 2^zoom`` km at
     // the equator and shrinks by ``cos(lat)`` towards the poles.
-    final double kmPerTile = (40075.016686 *
-            math.cos(ccpLat * math.pi / 180.0)) /
-        math.pow(2, zoom);
+    final double kmPerTile =
+        (40075.016686 * math.cos(ccpLat * math.pi / 180.0)) / math.pow(2, zoom);
     final double tileDistance = speedCamLookAheadDistance / kmPerTile;
     final pts = calculatePoints2Angle(
       xtile,
@@ -1812,9 +1812,8 @@ class RectangleCalculatorThread {
     // Convert lookahead distance in kilometres to tile units at the current
     // latitude/zoom.  Each slippy map tile spans ``40075.016686 / 2^zoom`` km at
     // the equator and shrinks by ``cos(lat)`` towards the poles.
-    final double kmPerTile = (40075.016686 *
-            math.cos(ccpLat * math.pi / 180.0)) /
-        math.pow(2, zoom);
+    final double kmPerTile =
+        (40075.016686 * math.cos(ccpLat * math.pi / 180.0)) / math.pow(2, zoom);
     final double tileDistance = constructionAreaLookaheadDistance / kmPerTile;
     final pts = calculatePoints2Angle(
       xtile,
@@ -2437,8 +2436,7 @@ class RectangleCalculatorThread {
     // `data` parameter.  ``Uri.replace`` handles proper URL encoding so that
     // characters such as quotes and spaces are percent encoded.  Strip any
     // leading ``data=`` from the configured query to avoid duplicated prefixes.
-    final queryParam =
-        query.startsWith('data=') ? query.substring(5) : query;
+    final queryParam = query.startsWith('data=') ? query.substring(5) : query;
     final uri = Uri.parse(baseUrl).replace(queryParameters: {
       'data': queryParam,
     });
@@ -2449,15 +2447,13 @@ class RectangleCalculatorThread {
       final start = DateTime.now();
       http.Response? resp;
       try {
-        resp = await httpClient
-            .get(
-              uri,
-              headers: {
-                'User-Agent': 'speedcamwarner-dart',
-                'Accept': 'application/json',
-              },
-            )
-            .timeout(osmRequestTimeout);
+        resp = await httpClient.get(
+          uri,
+          headers: {
+            'User-Agent': 'speedcamwarner-dart',
+            'Accept': 'application/json',
+          },
+        ).timeout(osmRequestTimeout);
         if (resp.statusCode == 200) {
           final data = jsonDecode(resp.body) as Map<String, dynamic>;
           final elements = data['elements'] as List<dynamic>?;

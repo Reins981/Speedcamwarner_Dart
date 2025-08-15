@@ -144,7 +144,7 @@ class SpeedCamWarner {
     var item = envelope.data;
 
     ccpBearing = item['bearing'];
-    var stableCcp = item['stable_ccp'] ?? true;
+    var stableCcp = item['stable_ccp'] ?? 'UNSTABLE';
     adaptMaxStorageTime(stableCcp);
 
     if (item['ccp'][0] == 'EXIT' || item['ccp'][1] == 'EXIT') {
@@ -600,8 +600,8 @@ class SpeedCamWarner {
   }
 
   // ---------------------- helper and utility methods --------------------
-  void adaptMaxStorageTime(bool stableCcp) {
-    if (!stableCcp && !maxStorageTimeIncreased) {
+  void adaptMaxStorageTime(var stableCcp) {
+    if (stableCcp == 'UNSTABLE' && !maxStorageTimeIncreased) {
       print('CCP is not stable. Increasing max storage time by 600 seconds');
       maxStorageTime += 600;
       maxStorageTimeIncreased = true;
