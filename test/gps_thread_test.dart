@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:io';
 
 import 'package:test/test.dart';
 import 'package:workspace/gps_thread.dart';
@@ -63,6 +64,23 @@ void main() {
     final second = await events.stream.first.timeout(const Duration(milliseconds: 100));
     expect(second, 'GPS_LOW');
 
+    await gps.stop();
+  });
+
+  test('gps thread records route to gpx', () async {
+    final gps = GpsThread();
+    gps.start();
+    gps.startRecording();
+    gps.addSample(VectorData(
+        longitude: 1.0,
+        latitude: 1.0,
+        speed: 50,
+        bearing: 0,
+        direction: 'Main',
+        gpsStatus: 1,
+        accuracy: 5));
+    await gps.stopRecording('gpx/test_route.gpx');
+    expect(File('gpx/test_route.gpx').existsSync(), isTrue);
     await gps.stop();
   });
 }

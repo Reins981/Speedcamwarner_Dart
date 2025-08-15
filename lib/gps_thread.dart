@@ -1,4 +1,7 @@
 import 'dart:async';
+import 'dart:io';
+
+import 'package:gpx/gpx.dart';
 
 import 'logger.dart';
 import 'rectangle_calculator.dart';
@@ -34,6 +37,7 @@ class GpsThread extends Logger {
   final String gpxFile;
   final double gpsTreshold;
   bool recording;
+  final List<Wpt> _routeData = [];
 
   final StreamController<VectorData> _controller =
       StreamController<VectorData>.broadcast();
@@ -117,6 +121,34 @@ class GpsThread extends Logger {
     await _positionController.close();
   }
 
+  void startRecording() {
+    recording = true;
+    _routeData.clear();
+    printLogLine('Route recording started');
+  }
+
+  Future<void> stopRecording([String path = 'gpx/route_data.gpx']) async {
+    recording = false;
+    await _saveRouteData(path);
+    printLogLine('Route recording stopped');
+  }
+
+  Future<void> _saveRouteData(String path) async {
+    if (_routeData.isEmpty) {
+      printLogLine('No route data to save', logLevel: 'WARNING');
+      return;
+    }
+    final gpx = Gpx();
+    final trkseg = Trkseg(trkpts: List<Wpt>.from(_routeData));
+    final trk = Trk(trksegs: [trkseg]);
+    gpx.trks.add(trk);
+    final file = File(path);
+    await file.create(recursive: true);
+    final xml = GpxWriter().asString(gpx, pretty: true);
+    await file.writeAsString(xml);
+    printLogLine('Route data saved to GPX file');
+  }
+
   void _handleSample(VectorData vector) {
     final direction = _calculateDirection(vector.bearing);
     final enriched = VectorData(
@@ -132,6 +164,14 @@ class GpsThread extends Logger {
     _controller.add(enriched);
     _positionController.add(enriched);
     _produceBearingSet(enriched.bearing);
+    if (recording) {
+      _routeData.add(Wpt(
+        lat: enriched.latitude,
+        lon: enriched.longitude,
+        time: DateTime.now(),
+        extensions: {'speed': enriched.speed},
+      ));
+    }
     if (voicePromptEvents != null) {
       String signal;
       if (enriched.gpsStatus != 1) {

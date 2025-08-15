@@ -280,6 +280,22 @@ class AppController {
     voicePromptEvents.emit('NO_ROUTE');
   }
 
+  /// Begin recording GPS samples to a GPX file.
+  void startRecording() {
+    gps.startRecording();
+  }
+
+  /// Stop recording and persist the collected route data.
+  Future<void> stopRecording() => gps.stopRecording();
+
+  /// Replay a previously recorded route from [path].
+  Future<void> loadRoute([String path = 'gpx/route_data.gpx']) async {
+    await locationManager.stop();
+    await gps.stop();
+    await locationManager.start(gpxFile: path);
+    gps.start(source: locationManager.stream);
+  }
+
   /// Start the [DeviationCheckerThread] if it isn't already running.
   void startDeviationCheckerThread() {
     if (_deviationRunning) return;
