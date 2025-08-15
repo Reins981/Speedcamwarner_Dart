@@ -191,9 +191,10 @@ Future<SpeedCameraEvent?> predictSpeedCamera({
   final deltaLon =
       cameraDistanceKm / (111.0 * math.cos(latitude * math.pi / 180.0));
   return SpeedCameraEvent(
-      latitude: latitude + deltaLat,
-      longitude: longitude + deltaLon,
-      predictive: true);
+    latitude: latitude + deltaLat,
+    longitude: longitude + deltaLon,
+    predictive: true,
+  );
 }
 
 /// Record a newly detected camera to persistent storage (a JSON file) and
@@ -208,8 +209,12 @@ Future<(bool, String?)> uploadCameraToDrive({
   required double longitude,
 }) async {
   await ServiceAccount.init();
-  final (added, status) =
-      await ServiceAccount.addCameraToJson(name, roadName, latitude, longitude);
+  final (added, status) = await ServiceAccount.addCameraToJson(
+    name,
+    roadName,
+    latitude,
+    longitude,
+  );
   if (!added) {
     return (false, status);
   }
@@ -245,8 +250,8 @@ class RectangleCalculatorThread {
 
   /// Controller used to broadcast new rectangle boundaries.  Downstream
   /// subscribers should listen to this stream to redraw maps or update UI.
-  final StreamController<GeoRect> _rectangleStreamController =
-      StreamController<GeoRect>.broadcast();
+  final StreamController<GeoRect?> _rectangleStreamController =
+      StreamController<GeoRect?>.broadcast();
 
   /// The most recently computed rectangle in tile coordinate space.  Stored
   /// as a [Rect] object for geometric helper methods such as
@@ -271,7 +276,7 @@ class RectangleCalculatorThread {
   /// Replaces the old [SpeedCamQueue] mechanism and includes a timestamp for
   /// staleness checks.
   final StreamController<Timestamped<Map<String, dynamic>>>
-      _speedCamEventController =
+  _speedCamEventController =
       StreamController<Timestamped<Map<String, dynamic>>>.broadcast();
 
   /// Controller used to broadcast newly discovered construction areas.
@@ -376,15 +381,17 @@ class RectangleCalculatorThread {
   );
   final ValueNotifier<bool> onlineStatusNotifier = ValueNotifier<bool>(false);
   final ValueNotifier<bool> gpsStatusNotifier = ValueNotifier<bool>(false);
-  final ValueNotifier<String?> maxspeedStatusNotifier =
-      ValueNotifier<String?>(null);
+  final ValueNotifier<String?> maxspeedStatusNotifier = ValueNotifier<String?>(
+    null,
+  );
   final ValueNotifier<double> currentSpeedNotifier = ValueNotifier<double>(0.0);
   final ValueNotifier<String?> speedCamNotifier = ValueNotifier<String?>(null);
   final ValueNotifier<double?> speedCamDistanceNotifier =
       ValueNotifier<double?>(null);
   final ValueNotifier<String?> camTextNotifier = ValueNotifier<String?>(null);
-  final ValueNotifier<String?> cameraRoadNotifier =
-      ValueNotifier<String?>(null);
+  final ValueNotifier<String?> cameraRoadNotifier = ValueNotifier<String?>(
+    null,
+  );
   final ValueNotifier<LatLng> positionNotifier = ValueNotifier<LatLng>(
     const LatLng(0, 0),
   );
@@ -555,11 +562,11 @@ class RectangleCalculatorThread {
     InterruptQueue<String>? interruptQueue,
     OverspeedChecker? overspeedChecker,
     this.overspeedThread,
-  })  : _predictiveModel = model ?? PredictiveModel(),
-        voicePromptEvents = voicePromptEvents ?? VoicePromptEvents(),
-        interruptQueue = interruptQueue,
-        mostProbableWay = MostProbableWay(),
-        overspeedChecker = overspeedChecker ?? OverspeedChecker() {
+  }) : _predictiveModel = model ?? PredictiveModel(),
+       voicePromptEvents = voicePromptEvents ?? VoicePromptEvents(),
+       interruptQueue = interruptQueue,
+       mostProbableWay = MostProbableWay(),
+       overspeedChecker = overspeedChecker ?? OverspeedChecker() {
     _loadConfigs();
     _start();
   }
@@ -576,30 +583,39 @@ class RectangleCalculatorThread {
 
   void _loadConfigs() {
     maxDownloadTime = Duration(
-        seconds:
-            (AppConfig.get<num>('calculator.max_download_time') ?? 20).toInt());
+      seconds: (AppConfig.get<num>('calculator.max_download_time') ?? 20)
+          .toInt(),
+    );
     osmTimeout = Duration(
-        seconds: (AppConfig.get<num>('calculator.osm_timeout') ?? 20).toInt());
+      seconds: (AppConfig.get<num>('calculator.osm_timeout') ?? 20).toInt(),
+    );
     osmTimeoutMotorway = Duration(
-        seconds: (AppConfig.get<num>('calculator.osm_timeout_motorway') ?? 30)
-            .toInt());
+      seconds: (AppConfig.get<num>('calculator.osm_timeout_motorway') ?? 30)
+          .toInt(),
+    );
     osmRequestTimeout = osmTimeout;
     maxSpeedCamLookAheadDistance =
         (AppConfig.get<num>('calculator.speed_cam_look_ahead_distance_max') ??
                 maxSpeedCamLookAheadDistance)
             .toDouble();
-    maxConstructionAreaLookaheadDistance = (AppConfig.get<num>(
-                'calculator.construction_area_lookahead_distance_max') ??
-            maxConstructionAreaLookaheadDistance)
-        .toDouble();
-    dosAttackPreventionIntervalDownloads = (AppConfig.get<num>(
-                'calculator.dos_attack_prevention_interval_downloads') ??
-            dosAttackPreventionIntervalDownloads)
-        .toDouble();
-    constructionAreaStartupTriggerMax = (AppConfig.get<num>(
-                'calculator.construction_area_startup_trigger_max') ??
-            constructionAreaStartupTriggerMax)
-        .toDouble();
+    maxConstructionAreaLookaheadDistance =
+        (AppConfig.get<num>(
+                  'calculator.construction_area_lookahead_distance_max',
+                ) ??
+                maxConstructionAreaLookaheadDistance)
+            .toDouble();
+    dosAttackPreventionIntervalDownloads =
+        (AppConfig.get<num>(
+                  'calculator.dos_attack_prevention_interval_downloads',
+                ) ??
+                dosAttackPreventionIntervalDownloads)
+            .toDouble();
+    constructionAreaStartupTriggerMax =
+        (AppConfig.get<num>(
+                  'calculator.construction_area_startup_trigger_max',
+                ) ??
+                constructionAreaStartupTriggerMax)
+            .toDouble();
     initialRectDistance =
         (AppConfig.get<num>('calculator.initial_rect_distance') ??
                 initialRectDistance)
@@ -608,43 +624,48 @@ class RectangleCalculatorThread {
         (AppConfig.get<num>('calculator.speed_influence_on_rect_boundary') ??
                 speedInfluenceOnRectBoundary)
             .toDouble();
-    currentRectAngle = (AppConfig.get<num>('calculator.current_rect_angle') ??
-            currentRectAngle)
-        .toDouble();
-    fallbackRectAngle = (AppConfig.get<num>('calculator.fallback_rect_angle') ??
-            fallbackRectAngle)
-        .toDouble();
+    currentRectAngle =
+        (AppConfig.get<num>('calculator.current_rect_angle') ??
+                currentRectAngle)
+            .toDouble();
+    fallbackRectAngle =
+        (AppConfig.get<num>('calculator.fallback_rect_angle') ??
+                fallbackRectAngle)
+            .toDouble();
     zoom = (AppConfig.get<num>('calculator.zoom') ?? zoom).toInt();
     maxCrossRoads =
         (AppConfig.get<num>('calculator.max_cross_roads') ?? maxCrossRoads)
             .toInt();
-    disableRoadLookup = AppConfig.get<bool>('calculator.disable_road_lookup') ??
+    disableRoadLookup =
+        AppConfig.get<bool>('calculator.disable_road_lookup') ??
         disableRoadLookup;
     camerasLookAheadMode =
         AppConfig.get<bool>('calculator.cameras_look_ahead_mode') ??
-            camerasLookAheadMode;
+        camerasLookAheadMode;
     alternativeRoadLookup =
         AppConfig.get<bool>('calculator.alternative_road_lookup') ??
-            alternativeRoadLookup;
+        alternativeRoadLookup;
     useOnlyOneExtrapolatedRect =
         AppConfig.get<bool>('calculator.use_only_one_extrapolated_rect') ??
-            useOnlyOneExtrapolatedRect;
+        useOnlyOneExtrapolatedRect;
     considerBackupRects =
         AppConfig.get<bool>('calculator.consider_backup_rects') ??
-            considerBackupRects;
+        considerBackupRects;
     dismissPois = AppConfig.get<bool>('calculator.dismiss_pois') ?? dismissPois;
     enableOrderedRectsExtrapolated =
         AppConfig.get<bool>('calculator.enable_ordered_rects_extrapolated') ??
-            enableOrderedRectsExtrapolated;
+        enableOrderedRectsExtrapolated;
     maxNumberExtrapolatedRects =
         (AppConfig.get<num>('calculator.max_number_extrapolated_rects') ??
                 maxNumberExtrapolatedRects)
             .toInt();
     maxspeedCountries =
         AppConfig.get<Map<String, dynamic>>('calculator.maxspeed_countries') ??
-            maxspeedCountries;
-    roadClassesToSpeedConfig = AppConfig.get<Map<String, dynamic>>(
-            'calculator.road_classes_to_speed') ??
+        maxspeedCountries;
+    roadClassesToSpeedConfig =
+        AppConfig.get<Map<String, dynamic>>(
+          'calculator.road_classes_to_speed',
+        ) ??
         roadClassesToSpeedConfig;
   }
 
@@ -663,7 +684,7 @@ class RectangleCalculatorThread {
   /// represents a new bounding rectangle computed from the most recent GPS
   /// sample.  The rectangles emitted include both the current rectangle and
   /// the lookahead rectangle depending on the vehicle’s speed and direction.
-  Stream<GeoRect> get rectangles => _rectangleStreamController.stream;
+  Stream<GeoRect?> get rectangles => _rectangleStreamController.stream;
 
   /// Subscribe to speed camera notifications.  These may come from either
   /// predictive analytics (machine learning) or from some external data source.
@@ -676,7 +697,7 @@ class RectangleCalculatorThread {
   /// Controller backing [speedCamEvents]. Exposed so that other components,
   /// such as [GpsThread], can publish updates into the shared stream.
   StreamController<Timestamped<Map<String, dynamic>>>
-      get speedCamEventController => _speedCamEventController;
+  get speedCamEventController => _speedCamEventController;
 
   /// Stream of construction areas discovered during look‑ahead queries.
   Stream<GeoRect> get constructions => _constructionStreamController.stream;
@@ -776,23 +797,39 @@ class RectangleCalculatorThread {
 
     // Compute look-ahead distances based on the current speed.  Separate
     // maxima are used for cameras and construction areas.
-    final double camLookAheadKm =
-        _computeLookAheadDistance(speedKmH, maxSpeedCamLookAheadDistance);
+    final double camLookAheadKm = _computeLookAheadDistance(
+      speedKmH,
+      maxSpeedCamLookAheadDistance,
+    );
     speedCamLookAheadDistance = camLookAheadKm;
     final double constructionLookAheadKm = _computeLookAheadDistance(
-        speedKmH, maxConstructionAreaLookaheadDistance);
+      speedKmH,
+      maxConstructionAreaLookaheadDistance,
+    );
     constructionAreaLookaheadDistance = constructionLookAheadKm;
     if (calculateNewRect) {
-      final GeoRect rect =
-          _computeBoundingRect(latitude, longitude, camLookAheadKm, 'camera');
+      final GeoRect rect = _computeBoundingRect(
+        latitude,
+        longitude,
+        camLookAheadKm,
+        'camera',
+      );
       currentRectAngle = bearing;
-      _rectangleStreamController.add(rect);
+      _rectangleStreamController
+        ..add(null)
+        ..add(rect);
     }
     if (calculateNewRectConstruction) {
       final GeoRect rect = _computeBoundingRect(
-          latitude, longitude, constructionLookAheadKm, 'construction');
+        latitude,
+        longitude,
+        constructionLookAheadKm,
+        'construction',
+      );
       currentRectAngle = bearing;
-      _rectangleStreamController.add(rect);
+      _rectangleStreamController
+        ..add(null)
+        ..add(rect);
     }
 
     // Predictive camera detection.  Evaluate the model with the current
@@ -833,7 +870,7 @@ class RectangleCalculatorThread {
           'name': predicted.name,
           'maxspeed': 0,
           'direction': '',
-          'predictive': true
+          'predictive': true,
         }),
       );
       await uploadCameraToDriveMethod(
@@ -878,14 +915,19 @@ class RectangleCalculatorThread {
   /// (north, south, east, west).  The calculation assumes a spherical Earth
   /// with radius 6371 km and converts the linear distances into degrees.
   GeoRect _computeBoundingRect(
-      double latitude, double longitude, double lookAheadKm, var rectType) {
+    double latitude,
+    double longitude,
+    double lookAheadKm,
+    var rectType,
+  ) {
     const double earthRadiusKm = 6371.0;
     final double latRadians = latitude * math.pi / 180.0;
 
     // Convert distance (km) into degrees latitude/longitude.  One degree
     // latitude spans approximately 111 km.  Longitude scales with cos(lat).
     final double deltaLat = (lookAheadKm / earthRadiusKm) * (180.0 / math.pi);
-    final double deltaLon = (lookAheadKm / earthRadiusKm) *
+    final double deltaLon =
+        (lookAheadKm / earthRadiusKm) *
         (180.0 / math.pi) /
         math.cos(latRadians);
 
@@ -937,8 +979,8 @@ class RectangleCalculatorThread {
     final double xTile = (lonDeg + 180.0) / 360.0 * n;
     final double yTile =
         (1.0 - math.log(math.tan(latRad) + 1.0 / math.cos(latRad)) / math.pi) /
-            2.0 *
-            n;
+        2.0 *
+        n;
     return math.Point<double>(xTile, yTile);
   }
 
@@ -1092,8 +1134,10 @@ class RectangleCalculatorThread {
     constructionAreaCountNotifier.value = constructionAreas.length;
 
     for (var i = 0; i < newAreas.length; i += batchSize) {
-      final batch =
-          newAreas.sublist(i, math.min(i + batchSize, newAreas.length));
+      final batch = newAreas.sublist(
+        i,
+        math.min(i + batchSize, newAreas.length),
+      );
       logger.printLogLine(
         'Emitting construction area batch of ${batch.length} items',
       );
@@ -1438,7 +1482,9 @@ class RectangleCalculatorThread {
         _computeLookAheadDistance(0, maxSpeedCamLookAheadDistance),
         'camera',
       );
-      _rectangleStreamController.add(rect);
+      _rectangleStreamController
+        ..add(null)
+        ..add(rect);
     } else {
       await _processVector(vector);
     }
@@ -1469,7 +1515,10 @@ class RectangleCalculatorThread {
     if (speed > 0) {
       final double distance = speed / 3.6; // metres travelled in ~1 second
       final Point newPos = calculateExtrapolatedPosition(
-          Point(startLon, startLat), bearing, distance);
+        Point(startLon, startLat),
+        bearing,
+        distance,
+      );
       longitudeCached = newPos.x;
       latitudeCached = newPos.y;
     } else {
@@ -1603,7 +1652,7 @@ class RectangleCalculatorThread {
         'func': RectangleCalculatorThread.startThreadPoolSpeedCamera,
         'msg': 'Speed Camera lookahead',
         'trigger': speedCamLookupAhead,
-        'type': 'camera'
+        'type': 'camera',
       },
       {
         'rect': rectConstructionAreasLookahead,
@@ -1611,7 +1660,7 @@ class RectangleCalculatorThread {
         'func': RectangleCalculatorThread.startThreadPoolConstructionAreas,
         'msg': 'Construction area lookahead',
         'trigger': constructionsLookupAhead,
-        'type': 'construction'
+        'type': 'construction',
       },
     ];
 
@@ -1619,16 +1668,19 @@ class RectangleCalculatorThread {
       final Rect? rect = item['rect'] as Rect?;
       final String msg = item['msg'] as String;
       final String rectType = item['type'] as String;
-      final func = item['func'] as Future<void> Function(
-        Future<void> Function(double, double, double, double),
-        int,
-        double,
-        double,
-        double,
-        double,
-      );
-      final trigger = item['trigger'] as Future<void> Function(
-          double, double, double, double);
+      final func =
+          item['func']
+              as Future<void> Function(
+                Future<void> Function(double, double, double, double),
+                int,
+                double,
+                double,
+                double,
+                double,
+              );
+      final trigger =
+          item['trigger']
+              as Future<void> Function(double, double, double, double);
 
       if (rect != null) {
         final GeoRect? geoRect = item['geoRect'] as GeoRect?;
@@ -1666,8 +1718,9 @@ class RectangleCalculatorThread {
       }
 
       if (msg == 'Construction area lookahead') {
-        final elapsed =
-            DateTime.now().difference(applicationStartTime).inSeconds;
+        final elapsed = DateTime.now()
+            .difference(applicationStartTime)
+            .inSeconds;
         if (elapsed <= constructionAreaStartupTriggerMax) {
           logger.printLogLine('Skipping $msg during startup grace period');
           continue;
@@ -1702,8 +1755,10 @@ class RectangleCalculatorThread {
     // Helper to add a node if coordinates are known.
     void addNode(double? lat, double? lon, int nodeId) {
       if (lat == null || lon == null) {
-        logger.printLogLine('Failed to resolve node id $nodeId',
-            logLevel: 'WARNING');
+        logger.printLogLine(
+          'Failed to resolve node id $nodeId',
+          logLevel: 'WARNING',
+        );
         return;
       }
       final rect = GeoRect(minLat: lat, minLon: lon, maxLat: lat, maxLon: lon);
@@ -1721,12 +1776,14 @@ class RectangleCalculatorThread {
           if (nodeId == null) continue;
           Map<String, dynamic>? nodeEl;
           try {
-            nodeEl = data.firstWhere(
-              (e) =>
-                  e is Map<String, dynamic> &&
-                  e['type'] == 'node' &&
-                  e['id'] == nodeId,
-            ) as Map<String, dynamic>?;
+            nodeEl =
+                data.firstWhere(
+                      (e) =>
+                          e is Map<String, dynamic> &&
+                          e['type'] == 'node' &&
+                          e['id'] == nodeId,
+                    )
+                    as Map<String, dynamic>?;
           } catch (_) {
             nodeEl = null;
           }
@@ -1782,14 +1839,13 @@ class RectangleCalculatorThread {
   Future<SpeedCameraEvent?> processPredictiveCameras(
     double longitude,
     double latitude,
-  ) async =>
-      predictSpeedCamera(
-        model: _predictiveModel,
-        latitude: latitude,
-        longitude: longitude,
-        timeOfDay: _formatTimeOfDay(DateTime.now()),
-        dayOfWeek: _formatDayOfWeek(DateTime.now()),
-      );
+  ) async => predictSpeedCamera(
+    model: _predictiveModel,
+    latitude: latitude,
+    longitude: longitude,
+    timeOfDay: _formatTimeOfDay(DateTime.now()),
+    dayOfWeek: _formatDayOfWeek(DateTime.now()),
+  );
 
   Future<void> speedCamLookupAhead(
     double xtile,
@@ -1834,7 +1890,9 @@ class RectangleCalculatorThread {
       maxLon: maxLon,
     );
     // Notify listeners so geo bounds can be visualised on the map
-    _rectangleStreamController.add(rect);
+    _rectangleStreamController
+      ..add(null)
+      ..add(rect);
     logger.printLogLine('speedCamLookupAhead bounds: $rect');
     for (final type in ['camera_ahead', 'distance_cam']) {
       logger.printLogLine('speedCamLookupAhead requesting $type');
@@ -1900,8 +1958,9 @@ class RectangleCalculatorThread {
       maxLon: maxLon,
     );
     logger.printLogLine('constructionsLookupAhead bounds: $rect');
-    logger
-        .printLogLine('constructionsLookupAhead requesting construction_ahead');
+    logger.printLogLine(
+      'constructionsLookupAhead requesting construction_ahead',
+    );
     final result = await triggerOsmLookup(
       rect,
       lookupType: 'construction_ahead',
@@ -2093,7 +2152,9 @@ class RectangleCalculatorThread {
   }
 
   List<Map<String, dynamic>>? _getCachedLocalData(
-      GeoRect area, String? lookupType) {
+    GeoRect area,
+    String? lookupType,
+  ) {
     bool within(double lat, double lon) =>
         lat >= area.minLat &&
         lat <= area.maxLat &&
@@ -2103,22 +2164,27 @@ class RectangleCalculatorThread {
     if (lookupType == 'camera_ahead' || lookupType == 'distance_cam') {
       final cams = _cameraCache
           .where((c) => within(c.latitude, c.longitude))
-          .map((c) => {
-                'lat': c.latitude,
-                'lon': c.longitude,
-                'tags': {'highway': 'speed_camera', 'name': c.name}
-              })
+          .map(
+            (c) => {
+              'lat': c.latitude,
+              'lon': c.longitude,
+              'tags': {'highway': 'speed_camera', 'name': c.name},
+            },
+          )
           .toList();
       return cams.isEmpty ? null : cams;
     } else if (lookupType == 'construction_ahead') {
       final areas = constructionAreas
           .where(
-              (r) => within(r.minLat, r.minLon) || within(r.maxLat, r.maxLon))
-          .map((r) => {
-                'lat': r.minLat,
-                'lon': r.minLon,
-                'tags': {'construction': 'yes'}
-              })
+            (r) => within(r.minLat, r.minLon) || within(r.maxLat, r.maxLon),
+          )
+          .map(
+            (r) => {
+              'lat': r.minLat,
+              'lon': r.minLon,
+              'tags': {'construction': 'yes'},
+            },
+          )
           .toList();
       return areas.isEmpty ? null : areas;
     }
@@ -2175,11 +2241,16 @@ class RectangleCalculatorThread {
     final double lon1 = start.x * math.pi / 180.0;
     final double dr = distanceMeters / earthRadius;
 
-    final double lat2 = math.asin(math.sin(lat1) * math.cos(dr) +
-        math.cos(lat1) * math.sin(dr) * math.cos(brng));
-    final double lon2 = lon1 +
-        math.atan2(math.sin(brng) * math.sin(dr) * math.cos(lat1),
-            math.cos(dr) - math.sin(lat1) * math.sin(lat2));
+    final double lat2 = math.asin(
+      math.sin(lat1) * math.cos(dr) +
+          math.cos(lat1) * math.sin(dr) * math.cos(brng),
+    );
+    final double lon2 =
+        lon1 +
+        math.atan2(
+          math.sin(brng) * math.sin(dr) * math.cos(lat1),
+          math.cos(dr) - math.sin(lat1) * math.sin(lat2),
+        );
 
     return Point(lon2 * 180.0 / math.pi, lat2 * 180.0 / math.pi);
   }
@@ -2274,7 +2345,8 @@ class RectangleCalculatorThread {
       DoubleLinkedListNodes? linkedListGenerator,
       BinarySearchTree? treeGenerator,
       Rect? currentRect,
-    }) func, {
+    })
+    func, {
     double? lat,
     double? lon,
     DoubleLinkedListNodes? linkedList,
@@ -2437,7 +2509,8 @@ class RectangleCalculatorThread {
 
     final bbox =
         '(${area.minLat},${area.minLon},${area.maxLat},${area.maxLon});';
-    final baseUrlRaw = AppConfig.get<String>('speedCamWarner.baseurl') ??
+    final baseUrlRaw =
+        AppConfig.get<String>('speedCamWarner.baseurl') ??
         'https://overpass-api.de/api/interpreter';
     // Strip a trailing "?" which would otherwise make the path `/interpreter?`
     // and lead to HTTP 400 responses from the Overpass API.
@@ -2452,11 +2525,15 @@ class RectangleCalculatorThread {
         AppConfig.get<String>('speedCamWarner.querystring_cameras3') ?? '';
     final querystringDistanceCams =
         AppConfig.get<String>('speedCamWarner.querystring_distance_cams') ?? '';
-    final querystringConstructionAreas = AppConfig.get<String>(
-            'speedCamWarner.querystring_construction_areas') ??
+    final querystringConstructionAreas =
+        AppConfig.get<String>(
+          'speedCamWarner.querystring_construction_areas',
+        ) ??
         '';
-    final querystringConstructionAreas2 = AppConfig.get<String>(
-            'speedCamWarner.querystring_construction_areas2') ??
+    final querystringConstructionAreas2 =
+        AppConfig.get<String>(
+          'speedCamWarner.querystring_construction_areas2',
+        ) ??
         '';
 
     String query;
@@ -2501,9 +2578,9 @@ class RectangleCalculatorThread {
     // characters such as quotes and spaces are percent encoded.  Strip any
     // leading ``data=`` from the configured query to avoid duplicated prefixes.
     final queryParam = query.startsWith('data=') ? query.substring(5) : query;
-    final uri = Uri.parse(baseUrl).replace(queryParameters: {
-      'data': queryParam,
-    });
+    final uri = Uri.parse(
+      baseUrl,
+    ).replace(queryParameters: {'data': queryParam});
     logger.printLogLine('triggerOsmLookup uri: $uri', logLevel: 'DEBUG');
     final http.Client httpClient = client ?? http.Client();
 
@@ -2511,13 +2588,15 @@ class RectangleCalculatorThread {
       final start = DateTime.now();
       http.Response? resp;
       try {
-        resp = await httpClient.get(
-          uri,
-          headers: {
-            'User-Agent': 'speedcamwarner-dart',
-            'Accept': 'application/json',
-          },
-        ).timeout(osmRequestTimeout);
+        resp = await httpClient
+            .get(
+              uri,
+              headers: {
+                'User-Agent': 'speedcamwarner-dart',
+                'Accept': 'application/json',
+              },
+            )
+            .timeout(osmRequestTimeout);
         if (resp.statusCode == 200) {
           final data = jsonDecode(resp.body) as Map<String, dynamic>;
           final elements = data['elements'] as List<dynamic>?;
@@ -2631,10 +2710,12 @@ class RectangleCalculatorThread {
 
   Future<bool> internetAvailable() async {
     try {
-      final resp = await http.get(
-        Uri.parse('https://example.com'),
-        headers: {'User-Agent': 'speedcamwarner-dart'},
-      ).timeout(const Duration(seconds: 3));
+      final resp = await http
+          .get(
+            Uri.parse('https://example.com'),
+            headers: {'User-Agent': 'speedcamwarner-dart'},
+          )
+          .timeout(const Duration(seconds: 3));
       return resp.statusCode == 200;
     } catch (_) {
       return false;
@@ -2678,8 +2759,11 @@ class RectangleCalculatorThread {
       roadNameNotifier.value = '';
       return;
     }
-    final parts =
-        roadname.split('/').where((p) => p.isNotEmpty).toList().reversed;
+    final parts = roadname
+        .split('/')
+        .where((p) => p.isNotEmpty)
+        .toList()
+        .reversed;
     roadNameNotifier.value = parts.join('/');
     // foundCombinedTags flag kept for parity with Python version.
     foundCombinedTags;
