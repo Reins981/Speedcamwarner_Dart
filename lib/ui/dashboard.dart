@@ -69,9 +69,13 @@ class _DashboardPageState extends State<DashboardPage> {
       _roadName = _calculator!.roadNameNotifier.value;
       _overspeedDiff = _calculator!.overspeedChecker.difference.value;
       _speedCamWarning = _calculator!.speedCamNotifier.value;
-      _speedCamIcon = _iconForWarning(_speedCamWarning);
-      _speedCamDistance = _calculator!.speedCamDistanceNotifier.value;
-      _cameraRoad = _calculator!.cameraRoadNotifier.value;
+      if (_speedCamWarning == 'FREEFLOW') {
+        _clearCameraInfo();
+      } else {
+        _speedCamIcon = _iconForWarning(_speedCamWarning);
+        _speedCamDistance = _calculator!.speedCamDistanceNotifier.value;
+        _cameraRoad = _calculator!.cameraRoadNotifier.value;
+      }
       _maxSpeed = _calculator!.maxspeedNotifier.value;
       _gpsOn = _calculator!.gpsStatusNotifier.value;
       _online = _calculator!.onlineStatusNotifier.value;
@@ -111,9 +115,13 @@ class _DashboardPageState extends State<DashboardPage> {
       _roadName = _calculator!.roadNameNotifier.value;
       _overspeedDiff = _calculator!.overspeedChecker.difference.value;
       _speedCamWarning = _calculator!.speedCamNotifier.value;
-      _speedCamIcon = _iconForWarning(_speedCamWarning);
-      _speedCamDistance = _calculator!.speedCamDistanceNotifier.value;
-      _cameraRoad = _calculator!.cameraRoadNotifier.value;
+      if (_speedCamWarning == 'FREEFLOW') {
+        _clearCameraInfo();
+      } else {
+        _speedCamIcon = _iconForWarning(_speedCamWarning);
+        _speedCamDistance = _calculator!.speedCamDistanceNotifier.value;
+        _cameraRoad = _calculator!.cameraRoadNotifier.value;
+      }
       _maxSpeed = _calculator!.maxspeedNotifier.value;
       _gpsOn = _calculator!.gpsStatusNotifier.value;
       _online = _calculator!.onlineStatusNotifier.value;
@@ -125,6 +133,14 @@ class _DashboardPageState extends State<DashboardPage> {
       _acceleration = ui.lerpDouble(_acceleration, targetAcceleration, 0.2)!;
       _lastSpeed = _speed;
     });
+  }
+
+  void _clearCameraInfo() {
+    _speedCamWarning = null;
+    _speedCamIcon = null;
+    _speedCamDistance = null;
+    _cameraRoad = null;
+    _activeCamera = null;
   }
 
   void _onCamera(SpeedCameraEvent cam) {
@@ -607,8 +623,6 @@ class _DashboardPageState extends State<DashboardPage> {
         return 'images/distancecamera.png';
       case 'CAMERA_AHEAD':
         return 'images/camera_ahead.png';
-      case 'FREEFLOW':
-        return 'images/freeflow.png';
       default:
         return null;
     }
