@@ -22,14 +22,26 @@ class _StatsPageState extends State<StatsPage> {
   late final StreamSubscription<SpeedCameraEvent> _sub;
   int _fixed = 0;
   int _traffic = 0;
-    int _distance = 0;
+  int _distance = 0;
   int _mobile = 0;
   int _predictive = 0;
+  int _construction = 0;
   int _poi = 0; // Placeholder for future POI integration
+
+  void _onConstructionCount() {
+    setState(() {
+      _construction =
+          widget.calculator.constructionAreaCountNotifier.value;
+    });
+  }
 
   @override
   void initState() {
     super.initState();
+    _construction =
+        widget.calculator.constructionAreaCountNotifier.value;
+    widget.calculator.constructionAreaCountNotifier
+        .addListener(_onConstructionCount);
     _sub = widget.calculator.cameras.listen((cam) {
       setState(() {
         if (cam.fixed) _fixed++;
@@ -44,6 +56,8 @@ class _StatsPageState extends State<StatsPage> {
   @override
   void dispose() {
     _sub.cancel();
+    widget.calculator.constructionAreaCountNotifier
+        .removeListener(_onConstructionCount);
     super.dispose();
   }
 
@@ -59,6 +73,7 @@ class _StatsPageState extends State<StatsPage> {
           _buildRow('Distance Cameras', _distance),
           _buildRow('Mobile Cameras', _mobile),
           _buildRow('Predictive Cameras', _predictive),
+          _buildRow('Construction Areas', _construction),
           _buildRow('POIs', _poi),
         ],
       ),
