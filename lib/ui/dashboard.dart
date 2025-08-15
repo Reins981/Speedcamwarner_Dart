@@ -543,7 +543,7 @@ class _DashboardPageState extends State<DashboardPage> {
       },
       child: Container(
         decoration: BoxDecoration(
-          color: Colors.white.withOpacity(0.05),
+          color: Colors.transparent,
           borderRadius: BorderRadius.circular(12),
         ),
         padding: const EdgeInsets.all(12),
