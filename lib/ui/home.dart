@@ -34,6 +34,7 @@ class _HomePageState extends State<HomePage> {
         onFinished: _showMain,
       ),
       DashboardPage(
+        controller: widget.controller,
         calculator: widget.controller.calculator,
         arStatus: widget.controller.arStatusNotifier,
         direction: widget.controller.directionNotifier,

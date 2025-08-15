@@ -6,6 +6,7 @@ import 'package:flutter/material.dart';
 import 'dart:ui' as ui;
 import 'dart:math' as math;
 
+import '../app_controller.dart';
 import '../rectangle_calculator.dart';
 
 /// A simple dashboard showing current speed, road name and speed camera
@@ -15,12 +16,14 @@ import '../rectangle_calculator.dart';
 /// GPS and speed‑camera updates from the background logic are reflected on the
 /// screen.
 class DashboardPage extends StatefulWidget {
+  final AppController? controller;
   final RectangleCalculatorThread? calculator;
   final ValueNotifier<String>? arStatus;
   final ValueNotifier<String>? direction;
   final ValueNotifier<String>? averageBearing;
   const DashboardPage(
       {super.key,
+      this.controller,
       this.calculator,
       this.arStatus,
       this.direction,
@@ -46,6 +49,7 @@ class _DashboardPageState extends State<DashboardPage> {
   SpeedCameraEvent? _activeCamera;
   StreamSubscription<SpeedCameraEvent>? _cameraSub;
   RectangleCalculatorThread? _calculator;
+  AppController? _controller;
   String _arStatus = '';
   ValueNotifier<String>? _arNotifier;
   double _acceleration = 0.0;
@@ -59,6 +63,7 @@ class _DashboardPageState extends State<DashboardPage> {
   void initState() {
     super.initState();
     _calculator = widget.calculator;
+    _controller = widget.controller;
     if (_calculator != null) {
       _speed = _calculator!.currentSpeedNotifier.value;
       _roadName = _calculator!.roadNameNotifier.value;
@@ -149,6 +154,26 @@ class _DashboardPageState extends State<DashboardPage> {
         .showSnackBar(SnackBar(content: Text(msg)));
   }
 
+  void _startRecording() {
+    _controller?.startRecording();
+    ScaffoldMessenger.of(context)
+        .showSnackBar(const SnackBar(content: Text('Recording started')));
+  }
+
+  Future<void> _stopRecording() async {
+    await _controller?.stopRecording();
+    if (!mounted) return;
+    ScaffoldMessenger.of(context)
+        .showSnackBar(const SnackBar(content: Text('Recording stopped')));
+  }
+
+  Future<void> _loadRoute() async {
+    await _controller?.loadRoute();
+    if (!mounted) return;
+    ScaffoldMessenger.of(context)
+        .showSnackBar(const SnackBar(content: Text('Route loaded')));
+  }
+
   void _updateDirectionBearing() {
     setState(() {
       _direction = _directionNotifier?.value ?? _direction;
@@ -229,10 +254,34 @@ class _DashboardPageState extends State<DashboardPage> {
           ],
         ),
       ),
-      floatingActionButton: FloatingActionButton(
-        onPressed: _addCamera,
-        tooltip: 'Add police camera',
-        child: const Icon(Icons.camera_alt),
+      floatingActionButton: Column(
+        mainAxisAlignment: MainAxisAlignment.end,
+        crossAxisAlignment: CrossAxisAlignment.end,
+        children: [
+          FloatingActionButton(
+            onPressed: _addCamera,
+            tooltip: 'Add police camera',
+            child: const Icon(Icons.camera_alt),
+          ),
+          const SizedBox(height: 8),
+          FloatingActionButton(
+            onPressed: _startRecording,
+            tooltip: 'Start recording',
+            child: const Icon(Icons.fiber_manual_record),
+          ),
+          const SizedBox(height: 8),
+          FloatingActionButton(
+            onPressed: _stopRecording,
+            tooltip: 'Stop recording',
+            child: const Icon(Icons.stop),
+          ),
+          const SizedBox(height: 8),
+          FloatingActionButton(
+            onPressed: _loadRoute,
+            tooltip: 'Load route',
+            child: const Icon(Icons.play_arrow),
+          ),
+        ],
       ),
     );
   }
