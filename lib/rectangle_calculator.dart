@@ -1933,7 +1933,11 @@ class RectangleCalculatorThread {
       final tags = element['tags'] as Map<String, dynamic>? ?? {};
       final lat = (element['lat'] as num?)?.toDouble();
       final lon = (element['lon'] as num?)?.toDouble();
-      final maxspeed = (tags['maxspeed'] as num?)?.toInt() ?? 0;
+      // ``maxspeed`` tags in OSM may be stored as strings (e.g. "50" or
+      // "50 km/h") which previously caused a runtime type cast error when
+      // casting directly to ``num``.  Use ``resolveMaxSpeed`` to safely parse the
+      // numeric portion instead.
+      final maxspeed = resolveMaxSpeed(tags) ?? 0;
       if (lat == null || lon == null) continue;
 
       final roadName = await getRoadNameViaNominatim(lat, lon);
