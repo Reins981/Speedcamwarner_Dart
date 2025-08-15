@@ -80,7 +80,7 @@
     "querystring_construction_areas2": "relation[\"highway\"=\"construction\"]"
   },
   "accusticWarner": {
-    "ai_voice_prompts": true
+    "voice_prompt_source": "dialogflow"
   },
   "gpsConsumer": {
     "display_miles": false
