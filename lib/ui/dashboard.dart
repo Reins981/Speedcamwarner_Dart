@@ -17,7 +17,14 @@ import '../rectangle_calculator.dart';
 class DashboardPage extends StatefulWidget {
   final RectangleCalculatorThread? calculator;
   final ValueNotifier<String>? arStatus;
-  const DashboardPage({super.key, this.calculator, this.arStatus});
+  final ValueNotifier<String>? direction;
+  final ValueNotifier<String>? averageBearing;
+  const DashboardPage(
+      {super.key,
+      this.calculator,
+      this.arStatus,
+      this.direction,
+      this.averageBearing});
 
   @override
   State<DashboardPage> createState() => _DashboardPageState();
@@ -43,6 +50,10 @@ class _DashboardPageState extends State<DashboardPage> {
   ValueNotifier<String>? _arNotifier;
   double _acceleration = 0.0;
   double? _lastSpeed;
+  String _direction = '-';
+  String _averageBearing = '---.-°';
+  ValueNotifier<String>? _directionNotifier;
+  ValueNotifier<String>? _averageBearingNotifier;
 
   @override
   void initState() {
@@ -75,6 +86,17 @@ class _DashboardPageState extends State<DashboardPage> {
     if (_arNotifier != null) {
       _arStatus = _arNotifier!.value;
       _arNotifier!.addListener(_updateArStatus);
+    }
+
+    _directionNotifier = widget.direction;
+    if (_directionNotifier != null) {
+      _direction = _directionNotifier!.value;
+      _directionNotifier!.addListener(_updateDirectionBearing);
+    }
+    _averageBearingNotifier = widget.averageBearing;
+    if (_averageBearingNotifier != null) {
+      _averageBearing = _averageBearingNotifier!.value;
+      _averageBearingNotifier!.addListener(_updateDirectionBearing);
     }
   }
 
@@ -113,6 +135,14 @@ class _DashboardPageState extends State<DashboardPage> {
     });
   }
 
+  void _updateDirectionBearing() {
+    setState(() {
+      _direction = _directionNotifier?.value ?? _direction;
+      _averageBearing =
+          _averageBearingNotifier?.value ?? _averageBearing;
+    });
+  }
+
   @override
   void dispose() {
     if (_calculator != null) {
@@ -130,6 +160,8 @@ class _DashboardPageState extends State<DashboardPage> {
       _cameraSub?.cancel();
     }
     _arNotifier?.removeListener(_updateArStatus);
+    _directionNotifier?.removeListener(_updateDirectionBearing);
+    _averageBearingNotifier?.removeListener(_updateDirectionBearing);
     super.dispose();
   }
 
@@ -172,6 +204,8 @@ class _DashboardPageState extends State<DashboardPage> {
             ),
             const SizedBox(height: 16),
             _buildStatusRow(),
+            const SizedBox(height: 16),
+            _buildDirectionBearingRow(),
             if (_arStatus.isNotEmpty) ...[
               const SizedBox(height: 16),
               Text('AR: $_arStatus',
@@ -252,6 +286,28 @@ class _DashboardPageState extends State<DashboardPage> {
         Expanded(child: _buildGpsWidget()),
         const SizedBox(width: 16),
         Expanded(child: _buildInternetWidget()),
+      ],
+    );
+  }
+
+  Widget _buildDirectionBearingRow() {
+    return Row(
+      children: [
+        Expanded(
+          child: _statusTile(
+            icon: Icons.explore,
+            text: _direction,
+            color: Colors.blueGrey,
+          ),
+        ),
+        const SizedBox(width: 16),
+        Expanded(
+          child: _statusTile(
+            icon: Icons.navigation,
+            text: _averageBearing,
+            color: Colors.blueGrey,
+          ),
+        ),
       ],
     );
   }

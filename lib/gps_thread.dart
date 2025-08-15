@@ -37,15 +37,34 @@ class GpsThread extends Logger {
 
   final StreamController<VectorData> _controller =
       StreamController<VectorData>.broadcast();
+  // Stream distributing bearing sets for the deviation checker.
+  final StreamController<dynamic> _bearingSetController =
+      StreamController<dynamic>.broadcast();
+  // Position update stream for the speed cam warner.
+  final StreamController<VectorData> _positionController =
+      StreamController<VectorData>.broadcast();
+
   StreamSubscription<VectorData>? _sourceSub;
   bool _running = false;
   String? _lastSignal;
+  double? _lastBearing;
+  final List<double> _currentBearings = <double>[];
 
   /// Indicates whether the GPS thread is currently running.
   bool get isRunning => _running;
 
   /// Stream of incoming [VectorData] samples.
   Stream<VectorData> get stream => _controller.stream;
+
+  /// Stream of bearing sets that should be forwarded to the deviation checker
+  /// thread. Each event is either a [List<double>] containing five bearing
+  /// values or a numeric control value mirroring the behaviour of the Python
+  /// ``average_angle_queue``.
+  Stream<dynamic> get bearingSets => _bearingSetController.stream;
+
+  /// Plain position updates which other components (e.g. the speed cam warner)
+  /// may listen to.
+  Stream<VectorData> get positionUpdates => _positionController.stream;
 
   /// Start emitting samples.  If a [source] stream is provided its events are
   /// forwarded to listeners.  Otherwise samples can be pushed manually via
@@ -89,15 +108,30 @@ class GpsThread extends Logger {
   Future<void> dispose() async {
     await _sourceSub?.cancel();
     await _controller.close();
+    await _bearingSetController.close();
+    await _positionController.close();
   }
 
   void _handleSample(VectorData vector) {
-    _controller.add(vector);
+    final direction = _calculateDirection(vector.bearing);
+    final enriched = VectorData(
+      longitude: vector.longitude,
+      latitude: vector.latitude,
+      speed: vector.speed,
+      bearing: vector.bearing,
+      direction: direction ?? '',
+      gpsStatus: vector.gpsStatus,
+      accuracy: vector.accuracy,
+    );
+
+    _controller.add(enriched);
+    _positionController.add(enriched);
+    _produceBearingSet(enriched.bearing);
     if (voicePromptEvents != null) {
       String signal;
-      if (vector.gpsStatus != 1) {
+      if (enriched.gpsStatus != 1) {
         signal = 'GPS_OFF';
-      } else if (vector.accuracy > accuracyThreshold) {
+      } else if (enriched.accuracy > accuracyThreshold) {
         signal = 'GPS_LOW';
       } else {
         signal = 'GPS_ON';
@@ -107,5 +141,106 @@ class GpsThread extends Logger {
         _lastSignal = signal;
       }
     }
+  }
+
+  String? _calculateDirection(double bearing) {
+    String? direction;
+    final b = double.tryParse('$bearing');
+    if (b == null) return null;
+
+    if (0 <= b && b <= 11) {
+      direction = 'TOP-N';
+      _lastBearing = b;
+    } else if (11 < b && b < 22) {
+      direction = 'N';
+      _lastBearing = b;
+    } else if (22 <= b && b < 45) {
+      direction = 'NNO';
+      _lastBearing = b;
+    } else if (45 <= b && b < 67) {
+      direction = 'NO';
+      _lastBearing = b;
+    } else if (67 <= b && b < 78) {
+      direction = 'ONO';
+      _lastBearing = b;
+    } else if (78 <= b && b <= 101) {
+      direction = 'TOP-O';
+      _lastBearing = b;
+    } else if (101 < b && b < 112) {
+      direction = 'O';
+      _lastBearing = b;
+    } else if (112 <= b && b < 135) {
+      direction = 'OSO';
+      _lastBearing = b;
+    } else if (135 <= b && b < 157) {
+      direction = 'SO';
+      _lastBearing = b;
+    } else if (157 <= b && b < 168) {
+      direction = 'SSO';
+    } else if (168 <= b && b < 191) {
+      direction = 'TOP-S';
+      _lastBearing = b;
+    } else if (191 <= b && b < 202) {
+      direction = 'S';
+      _lastBearing = b;
+    } else if (202 <= b && b < 225) {
+      direction = 'SSW';
+      _lastBearing = b;
+    } else if (225 <= b && b < 247) {
+      direction = 'SW';
+      _lastBearing = b;
+    } else if (247 <= b && b < 258) {
+      direction = 'WSW';
+      _lastBearing = b;
+    } else if (258 <= b && b < 281) {
+      direction = 'TOP-W';
+    } else if (281 <= b && b < 292) {
+      direction = 'W';
+      _lastBearing = b;
+    } else if (292 <= b && b < 315) {
+      direction = 'WNW';
+      _lastBearing = b;
+    } else if (315 <= b && b < 337) {
+      direction = 'NW';
+      _lastBearing = b;
+    } else if (337 <= b && b < 348) {
+      direction = 'NNW';
+      _lastBearing = b;
+    } else if (348 <= b && b < 355) {
+      direction = 'N';
+      _lastBearing = b;
+    } else if (355 <= b && b <= 360) {
+      direction = 'TOP-N';
+      _lastBearing = b;
+    } else {
+      direction = _calculateBearingDeviation(b, _lastBearing);
+    }
+    return direction;
+  }
+
+  String _calculateBearingDeviation(double current, double? last) {
+    if (last != null) {
+      if (current >= last) {
+        final deviation = ((current - last) / last) * 100;
+        return deviation > 20 ? 'ONO' : 'NO';
+      } else {
+        final deviation = ((current - last).abs() / last) * 100;
+        return deviation > 20 ? 'NO' : 'ONO';
+      }
+    }
+    return 'NO';
+  }
+
+  void _produceBearingSet(double bearing) {
+    if (bearing == 0.002 || bearing == 0.001 || bearing == 0.0) {
+      _bearingSetController.add(bearing);
+      return;
+    }
+    if (_currentBearings.length == 5) {
+      _bearingSetController.add(List<double>.from(_currentBearings));
+      _currentBearings.clear();
+      return;
+    }
+    _currentBearings.add(bearing);
   }
 }
