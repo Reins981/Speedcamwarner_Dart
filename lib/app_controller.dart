@@ -70,6 +70,7 @@ class AppController {
       gpsProducer,
       calculator,
       mapQueue,
+      voicePromptEvents,
       null,
     );
     camWarner = SpeedCamWarner(
@@ -104,7 +105,9 @@ class AppController {
       voicePromptEvents: voicePromptEvents,
       dialogflowClient: dialogflow,
       aiVoicePrompts:
-          AppConfig.get<bool>('accusticWarner.ai_voice_prompts') ?? false,
+          (AppConfig.get<String>('accusticWarner.voice_prompt_source') ??
+                  'dialogflow') ==
+              'dialogflow',
     );
     unawaited(voiceThread.run());
 
@@ -178,6 +181,10 @@ class AppController {
   /// Tracks whether the deviation checker is currently active.
   bool _deviationRunning = false;
 
+  /// Tracks whether a route to a POI is being monitored.
+  bool _routeMonitoring = false;
+  Future<void>? _routeMonitorTask;
+
   bool _running = false;
 
   /// Start background services if not already running.
@@ -204,6 +211,7 @@ class AppController {
   /// Stop all background services and clean up resources.
   Future<void> stop() async {
     if (!_running) return;
+    voicePromptEvents.emit('STOP_APPLICATION');
     await gps.stop();
     await locationManager.stop();
     calculator.stop();
@@ -211,6 +219,7 @@ class AppController {
     await voiceThread.stop();
     await overspeedThread.stop();
     stopDeviationCheckerThread();
+    stopRouteMonitoring();
     await osmThread.stop();
     deviationChecker.terminate();
     averageAngleQueue.clearAverageAngleData();
@@ -222,12 +231,48 @@ class AppController {
   /// new [AppController] instance.
   Future<void> dispose() async {
     await stop();
+    voicePromptEvents.emit('EXIT_APPLICATION');
     await gps.dispose();
     await locationManager.dispose();
     await calculator.dispose();
     poiReader.stopTimer();
     await voiceThread.stop();
     stopDeviationCheckerThread();
+  }
+
+  /// Start monitoring the distance to [poi] and emit `POI_REACHED` once the
+  /// device is within 50 meters.
+  Future<void> prepareRoute(List<double> poi) async {
+    if (_routeMonitoring) return;
+    _routeMonitoring = true;
+    _routeMonitorTask = _monitorRoute(poi);
+  }
+
+  Future<void> _monitorRoute(List<double> poi) async {
+    while (_routeMonitoring) {
+      await Future.delayed(const Duration(seconds: 2));
+      final coords = gpsProducer.get_lon_lat();
+      final distance =
+          camWarner.checkDistanceBetweenTwoPoints(poi, coords);
+      if (distance <= 50) {
+        voicePromptEvents.emit('POI_REACHED');
+        _routeMonitoring = false;
+        break;
+      }
+    }
+  }
+
+  /// Stop monitoring the current route if active.
+  void stopRouteMonitoring() {
+    if (_routeMonitoring) {
+      _routeMonitoring = false;
+      voicePromptEvents.emit('ROUTE_STOPPED');
+    }
+  }
+
+  /// Emit a `NO_ROUTE` voice prompt when a route could not be calculated.
+  void notifyNoRoute() {
+    voicePromptEvents.emit('NO_ROUTE');
   }
 
   /// Start the [DeviationCheckerThread] if it isn't already running.

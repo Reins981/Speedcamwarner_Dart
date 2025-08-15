@@ -55,6 +55,10 @@ class GpsThread extends Logger {
     _running = true;
     printLogLine(
         'GPS thread started testData=$gpsTestData maxEntries=$maxGpsEntries recording=$recording threshold=$gpsTreshold');
+    if (voicePromptEvents != null && _lastSignal != 'GPS_ON') {
+      voicePromptEvents!.emit('GPS_ON');
+      _lastSignal = 'GPS_ON';
+    }
     _sourceSub = source?.listen((event) {
       if (_running) {
         printLogLine(
@@ -83,6 +87,7 @@ class GpsThread extends Logger {
       voicePromptEvents!.emit('GPS_OFF');
       _lastSignal = 'GPS_OFF';
     }
+    voicePromptEvents?.emit('EXIT_APPLICATION');
   }
 
   /// Permanently dispose the underlying stream controller.

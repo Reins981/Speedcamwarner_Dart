@@ -930,6 +930,86 @@ class SpeedCamWarner {
           itemQueue[camCoordinates]?[1] = 'to_be_stored';
         }
       }
+      lastDistance = 500;
+    } else if (distance > 500 && distance <= 1000) {
+      camInProgress = true;
+      itemQueue[camCoordinates]?[1] = false;
+      if (lastDistance == -1 || lastDistance > 1000) {
+        if (speedcam == 'fix') {
+          voicePromptEvents.emit('FIX_1000');
+        } else if (speedcam == 'traffic') {
+          voicePromptEvents.emit('TRAFFIC_1000');
+        } else if (speedcam == 'mobile') {
+          if (!predictive) {
+            voicePromptEvents.emit('MOBILE_1000');
+          } else {
+            voicePromptEvents.emit('MOBILE_PREDICTIVE_1000');
+          }
+        } else {
+          voicePromptEvents.emit('DISTANCE_1000');
+        }
+
+        checkRoadName(linkedList, tree, camCoordinates);
+        if (resume?.isResumed() ?? true) {
+          updateSpeedcam(speedcam);
+          updateBarWidget100m(color: 2);
+          updateBarWidget300m(color: 2);
+          updateBarWidget500m(color: 2);
+          updateBarWidget1000m();
+          updateBarWidgetMeters(distance);
+          updateCamText(distance: distance.toInt());
+        }
+        if (itemQueue.containsKey(camCoordinates)) {
+          try {
+            updateCamRoad(road: itemQueue[camCoordinates]?[7]);
+            updateMaxSpeed(maxSpeed: maxSpeed);
+          } catch (_) {
+            updateCamRoad(road: '');
+            updateMaxSpeed(reset: true);
+          }
+        }
+      } else {
+        if (lastDistance == 1000) {
+          checkRoadName(linkedList, tree, camCoordinates);
+          if (resume?.isResumed() ?? true) {
+            updateSpeedcam(speedcam);
+            updateBarWidget100m(color: 2);
+            updateBarWidget300m(color: 2);
+            updateBarWidget500m(color: 2);
+            updateBarWidget1000m();
+            updateBarWidgetMeters(distance);
+            updateCamText(distance: distance.toInt());
+          }
+          if (itemQueue.containsKey(camCoordinates)) {
+            try {
+              updateCamRoad(road: itemQueue[camCoordinates]?[7]);
+              updateMaxSpeed(maxSpeed: maxSpeed);
+            } catch (_) {
+              updateCamRoad(road: '');
+              updateMaxSpeed(reset: true);
+            }
+          }
+        } else {
+          camInProgress = false;
+          triggerFreeFlow();
+          if (!processNextCam) {
+            updateCamRoad(reset: true);
+          } else {
+            if (nextCamDistanceAsInt <= maxDistanceToFutureCamera) {
+              updateCamRoad(
+                road: '$nextCamDistance\n$nextCamRoad',
+                color: [1, .9, 0, 2],
+                sizeHint: [1.0, 0.4],
+                size: '26sp',
+              );
+            } else {
+              updateCamRoad(reset: true);
+            }
+          }
+          updateMaxSpeed(reset: true);
+          itemQueue[camCoordinates]?[1] = 'to_be_stored';
+        }
+      }
       lastDistance = 1000;
     } else if (distance > 1000 && distance <= 1500) {
       camInProgress = true;

@@ -147,6 +147,9 @@ class VoicePromptThread {
         case 'MOBILE_100':
           sound = 'mobile_100.wav';
           break;
+        case 'MOBILE_PREDICTIVE_100':
+          sound = null;
+          break;
         case 'DISTANCE_100':
           sound = 'distance_100.wav';
           break;
@@ -158,6 +161,9 @@ class VoicePromptThread {
           break;
         case 'MOBILE_300':
           sound = 'mobile_300.wav';
+          break;
+        case 'MOBILE_PREDICTIVE_300':
+          sound = null;
           break;
         case 'DISTANCE_300':
           sound = 'distance_300.wav';
@@ -171,6 +177,9 @@ class VoicePromptThread {
         case 'MOBILE_500':
           sound = 'mobile_500.wav';
           break;
+        case 'MOBILE_PREDICTIVE_500':
+          sound = null;
+          break;
         case 'DISTANCE_500':
           sound = 'distance_500.wav';
           break;
@@ -183,6 +192,9 @@ class VoicePromptThread {
         case 'MOBILE_1000':
           sound = 'mobile_1000.wav';
           break;
+        case 'MOBILE_PREDICTIVE_1000':
+          sound = null;
+          break;
         case 'DISTANCE_1000':
           sound = 'distance_1000.wav';
           break;
@@ -194,6 +206,9 @@ class VoicePromptThread {
           break;
         case 'MOBILE_NOW':
           sound = 'mobile_now.wav';
+          break;
+        case 'MOBILE_PREDICTIVE_NOW':
+          sound = null;
           break;
         case 'DISTANCE_NOW':
           sound = 'distance_now.wav';
@@ -247,15 +262,15 @@ class VoicePromptThread {
   /// Map the incoming [voiceEntry] identifier to a sound file within
   /// ``python/sounds``.  Returns `null` if no mapping exists.
   String? mapVoiceEntryToSound(String voiceEntry) {
-    final map = <String, String>{
+    final map = <String, String?>{
       'EXIT_APPLICATION': 'app_exit.wav',
       'ADDED_POLICE': 'police_added.wav',
       'ADDING_POLICE_FAILED': 'police_failed.wav',
       'STOP_APPLICATION': 'app_stopped.wav',
-      'OSM_DATA_ERROR': 'data_error.wav',
+      'OSM_DATA_ERROR': null,
       'INTERNET_CONN_FAILED': 'inet_failed.wav',
       'HAZARD': 'hazard.wav',
-      'EMPTY_DATASET_FROM_SERVER': 'empty_data.wav',
+      'EMPTY_DATASET_FROM_SERVER': null,
       'LOW_DOWNLOAD_DATA_RATE': 'low_download_rate.wav',
       'GPS_OFF': 'gps_off.wav',
       'GPS_LOW': 'gps_weak.wav',
@@ -265,22 +280,27 @@ class VoicePromptThread {
       'FIX_100': 'fix_100.wav',
       'TRAFFIC_100': 'traffic_100.wav',
       'MOBILE_100': 'mobile_100.wav',
+      'MOBILE_PREDICTIVE_100': null,
       'DISTANCE_100': 'distance_100.wav',
       'FIX_300': 'fix_300.wav',
       'TRAFFIC_300': 'traffic_300.wav',
       'MOBILE_300': 'mobile_300.wav',
+      'MOBILE_PREDICTIVE_300': null,
       'DISTANCE_300': 'distance_300.wav',
       'FIX_500': 'fix_500.wav',
       'TRAFFIC_500': 'traffic_500.wav',
       'MOBILE_500': 'mobile_500.wav',
+      'MOBILE_PREDICTIVE_500': null,
       'DISTANCE_500': 'distance_500.wav',
       'FIX_1000': 'fix_1000.wav',
       'TRAFFIC_1000': 'traffic_1000.wav',
       'MOBILE_1000': 'mobile_1000.wav',
+      'MOBILE_PREDICTIVE_1000': null,
       'DISTANCE_1000': 'distance_1000.wav',
       'FIX_NOW': 'fix_now.wav',
       'TRAFFIC_NOW': 'traffic_now.wav',
       'MOBILE_NOW': 'mobile_now.wav',
+      'MOBILE_PREDICTIVE_NOW': null,
       'DISTANCE_NOW': 'distance_now.wav',
       'CAMERA_AHEAD': 'camera_ahead.wav',
       'WATER': 'water.wav',

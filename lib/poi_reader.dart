@@ -11,6 +11,7 @@ import 'rectangle_calculator.dart'
 import 'thread_base.dart';
 import 'gps_producer.dart';
 import 'config.dart';
+import 'voice_prompt_events.dart';
 
 /// Representation of a user contributed camera.
 class UserCamera {
@@ -35,6 +36,7 @@ class POIReader extends Logger {
   final GpsProducer gpsProducer;
   final RectangleCalculatorThread calculator;
   final MapQueue<dynamic> mapQueue;
+  final VoicePromptEvents voicePromptEvents;
   final StreamController<String>? logViewer;
 
   /// Global members translated from the Python implementation
@@ -75,6 +77,7 @@ class POIReader extends Logger {
     this.gpsProducer,
     this.calculator,
     this.mapQueue,
+    this.voicePromptEvents,
     this.logViewer,
   ) : super('POIReader', logViewer: logViewer) {
     _setConfigs();
@@ -305,6 +308,7 @@ class POIReader extends Logger {
         "Processing POI's from cloud failed: ${ServiceAccount.fileName} not found!",
         logLevel: 'ERROR',
       );
+      voicePromptEvents.emit('POI_FAILED');
       return;
     }
 
@@ -314,6 +318,7 @@ class POIReader extends Logger {
         "Processing POI's from cloud failed: No POI's to process in ${ServiceAccount.fileName}",
         logLevel: 'WARNING',
       );
+      voicePromptEvents.emit('POI_FAILED');
       return;
     }
 
@@ -322,6 +327,12 @@ class POIReader extends Logger {
     printLogLine('Found $numCameras cameras from cloud!');
     calculator.updateInfoPage('POI_CAMERAS:$numCameras');
     _initialDownloadFinished = true;
+
+    if (numCameras > 0) {
+      voicePromptEvents.emit('POI_SUCCESS');
+    } else {
+      voicePromptEvents.emit('POI_FAILED');
+    }
 
     var camId = 200000;
     for (final camera in cameras) {

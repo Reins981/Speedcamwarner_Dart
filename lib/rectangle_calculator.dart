@@ -398,6 +398,12 @@ class RectangleCalculatorThread {
   /// names and max speed values.
   bool dismissPois = true;
 
+  /// Track whether corresponding voice prompts have already been issued to
+  /// avoid repeating the same message for consecutive map elements.
+  bool _hazardVoice = false;
+  bool _waterVoice = false;
+  bool _accessControlVoice = false;
+
   /// Configuration flags mirroring the Python implementation.
   bool disableRoadLookup = false;
   bool alternativeRoadLookup = true;
@@ -1904,13 +1910,41 @@ class RectangleCalculatorThread {
     final hazard = way['hazard'];
     if (hazard != null) {
       infoPageNotifier.value = hazard.toString().toUpperCase();
-    } else if (infoPageNotifier.value != null &&
-        infoPageNotifier.value!.isNotEmpty) {
-      infoPageNotifier.value = null;
+      if (!_hazardVoice) {
+        voicePromptEvents.emit('HAZARD');
+        _hazardVoice = true;
+      }
+    } else {
+      if (_hazardVoice) {
+        _hazardVoice = false;
+      }
+      if (infoPageNotifier.value != null &&
+          infoPageNotifier.value!.isNotEmpty) {
+        infoPageNotifier.value = null;
+      }
     }
 
     if (way.containsKey('waterway')) {
       infoPageNotifier.value = way['waterway'].toString().toUpperCase();
+      if (!_waterVoice) {
+        voicePromptEvents.emit('WATER');
+        _waterVoice = true;
+      }
+    } else {
+      if (_waterVoice) {
+        _waterVoice = false;
+      }
+    }
+
+    if (way.containsKey('access') && way['access'] != 'yes') {
+      if (!_accessControlVoice) {
+        voicePromptEvents.emit('ACCESS_CONTROL');
+        _accessControlVoice = true;
+      }
+    } else {
+      if (_accessControlVoice) {
+        _accessControlVoice = false;
+      }
     }
   }
 
@@ -2428,6 +2462,7 @@ class RectangleCalculatorThread {
             'triggerOsmLookup timeout after $osmRetryMaxAttempts attempts',
             logLevel: 'ERROR',
           );
+          voicePromptEvents.emit('INTERNET_CONN_FAILED');
           updateOnlineStatus(false);
           return OsmLookupResult(false, 'TIMEOUT', null, e.toString(), area);
         }
@@ -2439,6 +2474,7 @@ class RectangleCalculatorThread {
           'triggerOsmLookup exception: $e',
           logLevel: 'ERROR',
         );
+        voicePromptEvents.emit('INTERNET_CONN_FAILED');
         updateOnlineStatus(false);
         if (client == null) httpClient.close();
         return OsmLookupResult(false, 'NOINET', null, e.toString(), area);
@@ -2462,7 +2498,9 @@ class RectangleCalculatorThread {
       _threadPool.checkWorkerThreadStatus();
 
   void reportDownloadTime(Duration duration) {
-    // Placeholder for logging; no-op in this port.
+    if (duration > maxDownloadTime) {
+      voicePromptEvents.emit('LOW_DOWNLOAD_DATA_RATE');
+    }
   }
 
   Future<String?> getRoadNameViaNominatim(double lat, double lon) async {
