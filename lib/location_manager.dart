@@ -88,10 +88,15 @@ class LocationManager extends Logger {
         throw Exception('Location permissions are permanently denied');
       }
 
+      // Configure platform specific settings so we can control the minimum
+      // interval between location updates. Without specifying the interval the
+      // Android implementation defaults to 5000ms which results in location
+      // updates arriving less frequently than desired.
       positionStreamLocal = Geolocator.getPositionStream(
-        locationSettings: LocationSettings(
+        locationSettings: AndroidSettings(
           accuracy: LocationAccuracy.best,
           distanceFilter: minDistance.round(),
+          intervalDuration: Duration(milliseconds: minTime),
         ),
       );
     }
