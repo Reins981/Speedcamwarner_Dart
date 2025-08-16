@@ -1,4 +1,5 @@
 import 'dart:io';
+import 'dart:convert';
 
 import 'package:dialog_flowtter/dialog_flowtter.dart';
 import 'package:uuid/uuid.dart';
@@ -40,13 +41,20 @@ class DialogflowClient implements DialogflowService {
 
   /// Construct a [DialogflowClient] using credentials stored in [jsonPath].
   factory DialogflowClient.fromServiceAccountFile({
-    required String projectId,
     required String jsonPath,
     String languageCode = 'en',
   }) {
     if (!File(jsonPath).existsSync()) {
       throw DialogflowException('Credentials file not found: $jsonPath');
     }
+
+    final dynamic projectIdRaw =
+        json.decode(File(jsonPath).readAsStringSync())['project_id'];
+    if (projectIdRaw is! String || projectIdRaw.isEmpty) {
+      throw DialogflowException('Project ID not found in credentials file');
+    }
+    final String projectId = projectIdRaw;
+
     return DialogflowClient(
       projectId: projectId,
       jsonPath: jsonPath,

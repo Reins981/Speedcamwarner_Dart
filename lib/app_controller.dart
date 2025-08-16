@@ -1,7 +1,7 @@
 import 'package:flutter/foundation.dart';
 
 import 'dart:async';
-
+import 'package:path/path.dart' as p;
 import 'gps_thread.dart';
 import 'location_manager.dart';
 import 'rectangle_calculator.dart';
@@ -89,15 +89,12 @@ class AppController {
 
     final dialogflow = () {
       try {
-        final projectId = Platform.environment['DIALOGFLOW_PROJECT_ID'];
+        final relPath =
+            p.join('service_account', 'osmwarner-01bcd4dc2dd3.json');
         final credentialsPath =
             Platform.environment['DIALOGFLOW_CREDENTIALS'] ??
-                'service_account/dialogflow_credentials.json';
-        if (projectId == null) {
-          throw DialogflowException('DIALOGFLOW_PROJECT_ID not set');
-        }
+                File(relPath).absolute.path;
         return DialogflowClient.fromServiceAccountFile(
-          projectId: projectId,
           jsonPath: credentialsPath,
         );
       } catch (e) {
