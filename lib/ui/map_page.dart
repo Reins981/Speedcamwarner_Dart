@@ -29,7 +29,16 @@ class _MapPageState extends State<MapPage> {
   StreamSubscription<SpeedCameraEvent>? _camSub;
   StreamSubscription<GeoRect?>? _rectSub;
   StreamSubscription<GeoRect>? _constructionSub;
-  final List<Polygon> _rectPolygons = [];
+  List<Polygon> _rectPolygons = [];
+  List<Polygon> _constructionPolygons = [];
+  GeoRect? _lastRect;
+
+  bool _sameRect(GeoRect a, GeoRect b, [double tol = 1e-6]) {
+    return (a.minLat - b.minLat).abs() < tol &&
+        (a.minLon - b.minLon).abs() < tol &&
+        (a.maxLat - b.maxLat).abs() < tol &&
+        (a.maxLon - b.maxLon).abs() < tol;
+  }
 
   @override
   void initState() {
@@ -83,13 +92,7 @@ class _MapPageState extends State<MapPage> {
   }
 
   void _onConstructionArea(GeoRect area) {
-    final exists = _constructionData.values.any(
-      (r) =>
-          r.minLat == area.minLat &&
-          r.minLon == area.minLon &&
-          r.maxLat == area.maxLat &&
-          r.maxLon == area.maxLon,
-    );
+    final exists = _constructionData.values.any((r) => _sameRect(r, area));
     if (exists) return;
     final marker = Marker(
       point: LatLng(area.minLat, area.minLon),
@@ -97,19 +100,34 @@ class _MapPageState extends State<MapPage> {
       height: 40,
       child: Image.asset('images/construction_marker.png'),
     );
+    final points = [
+      LatLng(area.minLat, area.minLon),
+      LatLng(area.minLat, area.maxLon),
+      LatLng(area.maxLat, area.maxLon),
+      LatLng(area.maxLat, area.minLon),
+    ];
+    final polygon = Polygon(
+      points: points,
+      color: Colors.orange.withOpacity(0.1),
+      borderColor: Colors.orange,
+      borderStrokeWidth: 2,
+    );
     setState(() {
       _constructionMarkers.add(marker);
       _constructionData[marker] = area;
+      _constructionPolygons = [..._constructionPolygons, polygon];
     });
   }
 
   void _onRect(GeoRect? rect) {
     if (rect == null) {
       setState(() {
-        _rectPolygons.clear();
+        _rectPolygons = [];
+        _lastRect = null;
       });
       return;
     }
+    if (_lastRect != null && _sameRect(_lastRect!, rect)) return;
     final points = [
       LatLng(rect.minLat, rect.minLon),
       LatLng(rect.minLat, rect.maxLon),
@@ -122,10 +140,9 @@ class _MapPageState extends State<MapPage> {
       borderColor: Colors.blue,
       borderStrokeWidth: 2,
     );
+    _lastRect = rect;
     setState(() {
-      _rectPolygons
-        ..clear()
-        ..add(polygon);
+      _rectPolygons = [polygon];
     });
   }
 
@@ -161,6 +178,8 @@ class _MapPageState extends State<MapPage> {
             userAgentPackageName: 'com.example.speedcamwarner',
           ),
           if (_rectPolygons.isNotEmpty) PolygonLayer(polygons: _rectPolygons),
+          if (_constructionPolygons.isNotEmpty)
+            PolygonLayer(polygons: _constructionPolygons),
           if (_gpsMarker != null) MarkerLayer(markers: [_gpsMarker!]),
           PopupMarkerLayer(
             options: PopupMarkerLayerOptions(
