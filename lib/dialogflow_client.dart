@@ -1,8 +1,14 @@
-import 'dart:io';
 import 'dart:convert';
-
-import 'package:dialog_flowtter/dialog_flowtter.dart';
+import 'package:dialog_flowtter/dialog_flowtter.dart' as df;
+import 'package:flutter/services.dart';
 import 'package:uuid/uuid.dart';
+
+/// Load the configuration from the bundled asset. Should be called once
+/// during application start before any configuration values are accessed.
+Future<Map<String, dynamic>> load(String configPath) async {
+  final jsonStr = await rootBundle.loadString(configPath);
+  return jsonDecode(jsonStr) as Map<String, dynamic>;
+}
 
 /// A client for interacting with Dialogflow's detect intent API.
 ///
@@ -40,16 +46,12 @@ class DialogflowClient implements DialogflowService {
   });
 
   /// Construct a [DialogflowClient] using credentials stored in [jsonPath].
-  factory DialogflowClient.fromServiceAccountFile({
+  static Future<DialogflowClient> fromServiceAccountFile({
     required String jsonPath,
     String languageCode = 'en',
-  }) {
-    if (!File(jsonPath).existsSync()) {
-      throw DialogflowException('Credentials file not found: $jsonPath');
-    }
-
-    final dynamic projectIdRaw =
-        json.decode(File(jsonPath).readAsStringSync())['project_id'];
+  }) async {
+    final config = await load(jsonPath);
+    final dynamic projectIdRaw = config['project_id'];
     if (projectIdRaw is! String || projectIdRaw.isEmpty) {
       throw DialogflowException('Project ID not found in credentials file');
     }
@@ -72,13 +74,13 @@ class DialogflowClient implements DialogflowService {
   Future<String> detectIntent(String text) async {
     final sessionId = const Uuid().v4();
     try {
-      final dialog = DialogFlowtter(
+      final dialog = df.DialogFlowtter(
         sessionId: sessionId,
         jsonPath: jsonPath,
       )..projectId = projectId;
 
-      final queryInput = QueryInput(
-        text: TextInput(
+      final queryInput = df.QueryInput(
+        text: df.TextInput(
           text: text,
           languageCode: languageCode,
         ),

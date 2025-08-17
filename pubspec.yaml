@@ -82,7 +82,9 @@ flutter:
     - images/
     - gpx/
     - assets/config.json
-    - python/service_account/
+    - assets/service_account/osmwarner-01bcd4dc2dd3.json
+    - assets/service_account/cameras.json
+
 
   # To add assets to your application, add an assets section, like this:
   # assets:

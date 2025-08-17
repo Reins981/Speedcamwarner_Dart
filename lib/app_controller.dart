@@ -1,7 +1,8 @@
 import 'package:flutter/foundation.dart';
+import 'package:path/path.dart' as p;
 
 import 'dart:async';
-import 'package:path/path.dart' as p;
+import 'package:path_provider/path_provider.dart';
 import 'gps_thread.dart';
 import 'location_manager.dart';
 import 'rectangle_calculator.dart';
@@ -87,13 +88,11 @@ class AppController {
     );
     unawaited(camWarner.run());
 
-    final dialogflow = () {
+    final dialogflow = () async {
       try {
-        final relPath =
-            p.join('service_account', 'osmwarner-01bcd4dc2dd3.json');
+        // Use project-relative path for credentials file
         final credentialsPath =
-            Platform.environment['DIALOGFLOW_CREDENTIALS'] ??
-                File(relPath).absolute.path;
+            p.join('assets', 'service_account', 'osmwarner-01bcd4dc2dd3.json');
         return DialogflowClient.fromServiceAccountFile(
           jsonPath: credentialsPath,
         );

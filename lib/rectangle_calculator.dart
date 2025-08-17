@@ -102,7 +102,7 @@ class SpeedCameraEvent {
   final bool mobile;
   final bool predictive;
   String name;
-  final int maxspeed;
+  final int? maxspeed;
 
   SpeedCameraEvent({
     required this.latitude,
@@ -113,7 +113,7 @@ class SpeedCameraEvent {
     this.mobile = false,
     this.predictive = false,
     this.name = '',
-    this.maxspeed = 0,
+    this.maxspeed,
   });
 
   @override
@@ -865,7 +865,7 @@ class RectangleCalculatorThread {
           'ccp_node': ['IGNORE', 'IGNORE'],
           'list_tree': [null, null],
           'name': predicted.name,
-          'maxspeed': 0,
+          'maxspeed': null,
           'direction': '',
           'predictive': true,
         }),
@@ -1988,7 +1988,7 @@ class RectangleCalculatorThread {
       // "50 km/h") which previously caused a runtime type cast error when
       // casting directly to ``num``.  Use ``resolveMaxSpeed`` to safely parse the
       // numeric portion instead.
-      final maxspeed = resolveMaxSpeed(tags) ?? 0;
+      final maxspeed = resolveMaxSpeed(tags);
       if (lat == null || lon == null) continue;
 
       final roadName = await getRoadNameViaNominatim(lat, lon);
