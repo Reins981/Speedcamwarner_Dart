@@ -449,11 +449,11 @@ class ButtonsLayout extends StatelessWidget {
   Widget build(BuildContext context) {
     final Size size = MediaQuery.of(context).size;
     final bool isPortrait = size.width < size.height;
-
+    late final Widget layout;
     if (isPortrait) {
       final double buttonSize =
           math.min(size.width / 4, size.height * 0.2);
-      return Align(
+      layout = Align(
         alignment: Alignment.bottomCenter,
         child: SizedBox(
           width: buttonSize * 4,
@@ -484,7 +484,7 @@ class ButtonsLayout extends StatelessWidget {
     } else {
       final double buttonSize =
           math.min(size.width * 0.2, size.height / 4);
-      return Align(
+      layout = Align(
         alignment: Alignment.centerRight,
         child: SizedBox(
           width: buttonSize,
@@ -513,6 +513,8 @@ class ButtonsLayout extends StatelessWidget {
         ),
       );
     }
+
+    return SafeArea(child: layout);
   }
 
   Widget _button(
