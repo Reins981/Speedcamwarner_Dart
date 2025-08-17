@@ -515,8 +515,18 @@ class SpeedCamWarner {
         if (nextCamRoad != '' && nextCamRoad.length > 20) {
           nextCamRoad = '${nextCamRoad.substring(0, 20)}...';
         }
-        nextCamDistance = '${itemQueue[nextCam]?[8] ?? ''}';
-        nextCamDistanceAsInt = int.tryParse(nextCamDistance.split('.')[0]) ?? 0;
+        // The distance stored in the queue is only the initial value at the
+        // time the camera was inserted.  For future cameras this value can
+        // remain ``0.0`` which is misleading when presented to the user.  Always
+        // recompute the current distance to keep the information accurate.
+        final nextDistance =
+            checkDistanceBetweenTwoPoints(nextCam, [longitude, latitude]);
+        nextCamDistance = '$nextDistance';
+        nextCamDistanceAsInt =
+            int.tryParse(nextCamDistance.split('.')[0]) ?? 0;
+        // Update the cached distance so subsequent lookups have a sensible
+        // starting point instead of ``0.0``.
+        itemQueue[nextCam]?[8] = nextDistance;
         processNextCam = true;
       } catch (_) {}
     }
