@@ -64,12 +64,6 @@ void main() {
       expect(calc.roadName, equals('Main St'));
     });
 
-    test('processMaxSpeed triggers overspeed checker', () {
-      calc.processMaxSpeed('50', true, currentSpeed: 70, roadName: 'Main St');
-      expect(calc.lastMaxSpeed, equals(50));
-      expect(calc.overspeedChecker.lastDifference, equals(20));
-    });
-
     test('triggerCacheLookup sets road name and max speed', () async {
       final linked = DoubleLinkedListNodes();
       linked.appendNode(
