@@ -122,8 +122,8 @@ class OverspeedThread extends Logger {
   }
 
   Future<Map<String, dynamic>> _consumeOverspeedEntry() async {
-    while (_overspeedQueue.isEmpty) {
-      await _overspeedNotifier.stream.first;
+    if (_overspeedQueue.isEmpty) {
+      return {};
     }
     return _overspeedQueue.removeFirst();
   }

@@ -8,6 +8,7 @@ import 'dart:math' as math;
 
 import '../app_controller.dart';
 import '../rectangle_calculator.dart';
+import 'overspeed_indicator.dart';
 
 /// A simple dashboard showing current speed, road name and speed camera
 /// information.
@@ -545,8 +546,7 @@ class _DashboardPageState extends State<DashboardPage> {
                 _buildMaxSpeedWidget(),
               ],
               if (_overspeedDiff != null)
-                Text('Slow down by ${_overspeedDiff!} km/h',
-                    style: const TextStyle(color: Colors.redAccent)),
+                OverspeedIndicator(diff: _overspeedDiff!),
             ],
           ),
         ],
