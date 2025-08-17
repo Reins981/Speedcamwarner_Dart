@@ -251,9 +251,17 @@ class _DashboardPageState extends State<DashboardPage> {
 
   @override
   Widget build(BuildContext context) {
+    const double cameraInfoHeight = 120;
     return Scaffold(
       appBar: AppBar(
         title: const Text('SpeedCamWarner'),
+        actions: [
+          IconButton(
+            onPressed: _addCamera,
+            tooltip: 'Add police camera',
+            icon: const Icon(Icons.camera_alt),
+          ),
+        ],
       ),
       body: Container(
         decoration: const BoxDecoration(
@@ -267,7 +275,13 @@ class _DashboardPageState extends State<DashboardPage> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            _buildCameraInfo(),
+            SizedBox(
+              height: cameraInfoHeight,
+              child: Align(
+                alignment: Alignment.topCenter,
+                child: _buildCameraInfo(),
+              ),
+            ),
             const SizedBox(height: 16),
             Expanded(
               child: Row(
@@ -303,12 +317,6 @@ class _DashboardPageState extends State<DashboardPage> {
         mainAxisAlignment: MainAxisAlignment.end,
         crossAxisAlignment: CrossAxisAlignment.end,
         children: [
-          FloatingActionButton(
-            onPressed: _addCamera,
-            tooltip: 'Add police camera',
-            child: const Icon(Icons.camera_alt),
-          ),
-          const SizedBox(height: 8),
           FloatingActionButton(
             onPressed: _startRecording,
             tooltip: 'Start recording',
