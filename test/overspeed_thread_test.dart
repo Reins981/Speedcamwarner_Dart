@@ -31,8 +31,9 @@ void main() {
     await thread.process();
     expect(layout.lastValue, 10);
 
+    // Now update only the speed without providing a new overspeed entry.
+    // The thread should reuse the last max speed and reset the warning.
     thread.addCurrentSpeed(40);
-    thread.addOverspeedEntry({});
     await thread.process();
     expect(layout.lastValue, isNull);
     expect(layout.resetCount, 1);
