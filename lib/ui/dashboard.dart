@@ -8,6 +8,7 @@ import 'dart:math' as math;
 
 import '../app_controller.dart';
 import '../rectangle_calculator.dart';
+import 'overspeed_indicator.dart';
 
 /// A simple dashboard showing current speed, road name and speed camera
 /// information.
@@ -67,7 +68,7 @@ class _DashboardPageState extends State<DashboardPage> {
     if (_calculator != null) {
       _speed = _calculator!.currentSpeedNotifier.value;
       _roadName = _calculator!.roadNameNotifier.value;
-      _overspeedDiff = _calculator!.overspeedChecker.difference.value;
+      _overspeedDiff = _controller!.overspeedThread.difference.value;
       _speedCamWarning = _calculator!.speedCamNotifier.value;
       if (_speedCamWarning == 'FREEFLOW') {
         _clearCameraInfo();
@@ -95,7 +96,7 @@ class _DashboardPageState extends State<DashboardPage> {
       _online = _calculator!.onlineStatusNotifier.value;
       _calculator!.currentSpeedNotifier.addListener(_updateFromCalculator);
       _calculator!.roadNameNotifier.addListener(_updateFromCalculator);
-      _calculator!.overspeedChecker.difference.addListener(_updateFromCalculator);
+      _controller!.overspeedThread.difference.addListener(_updateFromCalculator);
       _calculator!.speedCamNotifier.addListener(_updateFromCalculator);
       _calculator!.speedCamDistanceNotifier.addListener(_updateFromCalculator);
       _calculator!.cameraRoadNotifier.addListener(_updateFromCalculator);
@@ -127,7 +128,7 @@ class _DashboardPageState extends State<DashboardPage> {
     setState(() {
       _speed = _calculator!.currentSpeedNotifier.value;
       _roadName = _calculator!.roadNameNotifier.value;
-      _overspeedDiff = _calculator!.overspeedChecker.difference.value;
+      _overspeedDiff = _controller!.overspeedThread.difference.value;
       _speedCamWarning = _calculator!.speedCamNotifier.value;
       if (_speedCamWarning == 'FREEFLOW') {
         _clearCameraInfo();
@@ -231,7 +232,7 @@ class _DashboardPageState extends State<DashboardPage> {
     if (_calculator != null) {
       _calculator!.currentSpeedNotifier.removeListener(_updateFromCalculator);
       _calculator!.roadNameNotifier.removeListener(_updateFromCalculator);
-      _calculator!.overspeedChecker.difference
+      _controller!.overspeedThread.difference
           .removeListener(_updateFromCalculator);
       _calculator!.speedCamNotifier.removeListener(_updateFromCalculator);
       _calculator!.speedCamDistanceNotifier
@@ -545,8 +546,7 @@ class _DashboardPageState extends State<DashboardPage> {
                 _buildMaxSpeedWidget(),
               ],
               if (_overspeedDiff != null)
-                Text('Slow down by ${_overspeedDiff!} km/h',
-                    style: const TextStyle(color: Colors.redAccent)),
+                OverspeedIndicator(diff: _overspeedDiff!),
             ],
           ),
         ],

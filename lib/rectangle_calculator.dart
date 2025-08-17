@@ -26,7 +26,6 @@ import 'filtered_road_classes.dart';
 import 'most_probable_way.dart';
 import 'rect.dart' show Rect;
 import 'rect.dart' as rect_utils hide Rect;
-import 'overspeed_checker.dart';
 import 'overspeed_thread.dart';
 import 'thread_pool.dart';
 import 'road_resolver.dart';
@@ -311,9 +310,6 @@ class RectangleCalculatorThread {
   /// layer needs to remain in sync with the calculator.
   int zoom = 17;
 
-  /// Exposes the current overspeed difference to listeners.
-  final OverspeedChecker overspeedChecker;
-
   /// Thread responsible for calculating overspeed warnings.
   final OverspeedThread? overspeedThread;
 
@@ -560,13 +556,11 @@ class RectangleCalculatorThread {
     PredictiveModel? model,
     VoicePromptEvents? voicePromptEvents,
     InterruptQueue<String>? interruptQueue,
-    OverspeedChecker? overspeedChecker,
     this.overspeedThread,
   })  : _predictiveModel = model ?? PredictiveModel(),
         voicePromptEvents = voicePromptEvents ?? VoicePromptEvents(),
         interruptQueue = interruptQueue,
-        mostProbableWay = MostProbableWay(),
-        overspeedChecker = overspeedChecker ?? OverspeedChecker() {
+        mostProbableWay = MostProbableWay() {
     _loadConfigs();
     _start();
   }

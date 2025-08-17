@@ -12,7 +12,6 @@ import 'gps_producer.dart';
 import 'speed_cam_warner.dart';
 import 'voice_prompt_thread.dart';
 import 'overspeed_thread.dart' as overspeed;
-import 'overspeed_checker.dart';
 import 'config.dart';
 import 'thread_base.dart';
 import 'dialogflow_client.dart';
@@ -29,18 +28,15 @@ class AppController {
   AppController()
       : voicePromptEvents = VoicePromptEvents(),
         locationManager = LocationManager() {
-    overspeedChecker = OverspeedChecker();
     overspeedThread = overspeed.OverspeedThread(
       cond: overspeed.ThreadCondition(),
       isResumed: () => true,
-      speedLayout: _OverspeedLayout(overspeedChecker),
     );
     unawaited(overspeedThread.run());
 
     calculator = RectangleCalculatorThread(
       voicePromptEvents: voicePromptEvents,
       interruptQueue: interruptQueue,
-      overspeedChecker: overspeedChecker,
       overspeedThread: overspeedThread,
     );
     gps = GpsThread(
@@ -139,9 +135,6 @@ class AppController {
 
   /// Calculates overspeed warnings based on current and maximum speeds.
   late final overspeed.OverspeedThread overspeedThread;
-
-  /// Publishes the current overspeed difference to the UI.
-  late final OverspeedChecker overspeedChecker;
 
   /// Calculates deviation of the current course based on recent bearings.
   late deviation.DeviationCheckerThread deviationChecker;
@@ -315,21 +308,6 @@ class AppController {
     _deviationRunning = false;
     deviationChecker.terminate();
     averageAngleQueue.clearAverageAngleData();
-  }
-}
-
-class _OverspeedLayout implements overspeed.SpeedLayout {
-  _OverspeedLayout(this.checker);
-  final OverspeedChecker checker;
-
-  @override
-  void resetOverspeed() {
-    checker.difference.value = null;
-  }
-
-  @override
-  void updateOverspeed(int value) {
-    checker.difference.value = value;
   }
 }
 
