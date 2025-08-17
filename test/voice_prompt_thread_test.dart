@@ -2,6 +2,7 @@ import 'package:test/test.dart';
 
 import '../lib/voice_prompt_events.dart';
 import '../lib/voice_prompt_thread.dart';
+import '../lib/dialogflow_client.dart';
 
 class FakeTts {
   String? lastText;
@@ -13,7 +14,8 @@ class FakeTts {
   }
 }
 
-class FakeDialogflow {
+class FakeDialogflow implements DialogflowService {
+  @override
   Future<String> detectIntent(String text) async => 'response:$text';
 }
 

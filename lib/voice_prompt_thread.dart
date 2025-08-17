@@ -3,13 +3,14 @@ import 'package:audioplayers/audioplayers.dart';
 import 'dart:async';
 
 import 'voice_prompt_events.dart';
+import 'dialogflow_client.dart';
 
 /// Port of the Python `VoicePromptThread` used for acoustic warnings.
 class VoicePromptThread {
   final dynamic flutterTts;
   final AudioPlayer _audioPlayer = AudioPlayer();
   final VoicePromptEvents voicePromptEvents;
-  final dynamic dialogflowClient;
+  final Future<DialogflowService> _dialogflowClient;
   bool aiVoicePrompts;
   final bool Function()? isResumed;
   final bool Function()? runInBackground;
@@ -22,13 +23,14 @@ class VoicePromptThread {
 
   VoicePromptThread({
     required this.voicePromptEvents,
-    required this.dialogflowClient,
+    required FutureOr<DialogflowService> dialogflowClient,
     dynamic tts,
     this.aiVoicePrompts = true,
     this.isResumed,
     this.runInBackground,
     this.waitForMainEvent,
-  }) : flutterTts = tts ?? FlutterTts() {
+  })  : _dialogflowClient = Future.value(dialogflowClient),
+        flutterTts = tts ?? FlutterTts() {
     _initializeTts();
     _audioPlayer.onPlayerComplete.listen((event) {
       _lock = false;
@@ -90,7 +92,8 @@ class VoicePromptThread {
 
     if (aiVoicePrompts) {
       final phrase = mapVoiceEntryToPhrase(voiceEntry) ?? voiceEntry;
-      final response = await dialogflowClient.detectIntent(phrase);
+      final client = await _dialogflowClient;
+      final response = await client.detectIntent(phrase);
       _lock = true;
       await synthesizeSpeech(response);
       _lock = false;
