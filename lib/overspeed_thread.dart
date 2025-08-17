@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'dart:collection';
+import 'package:flutter/foundation.dart';
 
 import 'logger.dart';
 
@@ -8,17 +9,15 @@ class ThreadCondition {
   ThreadCondition({this.terminate = false});
 }
 
-abstract class SpeedLayout {
-  void resetOverspeed();
-  void updateOverspeed(int value);
-}
-
 class OverspeedThread extends Logger {
   final ThreadCondition cond;
   final bool Function() isResumed;
-  final SpeedLayout speedLayout;
   final bool Function()? runInBackground;
   final Future<void> Function()? waitForMainEvent;
+
+  /// Notifies listeners when the driver exceeds the allowed speed. `null`
+  /// indicates that the vehicle is within the permitted range.
+  final ValueNotifier<int?> difference = ValueNotifier<int?>(null);
 
   final Queue<dynamic> _currentSpeedQueue = Queue<dynamic>();
   final Queue<Map<String, dynamic>> _overspeedQueue =
@@ -34,7 +33,6 @@ class OverspeedThread extends Logger {
   OverspeedThread({
     required this.cond,
     required this.isResumed,
-    required this.speedLayout,
     this.runInBackground,
     this.waitForMainEvent,
     StreamController<String>? logViewer,
@@ -140,9 +138,9 @@ class OverspeedThread extends Logger {
 
   void _processEntry(int value) {
     if (value == 10000) {
-      speedLayout.resetOverspeed();
+      difference.value = null;
     } else {
-      speedLayout.updateOverspeed(value);
+      difference.value = value;
     }
   }
 
