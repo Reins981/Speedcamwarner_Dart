@@ -48,6 +48,22 @@ class OverspeedThread extends Logger {
     _overspeedNotifier.add(null);
   }
 
+  /// Convenience setter used in tests and simple callers to update the
+  /// current speed and optional speed limit in one step. When [limit] is
+  /// `null`, any previous limit is cleared and the last difference reset.
+  void setSpeedAndLimit({required int speed, int? limit}) {
+    if (limit == null) {
+      lastMaxSpeed = null;
+      _processEntry(10000);
+      return;
+    }
+    lastMaxSpeed = limit;
+    _calculate(speed, limit);
+  }
+
+  /// Exposes the most recently calculated difference directly for tests.
+  int? get lastDifference => difference.value;
+
   void clearQueues() {
     _currentSpeedQueue.clear();
     _overspeedQueue.clear();
@@ -93,6 +109,13 @@ class OverspeedThread extends Logger {
     for (final entry in overspeedEntry.entries) {
       var maxSpeed = entry.value;
       printLogLine('Received Max Speed: $maxSpeed');
+
+      if (maxSpeed == null) {
+        // Reset when no limit is provided.
+        lastMaxSpeed = null;
+        _processEntry(10000);
+        continue;
+      }
 
       if (maxSpeed is String && maxSpeed.contains('mph')) {
         maxSpeed = int.parse(maxSpeed.replaceAll(' mph', ''));

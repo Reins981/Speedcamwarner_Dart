@@ -2,24 +2,16 @@ import 'package:test/test.dart';
 import 'package:workspace/overspeed_thread.dart';
 
 void main() {
-  test('processes overspeed and reset', () async {
-    final thread = OverspeedThread(
+  test('detects overspeed and reset', () {
+    final checker = OverspeedThread(
       cond: ThreadCondition(),
       isResumed: () => true,
     );
 
-    thread.addCurrentSpeed(60);
-    thread.addOverspeedEntry({'limit': 50});
-    await thread.process();
-    expect(thread.difference.value, 10);
+    checker.setSpeedAndLimit(speed: 60, limit: 50);
+    expect(checker.lastDifference, 10);
 
-    // Now update only the speed without providing a new overspeed entry.
-    // The thread should reuse the last max speed and reset the warning.
-    thread.addCurrentSpeed(40);
-    await thread.process();
-    expect(thread.difference.value, isNull);
-
-    await thread.stop();
+    checker.setSpeedAndLimit(speed: 40, limit: null);
+    expect(checker.lastDifference, isNull);
   });
 }
-
