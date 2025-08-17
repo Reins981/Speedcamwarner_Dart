@@ -53,7 +53,7 @@ class ServiceAccount {
     } on FileSystemException {
       try {
         final content = await rootBundle
-            .loadString('python/service_account/osmwarner-01bcd4dc2dd3.json');
+            .loadString('assets/service_account/osmwarner-01bcd4dc2dd3.json');
         return jsonDecode(content) as Map<String, dynamic>;
       } on Exception {
         throw Exception(
@@ -73,7 +73,7 @@ class ServiceAccount {
     } else {
       try {
         jsonString = await rootBundle
-            .loadString('python/service_account/osmwarner-01bcd4dc2dd3.json');
+            .loadString('assets/service_account/osmwarner-01bcd4dc2dd3.json');
       } on Exception {
         throw Exception(
             'Service account file not found in assets or file system.');

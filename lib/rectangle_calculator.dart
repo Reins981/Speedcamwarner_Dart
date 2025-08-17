@@ -660,6 +660,28 @@ class RectangleCalculatorThread {
           'calculator.road_classes_to_speed',
         ) ??
         roadClassesToSpeedConfig;
+
+    /// print all config values
+    void printConfigValues() {
+      print('Max Speed: $maxspeed');
+      print('OSM Timeout: $osmTimeout');
+      print(
+          'Construction Area Lookahead Distance: $maxConstructionAreaLookaheadDistance');
+      // Add more print statements for other config values as needed
+      print('Max Speed Cam Lookahead Distance: $maxSpeedCamLookAheadDistance');
+      print('Fallback Rect Angle: $fallbackRectAngle');
+      print('Zoom: $zoom');
+      print('Max Cross Roads: $maxCrossRoads');
+      print('Disable Road Lookup: $disableRoadLookup');
+      print('Cameras Look Ahead Mode: $camerasLookAheadMode');
+      print('Alternative Road Lookup: $alternativeRoadLookup');
+      print('Use Only One Extrapolated Rect: $useOnlyOneExtrapolatedRect');
+      print('Consider Backup Rects: $considerBackupRects');
+      print('Dismiss POIs: $dismissPois');
+      print(
+          'Enable Ordered Rects Extrapolated: $enableOrderedRectsExtrapolated');
+      print('Max Number Extrapolated Rects: $maxNumberExtrapolatedRects');
+    }
   }
 
   /// Expose a convenience method to push a new sample and trigger processing in
