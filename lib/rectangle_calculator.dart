@@ -2605,7 +2605,7 @@ class RectangleCalculatorThread {
           final data = jsonDecode(resp.body) as Map<String, dynamic>;
           final elements = data['elements'] as List<dynamic>?;
           logger.printLogLine(
-            'triggerOsmLookup returned ${elements?.length ?? 0} elements',
+            'triggerOsmLookup $lookupType returned ${elements?.length ?? 0} elements',
             logLevel: 'DEBUG',
           );
           updateOnlineStatus(true);
@@ -2614,7 +2614,7 @@ class RectangleCalculatorThread {
         } else {
           await checkWorkerThreadStatus();
           logger.printLogLine(
-            'triggerOsmLookup non-200 HTTP ${resp.statusCode}',
+            'triggerOsmLookup $lookupType non-200 HTTP ${resp.statusCode}',
             logLevel: 'WARNING',
           );
           updateOnlineStatus(false);
@@ -2629,7 +2629,7 @@ class RectangleCalculatorThread {
         }
       } on TimeoutException catch (e) {
         logger.printLogLine(
-          'triggerOsmLookup timeout on attempt $attempt: $e',
+          'triggerOsmLookup $lookupType timeout on attempt $attempt: $e',
           logLevel: 'WARNING',
         );
         if (attempt >= osmRetryMaxAttempts) {
@@ -2638,14 +2638,14 @@ class RectangleCalculatorThread {
           if (client == null) httpClient.close();
           if (cached != null && cached.isNotEmpty) {
             logger.printLogLine(
-              'triggerOsmLookup returning cached data after timeout',
+              'triggerOsmLookup $lookupType returning cached data after timeout',
               logLevel: 'WARNING',
             );
             updateOnlineStatus(false);
             return OsmLookupResult(true, 'CACHE', cached, e.toString(), area);
           }
           logger.printLogLine(
-            'triggerOsmLookup timeout after $osmRetryMaxAttempts attempts',
+            'triggerOsmLookup $lookupType timeout after $osmRetryMaxAttempts attempts',
             logLevel: 'ERROR',
           );
           voicePromptEvents.emit('INTERNET_CONN_FAILED');
@@ -2657,7 +2657,7 @@ class RectangleCalculatorThread {
       } catch (e) {
         await checkWorkerThreadStatus();
         logger.printLogLine(
-          'triggerOsmLookup exception: $e',
+          'triggerOsmLookup $lookupType exception: $e',
           logLevel: 'ERROR',
         );
         voicePromptEvents.emit('INTERNET_CONN_FAILED');
@@ -2669,7 +2669,7 @@ class RectangleCalculatorThread {
         reportDownloadTime(duration);
         final status = resp?.statusCode.toString() ?? 'FAILED';
         logger.printLogLine(
-          'triggerOsmLookup HTTP $status in ${duration.inMilliseconds}ms',
+          'triggerOsmLookup $lookupType HTTP $status in ${duration.inMilliseconds}ms',
           logLevel: 'DEBUG',
         );
       }
