@@ -59,9 +59,8 @@ class _MapPageState extends State<MapPage> {
     // Populate map with already known construction areas so that opening the
     // map after the lookup has finished still shows them.  The construction
     // stream only emits new areas, so we need to manually add existing ones.
-    for (final area in widget.calculator.constructionAreas) {
-      _onConstructionArea(area);
-    }
+    // Add them in a single setState call to avoid jank on startup.
+    _addConstructionAreas(widget.calculator.constructionAreas);
   }
 
   void _updatePosition() {
@@ -98,30 +97,41 @@ class _MapPageState extends State<MapPage> {
   }
 
   void _onConstructionArea(GeoRect area) {
-    final exists = _constructionData.values.any((r) => _sameRect(r, area));
-    if (exists) return;
-    final marker = Marker(
-      point: LatLng(area.minLat, area.minLon),
-      width: 40,
-      height: 40,
-      child: Image.asset('images/construction_marker.png'),
-    );
-    final points = [
-      LatLng(area.minLat, area.minLon),
-      LatLng(area.minLat, area.maxLon),
-      LatLng(area.maxLat, area.maxLon),
-      LatLng(area.maxLat, area.minLon),
-    ];
-    final polygon = Polygon(
-      points: points,
-      color: Colors.orange.withOpacity(0.1),
-      borderColor: Colors.orange,
-      borderStrokeWidth: 2,
-    );
-    setState(() {
-      _constructionMarkers.add(marker);
+    _addConstructionAreas([area]);
+  }
+
+  void _addConstructionAreas(Iterable<GeoRect> areas) {
+    final newMarkers = <Marker>[];
+    final newPolygons = <Polygon>[];
+    for (final area in areas) {
+      final exists = _constructionData.values.any((r) => _sameRect(r, area));
+      if (exists) continue;
+      final marker = Marker(
+        point: LatLng(area.minLat, area.minLon),
+        width: 40,
+        height: 40,
+        child: Image.asset('images/construction_marker.png'),
+      );
+      final points = [
+        LatLng(area.minLat, area.minLon),
+        LatLng(area.minLat, area.maxLon),
+        LatLng(area.maxLat, area.maxLon),
+        LatLng(area.maxLat, area.minLon),
+      ];
+      final polygon = Polygon(
+        points: points,
+        color: Colors.orange.withOpacity(0.1),
+        borderColor: Colors.orange,
+        borderStrokeWidth: 2,
+      );
+      newMarkers.add(marker);
+      newPolygons.add(polygon);
       _constructionData[marker] = area;
-      _constructionPolygons = [..._constructionPolygons, polygon];
+    }
+    if (newMarkers.isEmpty && newPolygons.isEmpty) return;
+    setState(() {
+      _constructionMarkers.addAll(newMarkers);
+      _constructionPolygons = [..._constructionPolygons, ...newPolygons];
     });
   }
 
