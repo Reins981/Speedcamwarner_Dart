@@ -244,7 +244,7 @@ class GPSThread(StoppableThread, Logger):
         self.gps_test_data = True
         self.max_gps_entries = 50000
         self.gpx_file = os.path.join(os.path.dirname(__file__), "gpx",
-                                     "Weekend_Karntner_5SeenTour.gpx")
+                                     "nordspange_tr2.gpx")
         # GPS treshold which is considered as a Weak GPS Signal
         self.gps_treshold = 40
         # Max GPS inaccuracy treshold after which the App will go into OFF mode.

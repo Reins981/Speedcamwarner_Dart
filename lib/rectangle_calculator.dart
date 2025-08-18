@@ -1824,6 +1824,8 @@ class RectangleCalculatorThread {
           }
 
           addNode(lat, lon, nodeId);
+          var duration = Duration(milliseconds: 500);
+          sleep(duration);
         }
       } else if (type == 'node') {
         final lat = (element['lat'] as num?)?.toDouble();
@@ -2562,7 +2564,7 @@ class RectangleCalculatorThread {
           area,
         );
       }
-      query = 'node($nodeId);out body;';
+      query = '[out:json][timeout:25];node($nodeId);out body;';
       queryTermination = '';
     } else {
       logger.printLogLine(
@@ -2660,10 +2662,8 @@ class RectangleCalculatorThread {
           'triggerOsmLookup $lookupType exception: $e',
           logLevel: 'ERROR',
         );
-        voicePromptEvents.emit('INTERNET_CONN_FAILED');
-        updateOnlineStatus(false);
         if (client == null) httpClient.close();
-        return OsmLookupResult(false, 'NOINET', null, e.toString(), area);
+        return OsmLookupResult(false, 'OSMERROR', null, e.toString(), area);
       } finally {
         final duration = DateTime.now().difference(start);
         reportDownloadTime(duration);
