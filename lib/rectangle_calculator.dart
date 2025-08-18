@@ -382,6 +382,7 @@ class RectangleCalculatorThread {
   );
   final ValueNotifier<double> currentSpeedNotifier = ValueNotifier<double>(0.0);
   final ValueNotifier<String?> speedCamNotifier = ValueNotifier<String?>(null);
+  final ValueNotifier<int?> colorNotifier = ValueNotifier<int?>(null);
   final ValueNotifier<double?> speedCamDistanceNotifier =
       ValueNotifier<double?>(null);
   final ValueNotifier<String?> camTextNotifier = ValueNotifier<String?>(null);
@@ -655,30 +656,31 @@ class RectangleCalculatorThread {
         ) ??
         roadClassesToSpeedConfig;
 
-    /// print all config values
-    void printConfigValues() {
-      print('Max Speed: $maxspeed');
-      print('OSM Timeout: $osmTimeout');
-      print(
-          'Construction Area Lookahead Distance: $maxConstructionAreaLookaheadDistance');
-      // Add more print statements for other config values as needed
-      print('Max Speed Cam Lookahead Distance: $maxSpeedCamLookAheadDistance');
-      print('Fallback Rect Angle: $fallbackRectAngle');
-      print('Zoom: $zoom');
-      print('Max Cross Roads: $maxCrossRoads');
-      print('Disable Road Lookup: $disableRoadLookup');
-      print('Cameras Look Ahead Mode: $camerasLookAheadMode');
-      print('Alternative Road Lookup: $alternativeRoadLookup');
-      print('Use Only One Extrapolated Rect: $useOnlyOneExtrapolatedRect');
-      print('Consider Backup Rects: $considerBackupRects');
-      print('Dismiss POIs: $dismissPois');
-      print(
-          'Enable Ordered Rects Extrapolated: $enableOrderedRectsExtrapolated');
-      print('Consider Backup Rects: $considerBackupRects');
-      print('Dismiss POIs: $dismissPois');
-      print(
-          'Construction Area Lookahead Distance: $maxConstructionAreaLookaheadDistance');
-    }
+    printConfigValues();
+  }
+
+  /// print all config values
+  void printConfigValues() {
+    print('Max Speed: $maxspeed');
+    print('OSM Timeout: $osmTimeout');
+    print(
+        'Construction Area Lookahead Distance: $maxConstructionAreaLookaheadDistance');
+    // Add more print statements for other config values as needed
+    print('Max Speed Cam Lookahead Distance: $maxSpeedCamLookAheadDistance');
+    print('Fallback Rect Angle: $fallbackRectAngle');
+    print('Zoom: $zoom');
+    print('Max Cross Roads: $maxCrossRoads');
+    print('Disable Road Lookup: $disableRoadLookup');
+    print('Cameras Look Ahead Mode: $camerasLookAheadMode');
+    print('Alternative Road Lookup: $alternativeRoadLookup');
+    print('Use Only One Extrapolated Rect: $useOnlyOneExtrapolatedRect');
+    print('Consider Backup Rects: $considerBackupRects');
+    print('Dismiss POIs: $dismissPois');
+    print('Enable Ordered Rects Extrapolated: $enableOrderedRectsExtrapolated');
+    print('Consider Backup Rects: $considerBackupRects');
+    print('Dismiss POIs: $dismissPois');
+    print(
+        'Construction Area Startup Trigger Max: $constructionAreaStartupTriggerMax');
   }
 
   /// Expose a convenience method to push a new sample and trigger processing in
@@ -1561,7 +1563,6 @@ class RectangleCalculatorThread {
         'list_tree': [null, null],
       }),
     );
-
   }
 
   /// Perform a nominative road name lookup and update UI state accordingly.
@@ -2731,6 +2732,7 @@ class RectangleCalculatorThread {
   String? get infoPage => infoPageNotifier.value;
   String? get maxspeedStatus => maxspeedStatusNotifier.value;
   String? get speedCamWarning => speedCamNotifier.value;
+  int? get color => colorNotifier.value;
   double? get speedCamDistance => speedCamDistanceNotifier.value;
   String? get camText => camTextNotifier.value;
   String? get cameraRoad => cameraRoadNotifier.value;
@@ -2773,6 +2775,7 @@ class RectangleCalculatorThread {
   void updateGpsStatus(bool value) => gpsStatusNotifier.value = value;
 
   void updateSpeedCam(String warning) => speedCamNotifier.value = warning;
+  void updateColor(int color) => colorNotifier.value = color;
 
   void updateSpeedCamDistance(double? meter) =>
       speedCamDistanceNotifier.value = meter;

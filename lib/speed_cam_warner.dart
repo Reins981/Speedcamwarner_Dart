@@ -212,7 +212,6 @@ class SpeedCamWarner {
           predictive,
         ];
         insertedSpeedcams.add([item['fix_cam'][1], item['fix_cam'][2]]);
-        updateSpeedcam('fix');
       }
     }
 
@@ -270,7 +269,6 @@ class SpeedCamWarner {
           predictive,
         ];
         insertedSpeedcams.add([item['traffic_cam'][1], item['traffic_cam'][2]]);
-        updateSpeedcam('traffic');
       }
     }
 
@@ -331,7 +329,6 @@ class SpeedCamWarner {
           item['distance_cam'][1],
           item['distance_cam'][2],
         ]);
-        updateSpeedcam('distance');
       }
     }
 
@@ -389,7 +386,6 @@ class SpeedCamWarner {
           predictive,
         ];
         insertedSpeedcams.add([item['mobile_cam'][1], item['mobile_cam'][2]]);
-        updateSpeedcam('mobile');
       }
     }
 
@@ -522,8 +518,7 @@ class SpeedCamWarner {
         final nextDistance =
             checkDistanceBetweenTwoPoints(nextCam, [longitude, latitude]);
         nextCamDistance = '$nextDistance';
-        nextCamDistanceAsInt =
-            int.tryParse(nextCamDistance.split('.')[0]) ?? 0;
+        nextCamDistanceAsInt = int.tryParse(nextCamDistance.split('.')[0]) ?? 0;
         // Update the cached distance so subsequent lookups have a sensible
         // starting point instead of ``0.0``.
         itemQueue[nextCam]?[8] = nextDistance;
@@ -531,8 +526,14 @@ class SpeedCamWarner {
       } catch (_) {}
     }
 
-    final attributes = itemQueue[cam];
-    if (attributes == null) return null;
+    List<dynamic>? attributes;
+    try {
+      attributes = itemQueue[cam];
+      if (attributes == null) return null;
+    } catch (_) {
+      print('Speed camera with coordinates ($cam) has been deleted already');
+      return null;
+    }
     var newCam = attributes[11];
     var camRoadName = attributes[7];
     var linkedList = attributes[3];
@@ -575,14 +576,16 @@ class SpeedCamWarner {
       }
     }
 
-    if (!matchCameraAgainstAngle(
-      cam,
-      distance,
-      camRoadName,
-      angleMismatchVoice: angleMismatchVoice,
-    )) {
-      itemQueue[cam]?[5] = lastDistance;
-      return null;
+    if (enableInsideRelevantAngleFeature) {
+      if (!matchCameraAgainstAngle(
+        cam,
+        distance,
+        camRoadName,
+        angleMismatchVoice: angleMismatchVoice,
+      )) {
+        itemQueue[cam]?[5] = lastDistance;
+        return null;
+      }
     }
 
     triggerSpeedCamUpdate(
@@ -1182,14 +1185,10 @@ class SpeedCamWarner {
     calculator.updateSpeedCam(speedcam);
   }
 
-  void updateBarWidget1000m({int color = 1}) =>
-      calculator.updateSpeedCam('CAMERA_AHEAD');
-  void updateBarWidget500m({int color = 1}) =>
-      calculator.updateSpeedCam('CAMERA_AHEAD');
-  void updateBarWidget300m({int color = 1}) =>
-      calculator.updateSpeedCam('CAMERA_AHEAD');
-  void updateBarWidget100m({int color = 1}) =>
-      calculator.updateSpeedCam('CAMERA_AHEAD');
+  void updateBarWidget1000m({int color = 1}) => calculator.updateColor(color);
+  void updateBarWidget500m({int color = 1}) => calculator.updateColor(color);
+  void updateBarWidget300m({int color = 1}) => calculator.updateColor(color);
+  void updateBarWidget100m({int color = 1}) => calculator.updateColor(color);
 
   void updateBarWidgetMeters(dynamic meter) {
     if (meter is num) {
