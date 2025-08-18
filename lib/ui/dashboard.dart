@@ -73,30 +73,17 @@ class _DashboardPageState extends State<DashboardPage> {
       if (_speedCamWarning == 'FREEFLOW') {
         _clearCameraInfo();
       } else {
-        final parts = _speedCamWarning?.split(' ');
-        if (parts != null && parts.length > 1) {
-          final dist = double.tryParse(parts.first);
-          if (dist == 0 && _speed <= 1) {
-            _clearCameraInfo();
-          } else {
-            _speedCamWarning = parts.last;
-            _speedCamIcon = _iconForWarning(_speedCamWarning);
-            _speedCamDistance =
-                _calculator!.speedCamDistanceNotifier.value;
-            _cameraRoad = _calculator!.cameraRoadNotifier.value;
-          }
-        } else {
-          _speedCamIcon = _iconForWarning(_speedCamWarning);
-          _speedCamDistance = _calculator!.speedCamDistanceNotifier.value;
-          _cameraRoad = _calculator!.cameraRoadNotifier.value;
-        }
+        _speedCamIcon = _iconForWarning(_speedCamWarning);
+        _speedCamDistance = _calculator!.speedCamDistanceNotifier.value;
+        _cameraRoad = _calculator!.cameraRoadNotifier.value;
       }
       _maxSpeed = _calculator!.maxspeedNotifier.value;
       _gpsOn = _calculator!.gpsStatusNotifier.value;
       _online = _calculator!.onlineStatusNotifier.value;
       _calculator!.currentSpeedNotifier.addListener(_updateFromCalculator);
       _calculator!.roadNameNotifier.addListener(_updateFromCalculator);
-      _controller!.overspeedChecker.difference.addListener(_updateFromCalculator);
+      _controller!.overspeedChecker.difference
+          .addListener(_updateFromCalculator);
       _calculator!.speedCamNotifier.addListener(_updateFromCalculator);
       _calculator!.speedCamDistanceNotifier.addListener(_updateFromCalculator);
       _calculator!.cameraRoadNotifier.addListener(_updateFromCalculator);
@@ -133,23 +120,9 @@ class _DashboardPageState extends State<DashboardPage> {
       if (_speedCamWarning == 'FREEFLOW') {
         _clearCameraInfo();
       } else {
-        final parts = _speedCamWarning?.split(' ');
-        if (parts != null && parts.length > 1) {
-          final dist = double.tryParse(parts.first);
-          if (dist == 0 && _speed <= 1) {
-            _clearCameraInfo();
-          } else {
-            _speedCamWarning = parts.last;
-            _speedCamIcon = _iconForWarning(_speedCamWarning);
-            _speedCamDistance =
-                _calculator!.speedCamDistanceNotifier.value;
-            _cameraRoad = _calculator!.cameraRoadNotifier.value;
-          }
-        } else {
-          _speedCamIcon = _iconForWarning(_speedCamWarning);
-          _speedCamDistance = _calculator!.speedCamDistanceNotifier.value;
-          _cameraRoad = _calculator!.cameraRoadNotifier.value;
-        }
+        _speedCamIcon = _iconForWarning(_speedCamWarning);
+        _speedCamDistance = _calculator!.speedCamDistanceNotifier.value;
+        _cameraRoad = _calculator!.cameraRoadNotifier.value;
       }
       _maxSpeed = _calculator!.maxspeedNotifier.value;
       _gpsOn = _calculator!.gpsStatusNotifier.value;
@@ -189,14 +162,13 @@ class _DashboardPageState extends State<DashboardPage> {
     if (_calculator == null) return;
     final pos = _calculator!.positionNotifier.value;
     final road = _calculator!.roadNameNotifier.value;
-    var (success, status) =
-        await _calculator!.uploadCameraToDriveMethod(road, pos.latitude, pos.longitude);
+    var (success, status) = await _calculator!
+        .uploadCameraToDriveMethod(road, pos.latitude, pos.longitude);
     if (!mounted) return;
     final msg = success
         ? 'Camera added'
         : 'Camera not added: ${status ?? 'unknown error'}';
-    ScaffoldMessenger.of(context)
-        .showSnackBar(SnackBar(content: Text(msg)));
+    ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(msg)));
   }
 
   void _startRecording() {
@@ -222,8 +194,7 @@ class _DashboardPageState extends State<DashboardPage> {
   void _updateDirectionBearing() {
     setState(() {
       _direction = _directionNotifier?.value ?? _direction;
-      _averageBearing =
-          _averageBearingNotifier?.value ?? _averageBearing;
+      _averageBearing = _averageBearingNotifier?.value ?? _averageBearing;
     });
   }
 
@@ -307,8 +278,7 @@ class _DashboardPageState extends State<DashboardPage> {
             if (_arStatus.isNotEmpty) ...[
               const SizedBox(height: 16),
               Text('AR: $_arStatus',
-                  style:
-                      const TextStyle(color: Colors.white54, fontSize: 16)),
+                  style: const TextStyle(color: Colors.white54, fontSize: 16)),
             ],
           ],
         ),
@@ -381,8 +351,7 @@ class _DashboardPageState extends State<DashboardPage> {
                 if (_speedCamWarning != null)
                   Text(
                     _speedCamWarning!,
-                    style:
-                        const TextStyle(color: Colors.white, fontSize: 16),
+                    style: const TextStyle(color: Colors.white, fontSize: 16),
                   ),
                 const SizedBox(height: 8),
                 _buildDistanceProgress(),
@@ -390,8 +359,7 @@ class _DashboardPageState extends State<DashboardPage> {
                   Text(
                     'Lat: ${_activeCamera!.latitude.toStringAsFixed(5)}, '
                     'Lon: ${_activeCamera!.longitude.toStringAsFixed(5)}',
-                    style:
-                        const TextStyle(color: Colors.white70, fontSize: 12),
+                    style: const TextStyle(color: Colors.white70, fontSize: 12),
                   ),
               ],
             ),
@@ -547,8 +515,7 @@ class _DashboardPageState extends State<DashboardPage> {
               const SizedBox(height: 8),
               Text(_roadName,
                   textAlign: TextAlign.center,
-                  style:
-                      const TextStyle(color: Colors.white70, fontSize: 16)),
+                  style: const TextStyle(color: Colors.white70, fontSize: 16)),
               if (_maxSpeed != null) ...[
                 const SizedBox(height: 8),
                 _buildMaxSpeedWidget(),
@@ -614,7 +581,8 @@ class _DashboardPageState extends State<DashboardPage> {
               ),
             ),
             const SizedBox(height: 8),
-            Text('max: ${maxSpeed.toStringAsFixed(0)} km/h · '
+            Text(
+                'max: ${maxSpeed.toStringAsFixed(0)} km/h · '
                 'avg: ${avgSpeed.toStringAsFixed(0)} km/h',
                 style: const TextStyle(color: Colors.white54, fontSize: 12)),
             const SizedBox(height: 4),
@@ -635,8 +603,7 @@ class _DashboardPageState extends State<DashboardPage> {
         LinearProgressIndicator(
           value: (1000 - capped) / 1000,
           backgroundColor: Colors.white24,
-          valueColor:
-              const AlwaysStoppedAnimation<Color>(Colors.orange),
+          valueColor: const AlwaysStoppedAnimation<Color>(Colors.orange),
         ),
         const SizedBox(height: 4),
         Text(
@@ -697,11 +664,10 @@ class _SpeedChartPainter extends CustomPainter {
 
     for (var i = 1; i < history.length; i++) {
       final x1 = (i - 1) / (history.length - 1) * size.width;
-      final y1 = size.height -
-          (history[i - 1] / 120).clamp(0.0, 1.0) * size.height;
+      final y1 =
+          size.height - (history[i - 1] / 120).clamp(0.0, 1.0) * size.height;
       final x2 = i / (history.length - 1) * size.width;
-      final y2 = size.height -
-          (history[i] / 120).clamp(0.0, 1.0) * size.height;
+      final y2 = size.height - (history[i] / 120).clamp(0.0, 1.0) * size.height;
 
       final diff = (history[i] - history[i - 1]).abs();
       Color color;
