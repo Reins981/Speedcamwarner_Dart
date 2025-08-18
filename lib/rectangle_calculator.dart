@@ -444,6 +444,12 @@ class RectangleCalculatorThread {
   /// Minimum interval between network lookups to avoid excessive requests.
   double dosAttackPreventionIntervalDownloads = 30.0;
 
+  /// Minimum interval between construction area lookups. This is kept separate
+  /// from [dosAttackPreventionIntervalDownloads] to reduce the frequency of
+  /// construction related requests which are less time critical than speed
+  /// camera updates.
+  double constructionAreaLookupInterval = 120.0;
+
   /// Disable construction lookups during application start up for this many
   /// seconds.
   double constructionAreaStartupTriggerMax = 60.0;
@@ -602,6 +608,11 @@ class RectangleCalculatorThread {
               'calculator.dos_attack_prevention_interval_downloads',
             ) ??
             dosAttackPreventionIntervalDownloads)
+        .toDouble();
+    constructionAreaLookupInterval = (AppConfig.get<num>(
+              'calculator.construction_area_lookup_interval',
+            ) ??
+            constructionAreaLookupInterval)
         .toDouble();
     constructionAreaStartupTriggerMax = (AppConfig.get<num>(
               'calculator.construction_area_startup_trigger_max',
@@ -1719,12 +1730,14 @@ class RectangleCalculatorThread {
 
       final now = DateTime.now();
       final last = _lastLookaheadExecution[msg];
+      final rateLimit = msg == 'Construction area lookahead'
+          ? constructionAreaLookupInterval
+          : dosAttackPreventionIntervalDownloads;
       if (last != null) {
         final elapsed = now.difference(last).inMilliseconds / 1000;
-        if (elapsed < dosAttackPreventionIntervalDownloads) {
-          final wait = (dosAttackPreventionIntervalDownloads - elapsed)
-              .toStringAsFixed(1);
-          logger.printLogLine('Skipping $msg - rate limited (wait ${wait}s)');
+        if (elapsed < rateLimit) {
+          final wait = (rateLimit - elapsed).toStringAsFixed(1);
+          logger.printLogLine('Skipping ' + msg + ' - rate limited (wait ' + wait + 's)');
           continue;
         }
       }

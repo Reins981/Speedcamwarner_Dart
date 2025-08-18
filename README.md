@@ -28,9 +28,12 @@ file the log will show messages like `Service account file not found` and the
 app will fall back to the limited data bundled with the repository.
 
 To avoid excessive network traffic the lookahead requests are rate limited. The
-interval is controlled by the `dosAttackPreventionIntervalDownloads` variable in
-`lib/rectangle_calculator.dart` (default `30` seconds). Adjust this value if you
-need more frequent updates during development.
+interval for speed‑camera downloads is controlled by the
+`dosAttackPreventionIntervalDownloads` variable in
+`lib/rectangle_calculator.dart` (default `30` seconds). Construction area
+queries use a separate `constructionAreaLookupInterval` (default `120`
+seconds) to further reduce server load. Adjust these values if you need more
+frequent updates during development.
 
 ## Project Structure
 - `lib/`: Contains the main application code.
