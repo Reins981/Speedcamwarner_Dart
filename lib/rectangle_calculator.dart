@@ -26,7 +26,7 @@ import 'filtered_road_classes.dart';
 import 'most_probable_way.dart';
 import 'rect.dart' show Rect;
 import 'rect.dart' as rect_utils hide Rect;
-import 'overspeed_thread.dart';
+import 'overspeed_checker.dart';
 import 'thread_pool.dart';
 import 'road_resolver.dart';
 import 'point.dart';
@@ -310,8 +310,8 @@ class RectangleCalculatorThread {
   /// layer needs to remain in sync with the calculator.
   int zoom = 17;
 
-  /// Thread responsible for calculating overspeed warnings.
-  final OverspeedThread? overspeedThread;
+  /// Utility responsible for calculating overspeed warnings.
+  final OverspeedChecker overspeedChecker;
 
   /// Last road name resolved by [processRoadName].
   String? lastRoadName;
@@ -556,7 +556,7 @@ class RectangleCalculatorThread {
     PredictiveModel? model,
     VoicePromptEvents? voicePromptEvents,
     InterruptQueue<String>? interruptQueue,
-    this.overspeedThread,
+    required this.overspeedChecker,
   })  : _predictiveModel = model ?? PredictiveModel(),
         voicePromptEvents = voicePromptEvents ?? VoicePromptEvents(),
         interruptQueue = interruptQueue,
@@ -899,12 +899,12 @@ class RectangleCalculatorThread {
       await processLookaheadItems(_applicationStartTime);
     }
 
-    // Feed current speed and the latest max-speed to the overspeed thread so
-    // it can emit warnings when the driver exceeds the limit.
-    overspeedThread?.addCurrentSpeed(speedKmH.toInt());
+    // Inform the overspeed checker about the latest speed limit so it can
+    // warn the driver when necessary. The GPS thread provides the current
+    // speed updates directly.
     final dynamic lms = lastMaxSpeed;
-    final int overspeedValue = (lms is int) ? lms : 10000;
-    overspeedThread?.addOverspeedEntry({'maxspeed': overspeedValue});
+    final int? limit = (lms is int) ? lms : null;
+    overspeedChecker.updateLimit(limit);
 
     // Handle possible look-ahead interrupts.
     final interrupt = await processInterrupts();
@@ -1417,7 +1417,7 @@ class RectangleCalculatorThread {
   }
 
   /// Process a max speed entry. The resulting value is stored in
-  /// [lastMaxSpeed] so the [overspeedThread] can warn the driver on the next
+  /// [lastMaxSpeed] so the [overspeedChecker] can warn the driver on the next
   /// position update. Returns a status string mirroring the Python logic.
   String processMaxSpeed(
     dynamic maxspeed,
@@ -1559,7 +1559,6 @@ class RectangleCalculatorThread {
       }),
     );
 
-    overspeedThread?.clearQueues();
   }
 
   /// Perform a nominative road name lookup and update UI state accordingly.

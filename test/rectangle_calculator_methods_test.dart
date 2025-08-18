@@ -15,10 +15,11 @@ import 'package:workspace/tree_generator.dart';
 import 'package:workspace/point.dart';
 import 'package:workspace/speed_cam_warner.dart';
 import 'package:workspace/voice_prompt_events.dart';
+import 'package:workspace/overspeed_checker.dart';
 
 void main() {
   group('RectangleCalculatorThread helpers', () {
-    final calc = RectangleCalculatorThread();
+    final calc = RectangleCalculatorThread(overspeedChecker: OverspeedChecker());
 
     test('calculateRectangleRadius', () {
       final radius = calc.calculateRectangleRadius(3, 4);
@@ -100,7 +101,7 @@ void main() {
     });
 
     test('direction and extrapolation helpers', () {
-      final rc = RectangleCalculatorThread();
+      final rc = RectangleCalculatorThread(overspeedChecker: OverspeedChecker());
       rc.direction = 'N';
       rc.matchingRect.setRectangleIdent('N');
       rc.matchingRect.setRectangleString('EXTRAPOLATED');
@@ -183,7 +184,7 @@ void main() {
 
     test('triggerOsmLookup retries on timeout and falls back to cache',
         () async {
-      final calc = RectangleCalculatorThread();
+      final calc = RectangleCalculatorThread(overspeedChecker: OverspeedChecker());
       calc.osmRetryBaseDelay = const Duration(milliseconds: 1);
       calc.processAllSpeedCameras([
         SpeedCameraEvent(latitude: 0.5, longitude: 0.5, fixed: true, name: 'C'),
@@ -206,7 +207,7 @@ void main() {
     });
 
     test('triggerOsmLookup surfaces timeout when no cache', () async {
-      final calc = RectangleCalculatorThread();
+      final calc = RectangleCalculatorThread(overspeedChecker: OverspeedChecker());
       calc.osmRetryBaseDelay = const Duration(milliseconds: 1);
       var calls = 0;
       final mock = MockClient((req) async {
@@ -249,7 +250,7 @@ void main() {
     test(
       'speedCamLookupAhead emits camera markers and updates counts',
       () async {
-        final calc = RectangleCalculatorThread();
+        final calc = RectangleCalculatorThread(overspeedChecker: OverspeedChecker());
         final queries = <String>[];
         final mock = MockClient((req) async {
           queries.add(
@@ -311,7 +312,7 @@ void main() {
     );
 
     test('resolveDangersOnTheRoad updates info page', () {
-      final calc = RectangleCalculatorThread();
+      final calc = RectangleCalculatorThread(overspeedChecker: OverspeedChecker());
       calc.resolveDangersOnTheRoad({'hazard': 'flood'});
       expect(calc.infoPage, equals('FLOOD'));
       calc.resolveDangersOnTheRoad({});
@@ -319,7 +320,7 @@ void main() {
     });
 
     test('updateMaxspeed and updateRoadname behave as python', () {
-      final calc = RectangleCalculatorThread();
+      final calc = RectangleCalculatorThread(overspeedChecker: OverspeedChecker());
       calc.updateMaxspeed(50);
       expect(calc.maxspeed, equals(50));
       calc.updateMaxspeed('cleanup');
@@ -331,7 +332,7 @@ void main() {
     });
 
     test('processOffline clears road name', () async {
-      final calc = RectangleCalculatorThread();
+      final calc = RectangleCalculatorThread(overspeedChecker: OverspeedChecker());
       calc.lastMaxSpeed = '';
       calc.updateRoadname('Main', false);
       await calc.processOffline();
@@ -339,7 +340,7 @@ void main() {
     });
 
     test('processOffline extrapolates position using cached data', () async {
-      final calc = RectangleCalculatorThread();
+      final calc = RectangleCalculatorThread(overspeedChecker: OverspeedChecker());
       // Set initial cached values.
       calc.longitudeCached = 10.0;
       calc.latitudeCached = 20.0;
@@ -360,7 +361,7 @@ void main() {
     });
 
     test('SpeedCamWarner receives extrapolated position updates', () async {
-      final calc = RectangleCalculatorThread();
+      final calc = RectangleCalculatorThread(overspeedChecker: OverspeedChecker());
       final warner = SpeedCamWarner(
         resume: null,
         voicePromptEvents: VoicePromptEvents(),
@@ -393,7 +394,7 @@ void main() {
     });
 
     test('vector gpsStatus OFFLINE triggers offline handling', () async {
-      final calc = RectangleCalculatorThread();
+      final calc = RectangleCalculatorThread(overspeedChecker: OverspeedChecker());
       calc.updateRoadname('Main', false);
       calc.addVectorSample(
         VectorData(
@@ -463,7 +464,7 @@ void main() {
     });
 
     test('processConstructionAreasLookupAheadResults stores areas', () async {
-      final calc = RectangleCalculatorThread();
+      final calc = RectangleCalculatorThread(overspeedChecker: OverspeedChecker());
       await calc.processConstructionAreasLookupAheadResults(
         [
           {

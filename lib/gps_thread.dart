@@ -8,6 +8,7 @@ import 'rectangle_calculator.dart';
 import 'voice_prompt_events.dart';
 import 'config.dart';
 import 'thread_base.dart';
+import 'overspeed_checker.dart';
 
 /// Simplified port of the GPS handling thread from the Python code base.  The
 /// original application relied on OS threads and condition variables to push
@@ -20,6 +21,7 @@ class GpsThread extends Logger {
     double? accuracyThreshold,
     StreamController<Timestamped<Map<String, dynamic>>>?
         speedCamEventController,
+    this.overspeedChecker,
   })  : accuracyThreshold = (accuracyThreshold ??
                 AppConfig.get<num>('gpsThread.gps_inaccuracy_treshold') ??
                 4)
@@ -43,6 +45,8 @@ class GpsThread extends Logger {
   final double gpsTreshold;
   bool recording;
   final List<Wpt> _routeData = [];
+
+  final OverspeedChecker? overspeedChecker;
 
   final StreamController<Timestamped<Map<String, dynamic>>>?
       _speedCamEventController;
@@ -167,6 +171,7 @@ class GpsThread extends Logger {
       );
 
       _controller.add(enriched);
+      overspeedChecker?.updateSpeed(enriched.speed.toInt());
       _speedCamEventController?.add(
         Timestamped<Map<String, dynamic>>({
           'bearing': enriched.bearing,
