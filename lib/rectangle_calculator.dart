@@ -674,7 +674,10 @@ class RectangleCalculatorThread {
       print('Dismiss POIs: $dismissPois');
       print(
           'Enable Ordered Rects Extrapolated: $enableOrderedRectsExtrapolated');
-      print('Max Number Extrapolated Rects: $maxNumberExtrapolatedRects');
+      print('Consider Backup Rects: $considerBackupRects');
+      print('Dismiss POIs: $dismissPois');
+      print(
+          'Construction Area Lookahead Distance: $maxConstructionAreaLookaheadDistance');
     }
   }
 
