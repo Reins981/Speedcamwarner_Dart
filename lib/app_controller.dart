@@ -203,7 +203,6 @@ class AppController {
     calculator.stop();
     poiReader.stopTimer();
     await voiceThread.stop();
-    await overspeedThread.stop();
     stopDeviationCheckerThread();
     stopRouteMonitoring();
     await osmThread.stop();
