@@ -5,11 +5,12 @@ import 'package:test/test.dart';
 import 'package:workspace/gps_thread.dart';
 import 'package:workspace/rectangle_calculator.dart';
 import 'package:workspace/voice_prompt_events.dart';
+import 'package:workspace/overspeed_checker.dart';
 
 void main() {
   test('gps thread feeds rectangle calculator', () async {
-    final gps = GpsThread();
-    final calc = RectangleCalculatorThread();
+    final gps = GpsThread(overspeedChecker: OverspeedChecker());
+    final calc = RectangleCalculatorThread(overspeedChecker: OverspeedChecker());
     final completer = Completer<GeoRect>();
     calc.rectangles.listen((rect) {
       if (rect != null && !completer.isCompleted) {
@@ -42,7 +43,10 @@ void main() {
 
   test('gps thread forwards gps accuracy to voice queue', () async {
     final events = VoicePromptEvents();
-    final gps = GpsThread(voicePromptEvents: events, accuracyThreshold: 10);
+    final gps = GpsThread(
+        voicePromptEvents: events,
+        accuracyThreshold: 10,
+        overspeedChecker: OverspeedChecker());
     gps.start();
     gps.addSample(
       VectorData(
@@ -80,7 +84,7 @@ void main() {
   });
 
   test('gps thread records route to gpx', () async {
-    final gps = GpsThread();
+    final gps = GpsThread(overspeedChecker: OverspeedChecker());
     gps.start();
     gps.startRecording();
     gps.addSample(

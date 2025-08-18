@@ -3,6 +3,7 @@ import 'package:workspace/speed_cam_warner.dart';
 import 'package:workspace/rectangle_calculator.dart';
 import 'package:workspace/voice_prompt_events.dart';
 import 'package:workspace/config.dart';
+import 'package:workspace/overspeed_checker.dart';
 
 class _ResumeStub {
   bool isResumed() => true;
@@ -11,7 +12,8 @@ class _ResumeStub {
 void main() {
   test('triggerFreeFlow clears speed camera data', () async {
     AppConfig.loadFromMap({});
-    final calculator = RectangleCalculatorThread();
+    final calculator = RectangleCalculatorThread(
+        overspeedChecker: OverspeedChecker());
     final warner = SpeedCamWarner(
       resume: _ResumeStub(),
       voicePromptEvents: VoicePromptEvents(),
