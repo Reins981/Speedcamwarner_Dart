@@ -122,9 +122,6 @@ class AppController {
   /// Plays alert sounds for spoken and acoustic warnings.
   late final VoicePromptThread voiceThread;
 
-  /// Calculates overspeed warnings based on current and maximum speeds.
-  late final overspeed.OverspeedThread overspeedThread;
-
   /// Publishes the current overspeed difference to the UI.
   late final OverspeedChecker overspeedChecker;
 
