@@ -235,7 +235,6 @@ class _DashboardPageState extends State<DashboardPage> {
   @override
   Widget build(BuildContext context) {
     final hasCameraInfo = _speedCamWarning != null || _activeCamera != null;
-    final topPadding = hasCameraInfo ? 152.0 : 16.0;
     return Scaffold(
       appBar: AppBar(
         title: const Text('SpeedCamWarner'),
@@ -247,63 +246,52 @@ class _DashboardPageState extends State<DashboardPage> {
           ),
         ],
       ),
-      body: Stack(
-        children: [
-          Container(
-            decoration: const BoxDecoration(
-              gradient: LinearGradient(
-                colors: [Color(0xFF1E1E1E), Color(0xFF121212)],
-                begin: Alignment.topLeft,
-                end: Alignment.bottomRight,
-              ),
-            ),
-            padding: EdgeInsets.fromLTRB(16, topPadding, 16, 16),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: [
-                Center(child: _buildRoadNameWidget()),
-                const SizedBox(height: 16),
-                Expanded(
-                  child: Row(
-                    children: [
-                      Expanded(flex: 2, child: _buildSpeedWidget()),
-                      const SizedBox(width: 16),
-                      Expanded(
-                        child: Column(
-                          children: [
-                            Expanded(child: _buildAccelerationWidget()),
-                            const SizedBox(height: 16),
-                            Expanded(child: _buildSpeedHistoryWidget()),
-                          ],
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-                const SizedBox(height: 16),
-                _buildStatusRow(),
-                const SizedBox(height: 16),
-                _buildDirectionBearingRow(),
-                if (_arStatus.isNotEmpty) ...[
-                  const SizedBox(height: 16),
-                  Text('AR: $_arStatus',
-                      style:
-                          const TextStyle(color: Colors.white54, fontSize: 16)),
-                ],
-              ],
-            ),
+      body: Container(
+        decoration: const BoxDecoration(
+          gradient: LinearGradient(
+            colors: [Color(0xFF1E1E1E), Color(0xFF121212)],
+            begin: Alignment.topLeft,
+            end: Alignment.bottomRight,
           ),
-          if (hasCameraInfo)
-            SafeArea(
-              child: Align(
-                alignment: Alignment.topCenter,
-                child: Padding(
-                  padding: const EdgeInsets.all(16),
-                  child: _buildCameraInfo(),
-                ),
+        ),
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            if (hasCameraInfo) ...[
+              _buildCameraInfo(),
+              const SizedBox(height: 16),
+            ],
+            Center(child: _buildRoadNameWidget()),
+            const SizedBox(height: 16),
+            Expanded(
+              child: Row(
+                children: [
+                  Expanded(flex: 2, child: _buildSpeedWidget()),
+                  const SizedBox(width: 16),
+                  Expanded(
+                    child: Column(
+                      children: [
+                        Expanded(child: _buildAccelerationWidget()),
+                        const SizedBox(height: 16),
+                        Expanded(child: _buildSpeedHistoryWidget()),
+                      ],
+                    ),
+                  ),
+                ],
               ),
             ),
-        ],
+            const SizedBox(height: 16),
+            _buildStatusRow(),
+            const SizedBox(height: 16),
+            _buildDirectionBearingRow(),
+            if (_arStatus.isNotEmpty) ...[
+              const SizedBox(height: 16),
+              Text('AR: $_arStatus',
+                  style: const TextStyle(color: Colors.white54, fontSize: 16)),
+            ],
+          ],
+        ),
       ),
       floatingActionButton: Column(
         mainAxisAlignment: MainAxisAlignment.end,
