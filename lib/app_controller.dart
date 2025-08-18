@@ -12,7 +12,7 @@ import 'poi_reader.dart';
 import 'gps_producer.dart';
 import 'speed_cam_warner.dart';
 import 'voice_prompt_thread.dart';
-import 'overspeed_thread.dart' as overspeed;
+import 'overspeed_checker.dart';
 import 'config.dart';
 import 'thread_base.dart';
 import 'dialogflow_client.dart';
@@ -29,20 +29,17 @@ class AppController {
   AppController()
       : voicePromptEvents = VoicePromptEvents(),
         locationManager = LocationManager() {
-    overspeedThread = overspeed.OverspeedThread(
-      cond: overspeed.ThreadCondition(),
-      isResumed: () => true,
-    );
-    unawaited(overspeedThread.run());
+    overspeedChecker = OverspeedChecker();
 
     calculator = RectangleCalculatorThread(
       voicePromptEvents: voicePromptEvents,
       interruptQueue: interruptQueue,
-      overspeedThread: overspeedThread,
+      overspeedChecker: overspeedChecker,
     );
     gps = GpsThread(
       voicePromptEvents: voicePromptEvents,
       speedCamEventController: calculator.speedCamEventController,
+      overspeedChecker: overspeedChecker,
     );
     // Pipe GPS samples into the calculator and GPS producer and expose
     // direction updates to the UI and other threads. Position updates are
@@ -133,7 +130,7 @@ class AppController {
   late final VoicePromptThread voiceThread;
 
   /// Calculates overspeed warnings based on current and maximum speeds.
-  late final overspeed.OverspeedThread overspeedThread;
+  late final OverspeedChecker overspeedChecker;
 
   /// Calculates deviation of the current course based on recent bearings.
   late deviation.DeviationCheckerThread deviationChecker;
@@ -213,7 +210,6 @@ class AppController {
     calculator.stop();
     poiReader.stopTimer();
     await voiceThread.stop();
-    await overspeedThread.stop();
     stopDeviationCheckerThread();
     stopRouteMonitoring();
     await osmThread.stop();

@@ -1,10 +1,11 @@
 import 'package:test/test.dart';
 import '../lib/rectangle_calculator.dart';
 import '../lib/point.dart';
+import '../lib/overspeed_checker.dart';
 
 void main() {
   test('camera cache lookup and cleanup', () {
-    final calc = RectangleCalculatorThread();
+    final calc = RectangleCalculatorThread(overspeedChecker: OverspeedChecker());
     calc.processAllSpeedCameras([
       SpeedCameraEvent(latitude: 1, longitude: 1, fixed: true),
     ]);
