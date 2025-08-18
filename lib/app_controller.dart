@@ -1,8 +1,5 @@
 import 'package:flutter/foundation.dart';
-import 'package:path/path.dart' as p;
-
 import 'dart:async';
-import 'package:path_provider/path_provider.dart';
 import 'gps_thread.dart';
 import 'location_manager.dart';
 import 'rectangle_calculator.dart';
@@ -12,11 +9,11 @@ import 'poi_reader.dart';
 import 'gps_producer.dart';
 import 'speed_cam_warner.dart';
 import 'voice_prompt_thread.dart';
+import 'overspeed_thread.dart' as overspeed;
 import 'overspeed_checker.dart';
 import 'config.dart';
 import 'thread_base.dart';
 import 'dialogflow_client.dart';
-import 'dart:io';
 import 'osm_wrapper.dart';
 import 'osm_thread.dart';
 import 'deviation_checker.dart' as deviation;
@@ -39,7 +36,6 @@ class AppController {
     gps = GpsThread(
       voicePromptEvents: voicePromptEvents,
       speedCamEventController: calculator.speedCamEventController,
-      overspeedChecker: overspeedChecker,
     );
     // Pipe GPS samples into the calculator and GPS producer and expose
     // direction updates to the UI and other threads. Position updates are
@@ -83,11 +79,8 @@ class AppController {
 
     final dialogflow = () async {
       try {
-        // Use project-relative path for credentials file
-        final credentialsPath =
-            p.join('assets', 'service_account', 'osmwarner-01bcd4dc2dd3.json');
         return DialogflowClient.fromServiceAccountFile(
-          jsonPath: credentialsPath,
+          jsonPath: "assets/service_account/osmwarner-01bcd4dc2dd3.json",
         );
       } catch (e) {
         // ignore: avoid_print
@@ -130,6 +123,9 @@ class AppController {
   late final VoicePromptThread voiceThread;
 
   /// Calculates overspeed warnings based on current and maximum speeds.
+  late final overspeed.OverspeedThread overspeedThread;
+
+  /// Publishes the current overspeed difference to the UI.
   late final OverspeedChecker overspeedChecker;
 
   /// Calculates deviation of the current course based on recent bearings.
@@ -210,6 +206,7 @@ class AppController {
     calculator.stop();
     poiReader.stopTimer();
     await voiceThread.stop();
+    await overspeedThread.stop();
     stopDeviationCheckerThread();
     stopRouteMonitoring();
     await osmThread.stop();
@@ -303,6 +300,21 @@ class AppController {
     _deviationRunning = false;
     deviationChecker.terminate();
     averageAngleQueue.clearAverageAngleData();
+  }
+}
+
+class _OverspeedLayout implements overspeed.SpeedLayout {
+  _OverspeedLayout(this.checker);
+  final OverspeedChecker checker;
+
+  @override
+  void resetOverspeed() {
+    checker.difference.value = null;
+  }
+
+  @override
+  void updateOverspeed(int value) {
+    checker.difference.value = value;
   }
 }
 
