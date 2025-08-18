@@ -56,6 +56,12 @@ class _MapPageState extends State<MapPage> {
     _constructionSub = widget.calculator.constructions.listen(
       _onConstructionArea,
     );
+    // Populate map with already known construction areas so that opening the
+    // map after the lookup has finished still shows them.  The construction
+    // stream only emits new areas, so we need to manually add existing ones.
+    for (final area in widget.calculator.constructionAreas) {
+      _onConstructionArea(area);
+    }
   }
 
   void _updatePosition() {
