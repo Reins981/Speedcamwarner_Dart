@@ -9,7 +9,6 @@ import 'poi_reader.dart';
 import 'gps_producer.dart';
 import 'speed_cam_warner.dart';
 import 'voice_prompt_thread.dart';
-import 'overspeed_thread.dart' as overspeed;
 import 'overspeed_checker.dart';
 import 'config.dart';
 import 'thread_base.dart';
@@ -296,21 +295,6 @@ class AppController {
     _deviationRunning = false;
     deviationChecker.terminate();
     averageAngleQueue.clearAverageAngleData();
-  }
-}
-
-class _OverspeedLayout implements overspeed.SpeedLayout {
-  _OverspeedLayout(this.checker);
-  final OverspeedChecker checker;
-
-  @override
-  void resetOverspeed() {
-    checker.difference.value = null;
-  }
-
-  @override
-  void updateOverspeed(int value) {
-    checker.difference.value = value;
   }
 }
 
