@@ -564,6 +564,7 @@ class _RateLimitCalc extends RectangleCalculatorThread {
   _RateLimitCalc() {
     dosAttackPreventionIntervalDownloads = 1;
     constructionAreaStartupTriggerMax = 0;
+    constructionAreaLookupInterval = 1;
   }
 
   @override
