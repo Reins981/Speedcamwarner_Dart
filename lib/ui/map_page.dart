@@ -106,8 +106,13 @@ class _MapPageState extends State<MapPage> {
     for (final area in areas) {
       final exists = _constructionData.values.any((r) => _sameRect(r, area));
       if (exists) continue;
+      // Place the marker at the centre of the construction rectangle so it is
+      // always visible even for large bounding boxes.
       final marker = Marker(
-        point: LatLng(area.minLat, area.minLon),
+        point: LatLng(
+          (area.minLat + area.maxLat) / 2,
+          (area.minLon + area.maxLon) / 2,
+        ),
         width: 40,
         height: 40,
         child: Image.asset('images/construction_marker.png'),
