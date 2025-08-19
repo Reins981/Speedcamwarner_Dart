@@ -22,13 +22,14 @@ class DashboardPage extends StatefulWidget {
   final ValueNotifier<String>? arStatus;
   final ValueNotifier<String>? direction;
   final ValueNotifier<String>? averageBearing;
-  const DashboardPage(
-      {super.key,
-      this.controller,
-      this.calculator,
-      this.arStatus,
-      this.direction,
-      this.averageBearing});
+  const DashboardPage({
+    super.key,
+    this.controller,
+    this.calculator,
+    this.arStatus,
+    this.direction,
+    this.averageBearing,
+  });
 
   @override
   State<DashboardPage> createState() => _DashboardPageState();
@@ -79,10 +80,9 @@ class _DashboardPageState extends State<DashboardPage> {
       }
       _maxSpeed = _calculator!.maxspeedNotifier.value;
       _speed = _calculator!.currentSpeedNotifier.value;
-      _overspeedDiff =
-          (_maxSpeed != null && _speed > _maxSpeed!)
-              ? (_speed - _maxSpeed!).round()
-              : null;
+      _overspeedDiff = (_maxSpeed != null && _speed > _maxSpeed!)
+          ? (_speed - _maxSpeed!).round()
+          : null;
       _gpsOn = _calculator!.gpsStatusNotifier.value;
       _online = _calculator!.onlineStatusNotifier.value;
       _calculator!.currentSpeedNotifier.addListener(_updateFromCalculator);
@@ -120,10 +120,9 @@ class _DashboardPageState extends State<DashboardPage> {
       final name = _calculator!.roadNameNotifier.value;
       _roadName = name.isEmpty ? 'Unknown road' : name;
       _maxSpeed = _calculator!.maxspeedNotifier.value;
-      _overspeedDiff =
-          (_maxSpeed != null && _speed > _maxSpeed!)
-              ? (_speed - _maxSpeed!).round()
-              : null;
+      _overspeedDiff = (_maxSpeed != null && _speed > _maxSpeed!)
+          ? (_speed - _maxSpeed!).round()
+          : null;
       _speedCamWarning = _calculator!.speedCamNotifier.value;
       if (_speedCamWarning == 'FREEFLOW') {
         _clearCameraInfo();
@@ -182,8 +181,11 @@ class _DashboardPageState extends State<DashboardPage> {
     if (_calculator == null) return;
     final pos = _calculator!.positionNotifier.value;
     final road = _calculator!.roadNameNotifier.value;
-    var (success, status) = await _calculator!
-        .uploadCameraToDriveMethod(road, pos.latitude, pos.longitude);
+    var (success, status) = await _calculator!.uploadCameraToDriveMethod(
+      road,
+      pos.latitude,
+      pos.longitude,
+    );
     if (!mounted) return;
     final msg = success
         ? 'Camera added'
@@ -193,22 +195,25 @@ class _DashboardPageState extends State<DashboardPage> {
 
   void _startRecording() {
     _controller?.startRecording();
-    ScaffoldMessenger.of(context)
-        .showSnackBar(const SnackBar(content: Text('Recording started')));
+    ScaffoldMessenger.of(
+      context,
+    ).showSnackBar(const SnackBar(content: Text('Recording started')));
   }
 
   Future<void> _stopRecording() async {
     await _controller?.stopRecording();
     if (!mounted) return;
-    ScaffoldMessenger.of(context)
-        .showSnackBar(const SnackBar(content: Text('Recording stopped')));
+    ScaffoldMessenger.of(
+      context,
+    ).showSnackBar(const SnackBar(content: Text('Recording stopped')));
   }
 
   Future<void> _loadRoute() async {
     await _controller?.loadRoute();
     if (!mounted) return;
-    ScaffoldMessenger.of(context)
-        .showSnackBar(const SnackBar(content: Text('Route loaded')));
+    ScaffoldMessenger.of(
+      context,
+    ).showSnackBar(const SnackBar(content: Text('Route loaded')));
   }
 
   void _updateDirectionBearing() {
@@ -224,8 +229,9 @@ class _DashboardPageState extends State<DashboardPage> {
       _calculator!.currentSpeedNotifier.removeListener(_updateFromCalculator);
       _calculator!.roadNameNotifier.removeListener(_updateFromCalculator);
       _calculator!.speedCamNotifier.removeListener(_updateFromCalculator);
-      _calculator!.speedCamDistanceNotifier
-          .removeListener(_updateFromCalculator);
+      _calculator!.speedCamDistanceNotifier.removeListener(
+        _updateFromCalculator,
+      );
       _calculator!.cameraRoadNotifier.removeListener(_updateFromCalculator);
       _calculator!.maxspeedNotifier.removeListener(_updateFromCalculator);
       _calculator!.gpsStatusNotifier.removeListener(_updateFromCalculator);
@@ -242,9 +248,7 @@ class _DashboardPageState extends State<DashboardPage> {
   Widget build(BuildContext context) {
     final hasCameraInfo = _speedCamWarning != null || _activeCamera != null;
     return Scaffold(
-      appBar: AppBar(
-        title: const Text('SpeedCamWarner'),
-      ),
+      appBar: AppBar(title: const Text('SpeedCamWarner')),
       body: Container(
         decoration: const BoxDecoration(
           gradient: LinearGradient(
@@ -265,7 +269,9 @@ class _DashboardPageState extends State<DashboardPage> {
               Center(child: _buildRoadNameWidget()),
               const SizedBox(height: 16),
               SizedBox(
-                height: MediaQuery.of(context).size.height * 0.35,
+                // Provide more vertical space so the speed and history widgets
+                // are easier to read on larger displays.
+                height: MediaQuery.of(context).size.height * 0.45,
                 child: Row(
                   children: [
                     Expanded(child: _buildSpeedWidget()),
@@ -336,11 +342,7 @@ class _DashboardPageState extends State<DashboardPage> {
           end: Alignment.bottomRight,
         ),
         boxShadow: const [
-          BoxShadow(
-            color: Colors.black26,
-            blurRadius: 8,
-            offset: Offset(0, 4),
-          ),
+          BoxShadow(color: Colors.black26, blurRadius: 8, offset: Offset(0, 4)),
         ],
       ),
       padding: const EdgeInsets.all(16),
@@ -358,9 +360,10 @@ class _DashboardPageState extends State<DashboardPage> {
                   Text(
                     _cameraRoad!,
                     style: const TextStyle(
-                        color: Colors.white,
-                        fontSize: 20,
-                        fontWeight: FontWeight.w600),
+                      color: Colors.white,
+                      fontSize: 20,
+                      fontWeight: FontWeight.w600,
+                    ),
                   ),
                 if (_speedCamWarning != null)
                   Text(
@@ -448,7 +451,8 @@ class _DashboardPageState extends State<DashboardPage> {
     required Color color,
   }) {
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+      // Increase padding so the status tiles appear larger and easier to tap.
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
       decoration: BoxDecoration(
         color: color,
         borderRadius: BorderRadius.circular(12),
@@ -458,9 +462,9 @@ class _DashboardPageState extends State<DashboardPage> {
         mainAxisSize: MainAxisSize.min,
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          Icon(icon, color: Colors.white),
-          const SizedBox(width: 4),
-          Text(text, style: const TextStyle(color: Colors.white)),
+          Icon(icon, color: Colors.white, size: 32),
+          const SizedBox(width: 8),
+          Text(text, style: const TextStyle(color: Colors.white, fontSize: 18)),
         ],
       ),
     );
@@ -482,8 +486,10 @@ class _DashboardPageState extends State<DashboardPage> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Text('Acceleration',
-              style: TextStyle(color: Colors.white70, fontSize: 16)),
+          const Text(
+            'Acceleration',
+            style: TextStyle(color: Colors.white70, fontSize: 16),
+          ),
           const SizedBox(height: 8),
           ClipRRect(
             borderRadius: BorderRadius.circular(4),
@@ -495,8 +501,10 @@ class _DashboardPageState extends State<DashboardPage> {
             ),
           ),
           const SizedBox(height: 8),
-          Text('${_acceleration.toStringAsFixed(1)} m/s²',
-              style: const TextStyle(color: Colors.white70)),
+          Text(
+            '${_acceleration.toStringAsFixed(1)} m/s²',
+            style: const TextStyle(color: Colors.white70),
+          ),
         ],
       ),
     );
@@ -521,8 +529,12 @@ class _DashboardPageState extends State<DashboardPage> {
                 duration: const Duration(milliseconds: 500),
                 builder: (context, value, child) {
                   final hue = (1 - value) * 120;
-                  final ringColor =
-                      HSVColor.fromAHSV(1.0, hue, 1.0, 1.0).toColor();
+                  final ringColor = HSVColor.fromAHSV(
+                    1.0,
+                    hue,
+                    1.0,
+                    1.0,
+                  ).toColor();
                   return SizedBox(
                     width: double.infinity,
                     height: double.infinity,
@@ -530,8 +542,7 @@ class _DashboardPageState extends State<DashboardPage> {
                       value: value,
                       strokeWidth: 12,
                       backgroundColor: Colors.white24,
-                      valueColor:
-                          AlwaysStoppedAnimation<Color>(ringColor),
+                      valueColor: AlwaysStoppedAnimation<Color>(ringColor),
                     ),
                   );
                 },
@@ -539,13 +550,18 @@ class _DashboardPageState extends State<DashboardPage> {
               Column(
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  Text('${_speed.toStringAsFixed(0)}',
-                      style: const TextStyle(
-                          fontSize: 64,
-                          color: Colors.white,
-                          fontWeight: FontWeight.bold)),
-                  const Text('km/h',
-                      style: TextStyle(color: Colors.white70, fontSize: 20)),
+                  Text(
+                    '${_speed.toStringAsFixed(0)}',
+                    style: const TextStyle(
+                      fontSize: 72,
+                      color: Colors.white,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                  const Text(
+                    'km/h',
+                    style: TextStyle(color: Colors.white70, fontSize: 24),
+                  ),
                   if (_maxSpeed != null) ...[
                     const SizedBox(height: 8),
                     _buildMaxSpeedWidget(),
@@ -553,9 +569,12 @@ class _DashboardPageState extends State<DashboardPage> {
                 ],
               ),
               if (_overspeedDiff != null)
-                Positioned(
-                  bottom: 16,
-                  child: OverspeedIndicator(diff: _overspeedDiff!),
+                Align(
+                  alignment: Alignment.bottomCenter,
+                  child: Padding(
+                    padding: const EdgeInsets.only(bottom: 16),
+                    child: OverspeedIndicator(diff: _overspeedDiff!),
+                  ),
                 ),
             ],
           ),
@@ -575,7 +594,10 @@ class _DashboardPageState extends State<DashboardPage> {
       child: Text(
         name,
         style: const TextStyle(
-            color: Colors.white, fontSize: 20, fontWeight: FontWeight.w600),
+          color: Colors.white,
+          fontSize: 20,
+          fontWeight: FontWeight.w600,
+        ),
         overflow: TextOverflow.ellipsis,
         textAlign: TextAlign.center,
       ),
@@ -604,8 +626,9 @@ class _DashboardPageState extends State<DashboardPage> {
   }
 
   Widget _buildSpeedHistoryWidget() {
-    final maxSpeed =
-        _speedHistory.isEmpty ? 0.0 : _speedHistory.reduce(math.max);
+    final maxSpeed = _speedHistory.isEmpty
+        ? 0.0
+        : _speedHistory.reduce(math.max);
     final avgSpeed = _speedHistory.isEmpty
         ? 0.0
         : _speedHistory.reduce((a, b) => a + b) / _speedHistory.length;
@@ -629,8 +652,10 @@ class _DashboardPageState extends State<DashboardPage> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            const Text('Speed history',
-                style: TextStyle(color: Colors.white70, fontSize: 16)),
+            const Text(
+              'Speed history',
+              style: TextStyle(color: Colors.white70, fontSize: 18),
+            ),
             const SizedBox(height: 8),
             Expanded(
               child: LayoutBuilder(
@@ -642,12 +667,15 @@ class _DashboardPageState extends State<DashboardPage> {
             ),
             const SizedBox(height: 8),
             Text(
-                'max: ${maxSpeed.toStringAsFixed(0)} km/h · '
-                'avg: ${avgSpeed.toStringAsFixed(0)} km/h',
-                style: const TextStyle(color: Colors.white54, fontSize: 12)),
+              'max: ${maxSpeed.toStringAsFixed(0)} km/h · '
+              'avg: ${avgSpeed.toStringAsFixed(0)} km/h',
+              style: const TextStyle(color: Colors.white54, fontSize: 14),
+            ),
             const SizedBox(height: 4),
-            const Text('Double tap to clear',
-                style: TextStyle(color: Colors.white30, fontSize: 10)),
+            const Text(
+              'Double tap to clear',
+              style: TextStyle(color: Colors.white30, fontSize: 12),
+            ),
           ],
         ),
       ),
@@ -716,8 +744,11 @@ class _SpeedChartPainter extends CustomPainter {
   final double lowThreshold;
   final double highThreshold;
 
-  _SpeedChartPainter(this.history,
-      {this.lowThreshold = 2.0, this.highThreshold = 5.0});
+  _SpeedChartPainter(
+    this.history, {
+    this.lowThreshold = 2.0,
+    this.highThreshold = 5.0,
+  });
 
   @override
   void paint(Canvas canvas, Size size) {
