@@ -1740,7 +1740,8 @@ class RectangleCalculatorThread {
         final elapsed = now.difference(last).inMilliseconds / 1000;
         if (elapsed < rateLimit) {
           final wait = (rateLimit - elapsed).toStringAsFixed(1);
-          logger.printLogLine('Skipping ' + msg + ' - rate limited (wait ' + wait + 's)');
+          logger.printLogLine(
+              'Skipping ' + msg + ' - rate limited (wait ' + wait + 's)');
           continue;
         }
       }
@@ -1753,6 +1754,9 @@ class RectangleCalculatorThread {
           continue;
         }
       }
+
+      // First we have to clean up the old camera cache
+      cleanupMapContent();
 
       logger.printLogLine('Executing $msg lookup');
       await func(trigger, 1, xtile, ytile, ccpLon, ccpLat);
@@ -1804,6 +1808,7 @@ class RectangleCalculatorThread {
       logger.printLogLine('Adding construction area at ($lat, $lon)');
       newAreas.add(rect);
     }
+
     for (final element in data) {
       if (element is! Map<String, dynamic>) continue;
       final type = element['type'];
@@ -1819,28 +1824,6 @@ class RectangleCalculatorThread {
             lat = (nodeEl['lat'] as num?)?.toDouble();
             lon = (nodeEl['lon'] as num?)?.toDouble();
           }
-
-          if (lat == null || lon == null) {
-            final result = await triggerOsmLookup(
-              GeoRect(
-                minLat: ccpLat,
-                minLon: ccpLon,
-                maxLat: ccpLat,
-                maxLon: ccpLon,
-              ),
-              lookupType: 'node',
-              nodeId: nodeId,
-            );
-            if (result.success &&
-                result.elements != null &&
-                result.elements!.isNotEmpty) {
-              final el = result.elements!.first;
-              lat = (el['lat'] as num?)?.toDouble();
-              lon = (el['lon'] as num?)?.toDouble();
-              nodeMap[nodeId] = el as Map<String, dynamic>;
-            }
-          }
-
           addNode(lat, lon, nodeId);
           await Future.delayed(const Duration(milliseconds: 500));
         }
@@ -1860,7 +1843,6 @@ class RectangleCalculatorThread {
       updateMapQueue();
       updateInfoPage('CONSTRUCTION_AREAS:$total');
       logger.printLogLine('Total construction areas: $total');
-      cleanupMapContent();
     }
   }
 

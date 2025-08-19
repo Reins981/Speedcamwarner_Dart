@@ -19,7 +19,7 @@ class VoicePromptThread {
   bool _lock = false;
   bool _running = true;
 
-  static const String _basePath = 'python/sounds';
+  static const String _basePath = 'sounds';
 
   VoicePromptThread({
     required this.voicePromptEvents,
@@ -82,7 +82,11 @@ class VoicePromptThread {
 
   Future<void> playSound(String fileName) async {
     _lock = true;
-    await _audioPlayer.play(AssetSource('$_basePath/$fileName'));
+    try {
+      await _audioPlayer.play(AssetSource('$_basePath/$fileName'));
+    } catch (e) {
+      print('Error playing sound: $e');
+    }
   }
 
   Future<void> process(String voiceEntry) async {
@@ -342,20 +346,17 @@ class VoicePromptThread {
       'FIX_100': 'Fixed camera 100 meters ahead',
       'TRAFFIC_100': 'Traffic camera 100 meters ahead',
       'MOBILE_100': 'Mobile speed trap 100 meters ahead',
-      'MOBILE_PREDICTIVE_100':
-          'Predictive mobile speed trap 100 meters ahead',
+      'MOBILE_PREDICTIVE_100': 'Predictive mobile speed trap 100 meters ahead',
       'DISTANCE_100': '100 meters',
       'FIX_300': 'Fixed camera 300 meters ahead',
       'TRAFFIC_300': 'Traffic camera 300 meters ahead',
       'MOBILE_300': 'Mobile speed trap 300 meters ahead',
-      'MOBILE_PREDICTIVE_300':
-          'Predictive mobile speed trap 300 meters ahead',
+      'MOBILE_PREDICTIVE_300': 'Predictive mobile speed trap 300 meters ahead',
       'DISTANCE_300': '300 meters',
       'FIX_500': 'Fixed camera 500 meters ahead',
       'TRAFFIC_500': 'Traffic camera 500 meters ahead',
       'MOBILE_500': 'Mobile speed trap 500 meters ahead',
-      'MOBILE_PREDICTIVE_500':
-          'Predictive mobile speed trap 500 meters ahead',
+      'MOBILE_PREDICTIVE_500': 'Predictive mobile speed trap 500 meters ahead',
       'DISTANCE_500': '500 meters',
       'FIX_1000': 'Fixed camera 1000 meters ahead',
       'TRAFFIC_1000': 'Traffic camera 1000 meters ahead',

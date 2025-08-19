@@ -30,16 +30,14 @@ class _StatsPageState extends State<StatsPage> {
 
   void _onConstructionCount() {
     setState(() {
-      _construction =
-          widget.calculator.constructionAreaCountNotifier.value;
+      _construction = widget.calculator.constructionAreaCountNotifier.value;
     });
   }
 
   @override
   void initState() {
     super.initState();
-    _construction =
-        widget.calculator.constructionAreaCountNotifier.value;
+    _construction = widget.calculator.constructionAreaCountNotifier.value;
     widget.calculator.constructionAreaCountNotifier
         .addListener(_onConstructionCount);
     _sub = widget.calculator.cameras.listen((cam) {
@@ -95,4 +93,3 @@ class _StatsPageState extends State<StatsPage> {
     );
   }
 }
-

@@ -93,8 +93,7 @@ class POIReader extends Logger {
     initTimeFromCloud =
         (AppConfig.get<num>('sql.init_time_from_cloud') ?? 10).toInt();
     // POIs from database update time in seconds (one shot after x seconds)
-    uTimeFromDb =
-        (AppConfig.get<num>('sql.u_time_from_db') ?? 30).toInt();
+    uTimeFromDb = (AppConfig.get<num>('sql.u_time_from_db') ?? 30).toInt();
     poiDistance = (AppConfig.get<num>('main.poi_distance') ?? 50).toInt();
     calculator.rectangle_periphery_poi_reader = poiDistance.toDouble();
   }
@@ -279,12 +278,10 @@ class POIReader extends Logger {
   }
 
   void _updateOsmWrapper({String cameraSource = 'cloud'}) {
-    final processingDict = cameraSource == 'cloud'
-        ? speedCamDict
-        : speedCamDictDb;
-    final processingList = cameraSource == 'cloud'
-        ? speedCamList
-        : speedCamListDb;
+    final processingDict =
+        cameraSource == 'cloud' ? speedCamDict : speedCamDictDb;
+    final processingList =
+        cameraSource == 'cloud' ? speedCamList : speedCamListDb;
 
     if (processingDict.isNotEmpty) {
       processingList.add(Map<String, List<dynamic>>.from(processingDict));
