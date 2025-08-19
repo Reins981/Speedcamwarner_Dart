@@ -27,6 +27,7 @@ class _StatsPageState extends State<StatsPage> {
   int _predictive = 0;
   int _construction = 0;
   int _poi = 0; // Placeholder for future POI integration
+  final Set<String> _seenCameras = {};
 
   void _onConstructionCount() {
     setState(() {
@@ -43,13 +44,16 @@ class _StatsPageState extends State<StatsPage> {
     widget.calculator.constructionAreaCountNotifier
         .addListener(_onConstructionCount);
     _sub = widget.calculator.cameras.listen((cam) {
-      setState(() {
-        if (cam.fixed) _fixed++;
-        if (cam.traffic) _traffic++;
-        if (cam.distance) _distance++;
-        if (cam.mobile) _mobile++;
-        if (cam.predictive) _predictive++;
-      });
+      final key = '${cam.latitude},${cam.longitude}';
+      if (_seenCameras.add(key)) {
+        setState(() {
+          if (cam.fixed) _fixed++;
+          if (cam.traffic) _traffic++;
+          if (cam.distance) _distance++;
+          if (cam.mobile) _mobile++;
+          if (cam.predictive) _predictive++;
+        });
+      }
     });
   }
 
