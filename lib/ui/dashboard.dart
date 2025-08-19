@@ -38,7 +38,6 @@ class DashboardPage extends StatefulWidget {
 class _DashboardPageState extends State<DashboardPage> {
   // UI state mirrored from the calculator notifiers.
   double _speed = 0.0;
-  String _roadName = 'Unknown road';
   int? _overspeedDiff;
   String? _speedCamWarning;
   String? _speedCamIcon;
@@ -61,6 +60,8 @@ class _DashboardPageState extends State<DashboardPage> {
   ValueNotifier<String>? _directionNotifier;
   ValueNotifier<String>? _averageBearingNotifier;
 
+  static final ValueNotifier<String> _emptyRoadName = ValueNotifier<String>('');
+
   @override
   void initState() {
     super.initState();
@@ -68,8 +69,6 @@ class _DashboardPageState extends State<DashboardPage> {
     _controller = widget.controller;
     if (_calculator != null) {
       _speed = _calculator!.currentSpeedNotifier.value;
-      final initialRoad = _calculator!.roadNameNotifier.value;
-      _roadName = initialRoad.isEmpty ? 'Unknown road' : initialRoad;
       _speedCamWarning = _calculator!.speedCamNotifier.value;
       if (_speedCamWarning == 'FREEFLOW') {
         _clearCameraInfo();
@@ -86,7 +85,6 @@ class _DashboardPageState extends State<DashboardPage> {
       _gpsOn = _calculator!.gpsStatusNotifier.value;
       _online = _calculator!.onlineStatusNotifier.value;
       _calculator!.currentSpeedNotifier.addListener(_updateFromCalculator);
-      _calculator!.roadNameNotifier.addListener(_updateFromCalculator);
       _calculator!.speedCamNotifier.addListener(_updateFromCalculator);
       _calculator!.speedCamDistanceNotifier.addListener(_updateFromCalculator);
       _calculator!.cameraRoadNotifier.addListener(_updateFromCalculator);
@@ -117,8 +115,6 @@ class _DashboardPageState extends State<DashboardPage> {
   void _updateFromCalculator() {
     setState(() {
       _speed = _calculator!.currentSpeedNotifier.value;
-      final name = _calculator!.roadNameNotifier.value;
-      _roadName = name.isEmpty ? 'Unknown road' : name;
       _maxSpeed = _calculator!.maxspeedNotifier.value;
       _overspeedDiff = (_maxSpeed != null && _speed > _maxSpeed!)
           ? (_speed - _maxSpeed!).round()
@@ -227,7 +223,6 @@ class _DashboardPageState extends State<DashboardPage> {
   void dispose() {
     if (_calculator != null) {
       _calculator!.currentSpeedNotifier.removeListener(_updateFromCalculator);
-      _calculator!.roadNameNotifier.removeListener(_updateFromCalculator);
       _calculator!.speedCamNotifier.removeListener(_updateFromCalculator);
       _calculator!.speedCamDistanceNotifier.removeListener(
         _updateFromCalculator,
@@ -459,12 +454,18 @@ class _DashboardPageState extends State<DashboardPage> {
       ),
       alignment: Alignment.center,
       child: Row(
-        mainAxisSize: MainAxisSize.min,
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
           Icon(icon, color: Colors.white, size: 32),
           const SizedBox(width: 8),
-          Text(text, style: const TextStyle(color: Colors.white, fontSize: 18)),
+          Expanded(
+            child: Text(
+              text,
+              style: const TextStyle(color: Colors.white, fontSize: 18),
+              overflow: TextOverflow.ellipsis,
+              textAlign: TextAlign.center,
+            ),
+          ),
         ],
       ),
     );
@@ -512,7 +513,6 @@ class _DashboardPageState extends State<DashboardPage> {
 
   Widget _buildSpeedWidget() {
     final max = _maxSpeed ?? 200;
-    final speedRatio = (_speed / max).clamp(0.0, 1.0);
     return Center(
       child: AspectRatio(
         aspectRatio: 1,
@@ -525,10 +525,12 @@ class _DashboardPageState extends State<DashboardPage> {
             alignment: Alignment.center,
             children: [
               TweenAnimationBuilder<double>(
-                tween: Tween(begin: 0, end: speedRatio),
+                tween: Tween(begin: 0, end: _speed),
                 duration: const Duration(milliseconds: 500),
                 builder: (context, value, child) {
-                  final hue = (1 - value) * 120;
+                  final progress = (value / max).clamp(0.0, 1.0);
+                  final colorRatio = (value / 200).clamp(0.0, 1.0);
+                  final hue = (1 - colorRatio) * 120;
                   final ringColor = HSVColor.fromAHSV(
                     1.0,
                     hue,
@@ -539,7 +541,7 @@ class _DashboardPageState extends State<DashboardPage> {
                     width: double.infinity,
                     height: double.infinity,
                     child: CircularProgressIndicator(
-                      value: value,
+                      value: progress,
                       strokeWidth: 12,
                       backgroundColor: Colors.white24,
                       valueColor: AlwaysStoppedAnimation<Color>(ringColor),
@@ -569,10 +571,11 @@ class _DashboardPageState extends State<DashboardPage> {
                 ],
               ),
               if (_overspeedDiff != null)
-                Align(
-                  alignment: Alignment.bottomCenter,
-                  child: Padding(
-                    padding: const EdgeInsets.only(bottom: 16),
+                Positioned(
+                  bottom: 16,
+                  left: 0,
+                  right: 0,
+                  child: Center(
                     child: OverspeedIndicator(diff: _overspeedDiff!),
                   ),
                 ),
@@ -584,23 +587,29 @@ class _DashboardPageState extends State<DashboardPage> {
   }
 
   Widget _buildRoadNameWidget() {
-    final name = _roadName.isEmpty ? 'Unknown road' : _roadName;
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-      decoration: BoxDecoration(
-        color: Colors.white.withOpacity(0.1),
-        borderRadius: BorderRadius.circular(12),
-      ),
-      child: Text(
-        name,
-        style: const TextStyle(
-          color: Colors.white,
-          fontSize: 20,
-          fontWeight: FontWeight.w600,
-        ),
-        overflow: TextOverflow.ellipsis,
-        textAlign: TextAlign.center,
-      ),
+    final notifier = _calculator?.roadNameNotifier ?? _emptyRoadName;
+    return ValueListenableBuilder<String>(
+      valueListenable: notifier,
+      builder: (context, value, child) {
+        final name = value.isEmpty ? 'Unknown road' : value;
+        return Container(
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+          decoration: BoxDecoration(
+            color: Colors.white.withOpacity(0.1),
+            borderRadius: BorderRadius.circular(12),
+          ),
+          child: Text(
+            name,
+            style: const TextStyle(
+              color: Colors.white,
+              fontSize: 20,
+              fontWeight: FontWeight.w600,
+            ),
+            overflow: TextOverflow.ellipsis,
+            textAlign: TextAlign.center,
+          ),
+        );
+      },
     );
   }
 
