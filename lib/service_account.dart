@@ -3,8 +3,9 @@ import 'dart:io';
 
 import 'package:flutter/services.dart' show FlutterError, rootBundle;
 import 'package:googleapis/drive/v3.dart' as drive;
-import 'package:googleapis_auth/googleapis_auth.dart';
 import 'package:googleapis_auth/auth_io.dart';
+import 'package:googleapis_auth/googleapis_auth.dart';
+import 'package:http/http.dart' as http;
 import 'package:path/path.dart' as p;
 import 'package:path_provider/path_provider.dart';
 
@@ -63,8 +64,9 @@ class ServiceAccount {
   }
 
   /// Build an authenticated HTTP client for the Google Drive API using the
-  /// service account credentials.
-  static Future<AutoRefreshingAuthClient> buildDriveFromCredentials() async {
+  /// service account credentials. Returns ``null`` if authentication fails,
+  /// e.g. when no internet connection is available.
+  static Future<AutoRefreshingAuthClient?> buildDriveFromCredentials() async {
     await _init();
     String jsonString;
     final file = File(serviceAccount);
@@ -81,7 +83,21 @@ class ServiceAccount {
     }
     final credentials =
         ServiceAccountCredentials.fromJson(json.decode(jsonString));
-    return clientViaServiceAccount(credentials, scopes);
+    try {
+      final client = await clientViaServiceAccount(credentials, scopes);
+      return client;
+    } on SocketException catch (e) {
+      logger.printLogLine(
+        'Failed to authenticate service account: $e',
+        logLevel: 'ERROR',
+      );
+    } on http.ClientException catch (e) {
+      logger.printLogLine(
+        'Failed to authenticate service account: $e',
+        logLevel: 'ERROR',
+      );
+    }
+    return null;
   }
 
   static bool checkRateLimit(String user) {

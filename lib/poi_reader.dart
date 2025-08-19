@@ -374,6 +374,13 @@ class POIReader extends Logger {
     printLogLine("Updating POI's from cloud ..");
     try {
       final driveClient = await ServiceAccount.buildDriveFromCredentials();
+      if (driveClient == null) {
+        printLogLine(
+          'Updating cameras (file_id: ${ServiceAccount.fileId}) from service account failed! (NO_AUTH_CLIENT)',
+          logLevel: 'ERROR',
+        );
+        return;
+      }
       final status = await ServiceAccount.downloadFileFromGoogleDrive(
         ServiceAccount.fileId,
         driveClient,
