@@ -91,10 +91,10 @@ class AppController {
     voiceThread = VoicePromptThread(
       voicePromptEvents: voicePromptEvents,
       dialogflowClient: dialogflow,
-      aiVoicePrompts:
-          (AppConfig.get<String>('accusticWarner.voice_prompt_source') ??
-                  'dialogflow') ==
-              'dialogflow',
+      aiVoicePrompts: (AppConfig.get<dynamic>(
+                    'accusticWarner.voice_prompt_source') ??
+                'dialogflow') ==
+            'dialogflow',
     );
     unawaited(voiceThread.run());
 
