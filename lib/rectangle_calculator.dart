@@ -1778,6 +1778,17 @@ class RectangleCalculatorThread {
   ) async {
     if (data is! List) return;
     final newAreas = <GeoRect>[];
+    // Build a lookup of node id -> element for fast access.
+    final nodeMap = <int, Map<String, dynamic>>{};
+    for (final el in data) {
+      if (el is Map<String, dynamic> && el['type'] == 'node') {
+        final id = el['id'] is int
+            ? el['id'] as int
+            : int.tryParse(el['id']?.toString() ?? '');
+        if (id != null) nodeMap[id] = el;
+      }
+    }
+    final processedNodeIds = <int>{};
 
     // Helper to add a node if coordinates are known.
     void addNode(double? lat, double? lon, int nodeId) {
@@ -1788,11 +1799,11 @@ class RectangleCalculatorThread {
         );
         return;
       }
+      if (!processedNodeIds.add(nodeId)) return;
       final rect = GeoRect(minLat: lat, minLon: lon, maxLat: lat, maxLon: lon);
       logger.printLogLine('Adding construction area at ($lat, $lon)');
       newAreas.add(rect);
     }
-
     for (final element in data) {
       if (element is! Map<String, dynamic>) continue;
       final type = element['type'];
@@ -1801,17 +1812,7 @@ class RectangleCalculatorThread {
         for (final n in nodes) {
           final nodeId = n is int ? n : int.tryParse(n.toString());
           if (nodeId == null) continue;
-          Map<String, dynamic>? nodeEl;
-          try {
-            nodeEl = data.firstWhere(
-              (e) =>
-                  e is Map<String, dynamic> &&
-                  e['type'] == 'node' &&
-                  e['id'] == nodeId,
-            ) as Map<String, dynamic>?;
-          } catch (_) {
-            nodeEl = null;
-          }
+          final nodeEl = nodeMap[nodeId];
           double? lat;
           double? lon;
           if (nodeEl != null) {
@@ -1836,12 +1837,12 @@ class RectangleCalculatorThread {
               final el = result.elements!.first;
               lat = (el['lat'] as num?)?.toDouble();
               lon = (el['lon'] as num?)?.toDouble();
+              nodeMap[nodeId] = el as Map<String, dynamic>;
             }
           }
 
           addNode(lat, lon, nodeId);
-          var duration = Duration(milliseconds: 500);
-          sleep(duration);
+          await Future.delayed(const Duration(milliseconds: 500));
         }
       } else if (type == 'node') {
         final lat = (element['lat'] as num?)?.toDouble();
