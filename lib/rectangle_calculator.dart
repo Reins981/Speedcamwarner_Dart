@@ -219,6 +219,9 @@ Future<(bool, String?)> uploadCameraToDrive({
   }
   try {
     final client = await ServiceAccount.buildDriveFromCredentials();
+    if (client == null) {
+      return (false, 'NO_AUTH_CLIENT');
+    }
     final res = await ServiceAccount.uploadFileToGoogleDrive(
       ServiceAccount.fileId,
       ServiceAccount.folderId,
