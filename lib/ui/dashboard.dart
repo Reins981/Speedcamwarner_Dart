@@ -67,8 +67,8 @@ class _DashboardPageState extends State<DashboardPage> {
     _controller = widget.controller;
     if (_calculator != null) {
       _speed = _calculator!.currentSpeedNotifier.value;
-      _roadName = _calculator!.roadNameNotifier.value;
-      _overspeedDiff = _controller!.overspeedChecker.difference.value;
+      final initialRoad = _calculator!.roadNameNotifier.value;
+      _roadName = initialRoad.isEmpty ? 'Unknown road' : initialRoad;
       _speedCamWarning = _calculator!.speedCamNotifier.value;
       if (_speedCamWarning == 'FREEFLOW') {
         _clearCameraInfo();
@@ -78,12 +78,15 @@ class _DashboardPageState extends State<DashboardPage> {
         _cameraRoad = _calculator!.cameraRoadNotifier.value;
       }
       _maxSpeed = _calculator!.maxspeedNotifier.value;
+      _speed = _calculator!.currentSpeedNotifier.value;
+      _overspeedDiff =
+          (_maxSpeed != null && _speed > _maxSpeed!)
+              ? (_speed - _maxSpeed!).round()
+              : null;
       _gpsOn = _calculator!.gpsStatusNotifier.value;
       _online = _calculator!.onlineStatusNotifier.value;
       _calculator!.currentSpeedNotifier.addListener(_updateFromCalculator);
       _calculator!.roadNameNotifier.addListener(_updateFromCalculator);
-      _controller!.overspeedChecker.difference
-          .addListener(_updateFromCalculator);
       _calculator!.speedCamNotifier.addListener(_updateFromCalculator);
       _calculator!.speedCamDistanceNotifier.addListener(_updateFromCalculator);
       _calculator!.cameraRoadNotifier.addListener(_updateFromCalculator);
@@ -114,8 +117,13 @@ class _DashboardPageState extends State<DashboardPage> {
   void _updateFromCalculator() {
     setState(() {
       _speed = _calculator!.currentSpeedNotifier.value;
-      _roadName = _calculator!.roadNameNotifier.value;
-      _overspeedDiff = _controller!.overspeedChecker.difference.value;
+      final name = _calculator!.roadNameNotifier.value;
+      _roadName = name.isEmpty ? 'Unknown road' : name;
+      _maxSpeed = _calculator!.maxspeedNotifier.value;
+      _overspeedDiff =
+          (_maxSpeed != null && _speed > _maxSpeed!)
+              ? (_speed - _maxSpeed!).round()
+              : null;
       _speedCamWarning = _calculator!.speedCamNotifier.value;
       if (_speedCamWarning == 'FREEFLOW') {
         _clearCameraInfo();
@@ -124,7 +132,6 @@ class _DashboardPageState extends State<DashboardPage> {
         _speedCamDistance = _calculator!.speedCamDistanceNotifier.value;
         _cameraRoad = _calculator!.cameraRoadNotifier.value;
       }
-      _maxSpeed = _calculator!.maxspeedNotifier.value;
       _gpsOn = _calculator!.gpsStatusNotifier.value;
       _online = _calculator!.onlineStatusNotifier.value;
       _speedHistory.add(_speed);
@@ -216,8 +223,6 @@ class _DashboardPageState extends State<DashboardPage> {
     if (_calculator != null) {
       _calculator!.currentSpeedNotifier.removeListener(_updateFromCalculator);
       _calculator!.roadNameNotifier.removeListener(_updateFromCalculator);
-      _controller!.overspeedChecker.difference
-          .removeListener(_updateFromCalculator);
       _calculator!.speedCamNotifier.removeListener(_updateFromCalculator);
       _calculator!.speedCamDistanceNotifier
           .removeListener(_updateFromCalculator);
@@ -263,7 +268,7 @@ class _DashboardPageState extends State<DashboardPage> {
                 height: MediaQuery.of(context).size.height * 0.35,
                 child: Row(
                   children: [
-                    Expanded(flex: 2, child: _buildSpeedWidget()),
+                    Expanded(child: _buildSpeedWidget()),
                     const SizedBox(width: 16),
                     Expanded(
                       child: Column(
@@ -281,11 +286,6 @@ class _DashboardPageState extends State<DashboardPage> {
               _buildStatusRow(),
               const SizedBox(height: 16),
               _buildDirectionBearingRow(),
-              if (_arStatus.isNotEmpty) ...[
-                const SizedBox(height: 16),
-                Text('AR: $_arStatus',
-                    style: const TextStyle(color: Colors.white54, fontSize: 16)),
-              ],
             ],
           ),
         ),
@@ -384,12 +384,23 @@ class _DashboardPageState extends State<DashboardPage> {
   }
 
   Widget _buildStatusRow() {
-    return Row(
-      children: [
-        Expanded(child: _buildGpsWidget()),
-        const SizedBox(width: 16),
-        Expanded(child: _buildInternetWidget()),
-      ],
+    final children = <Widget>[
+      Expanded(child: _buildGpsWidget()),
+      const SizedBox(width: 16),
+      Expanded(child: _buildInternetWidget()),
+    ];
+    if (_arStatus.isNotEmpty) {
+      children.add(const SizedBox(width: 16));
+      children.add(Expanded(child: _buildAiWidget()));
+    }
+    return Row(children: children);
+  }
+
+  Widget _buildAiWidget() {
+    return _statusTile(
+      icon: Icons.smart_toy,
+      text: 'AI: $_arStatus',
+      color: Colors.blueGrey,
     );
   }
 
@@ -492,81 +503,81 @@ class _DashboardPageState extends State<DashboardPage> {
   }
 
   Widget _buildSpeedWidget() {
-    final speedRatio = (_speed / 200).clamp(0.0, 1.0);
-    return Container(
-      decoration: BoxDecoration(
-        color: Colors.white.withOpacity(0.05),
-        borderRadius: BorderRadius.circular(16),
-      ),
-      child: Stack(
-        alignment: Alignment.center,
-        children: [
-          TweenAnimationBuilder<double>(
-            tween: Tween(begin: 0, end: speedRatio),
-            duration: const Duration(milliseconds: 500),
-            builder: (context, value, child) => SizedBox(
-              width: double.infinity,
-              height: double.infinity,
-              child: CircularProgressIndicator(
-                value: value,
-                strokeWidth: 12,
-                backgroundColor: Colors.white24,
-                valueColor: AlwaysStoppedAnimation<Color>(
-                    _overspeedDiff != null ? Colors.red : Colors.green),
-              ),
-            ),
+    final max = _maxSpeed ?? 200;
+    final speedRatio = (_speed / max).clamp(0.0, 1.0);
+    return Center(
+      child: AspectRatio(
+        aspectRatio: 1,
+        child: Container(
+          decoration: BoxDecoration(
+            color: Colors.white.withOpacity(0.05),
+            shape: BoxShape.circle,
           ),
-          Column(
-            mainAxisSize: MainAxisSize.min,
+          child: Stack(
+            alignment: Alignment.center,
             children: [
-              Text('${_speed.toStringAsFixed(0)}',
-                  style: const TextStyle(
-                      fontSize: 64,
-                      color: Colors.white,
-                      fontWeight: FontWeight.bold)),
-              const Text('km/h',
-                  style: TextStyle(color: Colors.white70, fontSize: 20)),
-              if (_maxSpeed != null) ...[
-                const SizedBox(height: 8),
-                _buildMaxSpeedWidget(),
-              ],
+              TweenAnimationBuilder<double>(
+                tween: Tween(begin: 0, end: speedRatio),
+                duration: const Duration(milliseconds: 500),
+                builder: (context, value, child) {
+                  final hue = (1 - value) * 120;
+                  final ringColor =
+                      HSVColor.fromAHSV(1.0, hue, 1.0, 1.0).toColor();
+                  return SizedBox(
+                    width: double.infinity,
+                    height: double.infinity,
+                    child: CircularProgressIndicator(
+                      value: value,
+                      strokeWidth: 12,
+                      backgroundColor: Colors.white24,
+                      valueColor:
+                          AlwaysStoppedAnimation<Color>(ringColor),
+                    ),
+                  );
+                },
+              ),
+              Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Text('${_speed.toStringAsFixed(0)}',
+                      style: const TextStyle(
+                          fontSize: 64,
+                          color: Colors.white,
+                          fontWeight: FontWeight.bold)),
+                  const Text('km/h',
+                      style: TextStyle(color: Colors.white70, fontSize: 20)),
+                  if (_maxSpeed != null) ...[
+                    const SizedBox(height: 8),
+                    _buildMaxSpeedWidget(),
+                  ],
+                ],
+              ),
+              if (_overspeedDiff != null)
+                Positioned(
+                  bottom: 16,
+                  child: OverspeedIndicator(diff: _overspeedDiff!),
+                ),
             ],
           ),
-          if (_overspeedDiff != null)
-            Positioned(
-              bottom: 16,
-              child: OverspeedIndicator(diff: _overspeedDiff!),
-            ),
-        ],
+        ),
       ),
     );
   }
 
   Widget _buildRoadNameWidget() {
+    final name = _roadName.isEmpty ? 'Unknown road' : _roadName;
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
       decoration: BoxDecoration(
         color: Colors.white.withOpacity(0.1),
         borderRadius: BorderRadius.circular(12),
       ),
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          const Icon(Icons.alt_route, color: Colors.white),
-          const SizedBox(width: 8),
-          Flexible(
-            child: Text(
-              _roadName,
-              style: const TextStyle(
-                  color: Colors.white,
-                  fontSize: 20,
-                  fontWeight: FontWeight.w600),
-              overflow: TextOverflow.ellipsis,
-              textAlign: TextAlign.center,
-            ),
-          ),
-        ],
+      child: Text(
+        name,
+        style: const TextStyle(
+            color: Colors.white, fontSize: 20, fontWeight: FontWeight.w600),
+        overflow: TextOverflow.ellipsis,
+        textAlign: TextAlign.center,
       ),
     );
   }
