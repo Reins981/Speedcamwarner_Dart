@@ -257,16 +257,19 @@ class _DashboardPageState extends State<DashboardPage> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
+              Center(child: _buildRoadNameWidget()),
+              const SizedBox(height: 16),
               if (hasCameraInfo) ...[
                 _buildCameraInfo(),
                 const SizedBox(height: 16),
               ],
-              Center(child: _buildRoadNameWidget()),
-              const SizedBox(height: 16),
               SizedBox(
                 // Provide more vertical space so the speed and history widgets
                 // are easier to read on larger displays.
-                height: MediaQuery.of(context).size.height * 0.45,
+                height: math.min(
+                  MediaQuery.of(context).size.height * 0.5,
+                  320,
+                ),
                 child: Row(
                   children: [
                     Expanded(child: _buildSpeedWidget()),
@@ -571,11 +574,10 @@ class _DashboardPageState extends State<DashboardPage> {
                 ],
               ),
               if (_overspeedDiff != null)
-                Positioned(
-                  bottom: 16,
-                  left: 0,
-                  right: 0,
-                  child: Center(
+                Align(
+                  alignment: Alignment.bottomCenter,
+                  child: Padding(
+                    padding: const EdgeInsets.only(bottom: 16),
                     child: OverspeedIndicator(diff: _overspeedDiff!),
                   ),
                 ),
