@@ -1611,8 +1611,15 @@ class RectangleCalculatorThread {
   /// mode is active, otherwise ``0``.  The rich rectangle update logic from the
   /// Python version has not been ported.
   Future<dynamic> processInterrupts() async {
-    ccpStable = deviationCheckerThread.stream.listen()
+    // Wait for the next state emitted by the deviation checker and cache it
+    // locally.  The Python version consumed values from a queue; listening to
+    // the stream mirrors that behaviour.
+    ccpStable = await deviationCheckerThread.stream.first;
 
+    if (ccpStable == 'TERMINATE') {
+      logger.printLogLine(' Calculator thread interrupt termination');
+      return 'TERMINATE';
+    }
 
     if (camerasLookAheadMode) {
       return 'look_ahead';
