@@ -927,11 +927,10 @@ class RectangleCalculatorThread {
     overspeedChecker.updateLimit(limit);
 
     // Handle possible look-ahead interrupts.
-    final interrupt = await processInterrupts();
-    print('Interrupt detected: $interrupt');
-    if (interrupt == 'look_ahead') {
+    if (camerasLookAheadMode) {
       await processLookAheadInterrupts();
     }
+    await processInterrupts();
   }
 
   /// Compute a lookahead distance in kilometres based on [speedKmH].  The
@@ -1616,16 +1615,6 @@ class RectangleCalculatorThread {
     // locally.  The Python version consumed values from a queue; listening to
     // the stream mirrors that behaviour.
     ccpStable = await deviationCheckerThread.stream.first;
-
-    if (ccpStable == 'TERMINATE') {
-      logger.printLogLine(' Calculator thread interrupt termination');
-      return 'TERMINATE';
-    }
-
-    if (camerasLookAheadMode) {
-      return 'look_ahead';
-    }
-    return 0;
   }
 
   Future<(bool, String?)> uploadCameraToDriveMethod(
