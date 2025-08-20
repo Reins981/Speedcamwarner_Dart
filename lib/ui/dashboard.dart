@@ -253,46 +253,37 @@ class _DashboardPageState extends State<DashboardPage> {
           ),
         ),
         padding: const EdgeInsets.all(16),
-        child: LayoutBuilder(
-          builder: (context, constraints) {
-            return SingleChildScrollView(
-              child: ConstrainedBox(
-                constraints: BoxConstraints(minHeight: constraints.maxHeight),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.stretch,
-                  children: [
-                    Center(child: _buildRoadNameWidget()),
-                    const SizedBox(height: 16),
-                    if (hasCameraInfo) ...[
-                      _buildCameraInfo(),
-                      const SizedBox(height: 16),
-                    ],
-                    Expanded(
-                      child: Row(
-                        children: [
-                          Expanded(child: _buildSpeedWidget()),
-                          const SizedBox(width: 16),
-                          Expanded(
-                            child: Column(
-                              children: [
-                                Expanded(child: _buildAccelerationWidget()),
-                                const SizedBox(height: 16),
-                                Expanded(child: _buildSpeedHistoryWidget()),
-                              ],
-                            ),
-                          ),
-                        ],
-                      ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            Center(child: _buildRoadNameWidget()),
+            const SizedBox(height: 16),
+            if (hasCameraInfo) ...[
+              _buildCameraInfo(),
+              const SizedBox(height: 16),
+            ],
+            Expanded(
+              child: Row(
+                children: [
+                  Expanded(child: _buildSpeedWidget()),
+                  const SizedBox(width: 16),
+                  Expanded(
+                    child: Column(
+                      children: [
+                        Expanded(child: _buildAccelerationWidget()),
+                        const SizedBox(height: 16),
+                        Expanded(child: _buildSpeedHistoryWidget()),
+                      ],
                     ),
-                    const SizedBox(height: 16),
-                    _buildStatusRow(),
-                    const SizedBox(height: 16),
-                    _buildDirectionBearingRow(),
-                  ],
-                ),
+                  ),
+                ],
               ),
-            );
-          },
+            ),
+            const SizedBox(height: 16),
+            _buildStatusRow(),
+            const SizedBox(height: 16),
+            _buildDirectionBearingRow(),
+          ],
         ),
       ),
       floatingActionButton: Column(
