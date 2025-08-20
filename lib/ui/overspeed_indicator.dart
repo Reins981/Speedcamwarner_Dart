@@ -8,26 +8,33 @@ class OverspeedIndicator extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
+      width: 64,
+      height: 64,
       padding: const EdgeInsets.all(8),
       decoration: const BoxDecoration(
         color: Colors.redAccent,
         shape: BoxShape.circle,
       ),
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Text(
-            '+$diff',
-            style: const TextStyle(
+      alignment: Alignment.center,
+      child: FittedBox(
+        fit: BoxFit.scaleDown,
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Text(
+              '+$diff',
+              style: const TextStyle(
                 color: Colors.white,
                 fontSize: 20,
-                fontWeight: FontWeight.bold),
-          ),
-          const Text(
-            'km/h',
-            style: TextStyle(color: Colors.white, fontSize: 12),
-          ),
-        ],
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+            const Text(
+              'km/h',
+              style: TextStyle(color: Colors.white, fontSize: 12),
+            ),
+          ],
+        ),
       ),
     );
   }
