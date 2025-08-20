@@ -22,6 +22,7 @@ import 'dart:math' as math;
 
 import 'package:flutter/foundation.dart';
 import 'package:latlong2/latlong.dart';
+import 'package:workspace/deviation_checker.dart';
 import 'filtered_road_classes.dart';
 import 'most_probable_way.dart';
 import 'rect.dart' show Rect;
@@ -291,8 +292,6 @@ class RectangleCalculatorThread {
   /// Event bus used to emit voice prompts for camera events and system messages.
   final VoicePromptEvents voicePromptEvents;
 
-  final InterruptQueue<String>? interruptQueue;
-
   /// Helper that tracks the most probable road based on recent updates.
   final MostProbableWay mostProbableWay;
 
@@ -315,6 +314,8 @@ class RectangleCalculatorThread {
 
   /// Utility responsible for calculating overspeed warnings.
   final OverspeedChecker overspeedChecker;
+
+  final DeviationCheckerThread deviationCheckerThread;
 
   /// Last road name resolved by [processRoadName].
   String? lastRoadName;
@@ -444,18 +445,19 @@ class RectangleCalculatorThread {
   /// Maximum distance in kilometres for construction area look‑ahead.
   double maxConstructionAreaLookaheadDistance = 30.0;
 
-  /// Minimum interval between network lookups to avoid excessive requests.
-  double dosAttackPreventionIntervalDownloads = 30.0;
+  /// Minimum interval between network lookups to avoid excessive
+  /// requests for speed cameras only.
+  double dosAttackPreventionIntervalDownloads = 5.0;
 
   /// Minimum interval between construction area lookups. This is kept separate
   /// from [dosAttackPreventionIntervalDownloads] to reduce the frequency of
   /// construction related requests which are less time critical than speed
   /// camera updates.
-  double constructionAreaLookupInterval = 120.0;
+  double constructionAreaLookupInterval = 60.0;
 
   /// Disable construction lookups during application start up for this many
   /// seconds.
-  double constructionAreaStartupTriggerMax = 60.0;
+  double constructionAreaStartupTriggerMax = 30.0;
 
   /// Track the last execution time of look‑ahead routines.
   final Map<String, DateTime> _lastLookaheadExecution = {};
@@ -565,11 +567,10 @@ class RectangleCalculatorThread {
   RectangleCalculatorThread({
     PredictiveModel? model,
     VoicePromptEvents? voicePromptEvents,
-    InterruptQueue<String>? interruptQueue,
     required this.overspeedChecker,
+    required this.deviationCheckerThread,
   })  : _predictiveModel = model ?? PredictiveModel(),
         voicePromptEvents = voicePromptEvents ?? VoicePromptEvents(),
-        interruptQueue = interruptQueue,
         mostProbableWay = MostProbableWay() {
     _loadConfigs();
     _start();
@@ -1414,8 +1415,10 @@ class RectangleCalculatorThread {
     bool facility = false,
   }) {
     if (foundRoadName) {
+      print('Found road name: $roadName');
       final currentFr = getRoadClassValue(roadClass);
       if (currentFr != null && isFilteredRoadClass(currentFr)) {
+        print('Filtered road class: $currentFr');
         return false;
       }
       if (poi && dismissPois) return false;
@@ -1585,11 +1588,7 @@ class RectangleCalculatorThread {
   Future<void> processLookAheadInterrupts() async {
     final roadName = await getRoadNameViaNominatim(latitude, longitude);
     if (roadName != null) {
-      if (roadName.startsWith('ERROR:')) {
-        if (!camInProgress) {
-          updateOnlineStatus(false);
-        }
-      } else {
+      if (!roadName.startsWith('ERROR:')) {
         processRoadName(
           foundRoadName: true,
           roadName: roadName,
@@ -1612,7 +1611,8 @@ class RectangleCalculatorThread {
   /// mode is active, otherwise ``0``.  The rich rectangle update logic from the
   /// Python version has not been ported.
   Future<dynamic> processInterrupts() async {
-    ccpStable = await interruptQueue?.consume();
+    ccpStable = deviationCheckerThread.stream.listen()
+
 
     if (camerasLookAheadMode) {
       return 'look_ahead';

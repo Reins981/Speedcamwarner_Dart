@@ -27,10 +27,14 @@ class AppController {
         locationManager = LocationManager() {
     overspeedChecker = OverspeedChecker();
 
+    // Start the deviation checker by default so it can be paused during AR
+    // sessions and restarted afterwards.
+    deviationChecker = startDeviationCheckerThread();
+
     calculator = RectangleCalculatorThread(
       voicePromptEvents: voicePromptEvents,
-      interruptQueue: interruptQueue,
       overspeedChecker: overspeedChecker,
+      deviationCheckerThread: deviationChecker,
     );
     gps = GpsThread(
       voicePromptEvents: voicePromptEvents,
@@ -91,16 +95,12 @@ class AppController {
     voiceThread = VoicePromptThread(
       voicePromptEvents: voicePromptEvents,
       dialogflowClient: dialogflow,
-      aiVoicePrompts: (AppConfig.get<dynamic>(
-                    'accusticWarner.voice_prompt_source') ??
-                'dialogflow') ==
-            'dialogflow',
+      aiVoicePrompts:
+          (AppConfig.get<dynamic>('accusticWarner.voice_prompt_source') ??
+                  'dialogflow') ==
+              'dialogflow',
     );
     unawaited(voiceThread.run());
-
-    // Start the deviation checker by default so it can be paused during AR
-    // sessions and restarted afterwards.
-    startDeviationCheckerThread();
   }
 
   /// Handles GPS sampling.
@@ -274,8 +274,8 @@ class AppController {
   }
 
   /// Start the [DeviationCheckerThread] if it isn't already running.
-  void startDeviationCheckerThread() {
-    if (_deviationRunning) return;
+  deviation.DeviationCheckerThread startDeviationCheckerThread() {
+    if (_deviationRunning) return deviationChecker;
     _deviationCond = deviation.ThreadCondition();
     _deviationCondAr = deviation.ThreadCondition();
     deviationChecker = deviation.DeviationCheckerThread(
@@ -285,6 +285,8 @@ class AppController {
     );
     deviationChecker.start();
     _deviationRunning = true;
+
+    return deviationChecker;
   }
 
   /// Stop the [DeviationCheckerThread] if currently active.

@@ -21,8 +21,10 @@ class DeviationCheckerThread extends Logger {
 
   final StreamController<dynamic> _averageAngleController =
       StreamController<dynamic>();
-  final StreamController<String> interruptQueue =
+  final StreamController<String> interruptController =
       StreamController<String>.broadcast();
+
+  Stream<String> get stream => interruptController.stream;
 
   bool _running = false;
   StreamSubscription? _avgSub;
@@ -56,10 +58,10 @@ class DeviationCheckerThread extends Logger {
     }
     cleanup();
     if (cond.terminate) {
-      interruptQueue.add('TERMINATE');
+      interruptController.add('TERMINATE');
     }
     if (condAr.terminate) {
-      interruptQueue.add('CLEAR');
+      interruptController.add('CLEAR');
     }
     printLogLine('$runtimeType terminating');
     await dispose();
@@ -95,8 +97,7 @@ class DeviationCheckerThread extends Logger {
       return;
     }
 
-    if (currentBearingQueue is! List<double> ||
-        currentBearingQueue.isEmpty) {
+    if (currentBearingQueue is! List<double> || currentBearingQueue.isEmpty) {
       return;
     }
 
@@ -129,10 +130,10 @@ class DeviationCheckerThread extends Logger {
               avBearingDiffPositionPairQueues <= 22) &&
           (-13 <= avBearingDiffCurrentQueue &&
               avBearingDiffCurrentQueue <= 13)) {
-        interruptQueue.add('STABLE');
+        interruptController.add('STABLE');
         printLogLine('CCP is considered STABLE');
       } else {
-        interruptQueue.add('UNSTABLE');
+        interruptController.add('UNSTABLE');
         printLogLine('Waiting for CCP to become STABLE again');
       }
     }
@@ -148,7 +149,7 @@ class DeviationCheckerThread extends Logger {
     _running = false;
     await _avgSub?.cancel();
     await _averageAngleController.close();
-    await interruptQueue.close();
+    await interruptController.close();
   }
 
   void terminate() {
