@@ -141,15 +141,17 @@ class _DashboardPageState extends State<DashboardPage> {
 
   List<Color> _cameraGradientColors() {
     final d = _speedCamDistance ?? double.infinity;
+    List<Color> colors;
     if (d > 1000 && d <= 1500) {
-      return [Colors.orangeAccent, Colors.orange];
+      colors = [Colors.orangeAccent, Colors.orange];
     } else if (d > 500 && d <= 1000) {
-      return [Colors.orange, Colors.deepOrange];
+      colors = [Colors.orange, Colors.deepOrange];
     } else if (d > 300 && d <= 500) {
-      return [Colors.deepOrange, Colors.redAccent];
+      colors = [Colors.deepOrange, Colors.redAccent];
     } else {
-      return [Colors.red, Colors.red.shade900];
+      colors = [Colors.red, Colors.red.shade900];
     }
+    return colors.map((c) => c.withOpacity(0.9)).toList();
   }
 
   void _clearCameraInfo() {
@@ -244,47 +246,53 @@ class _DashboardPageState extends State<DashboardPage> {
     final hasCameraInfo = _speedCamWarning != null || _activeCamera != null;
     return Scaffold(
       appBar: AppBar(title: const Text('SpeedCamWarner')),
-      body: Container(
-        decoration: const BoxDecoration(
-          gradient: LinearGradient(
-            colors: [Color(0xFF1E1E1E), Color(0xFF121212)],
-            begin: Alignment.topLeft,
-            end: Alignment.bottomRight,
-          ),
-        ),
-        padding: const EdgeInsets.all(16),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            Center(child: _buildRoadNameWidget()),
-            const SizedBox(height: 16),
-            if (hasCameraInfo) ...[
-              _buildCameraInfo(),
-              const SizedBox(height: 16),
-            ],
-            Expanded(
-              child: Row(
-                children: [
-                  Expanded(child: _buildSpeedWidget()),
-                  const SizedBox(width: 16),
-                  Expanded(
-                    child: Column(
-                      children: [
-                        Expanded(child: _buildAccelerationWidget()),
-                        const SizedBox(height: 16),
-                        Expanded(child: _buildSpeedHistoryWidget()),
-                      ],
-                    ),
-                  ),
-                ],
+      body: Stack(
+        children: [
+          Container(
+            decoration: const BoxDecoration(
+              gradient: LinearGradient(
+                colors: [Color(0xFF1E1E1E), Color(0xFF121212)],
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
               ),
             ),
-            const SizedBox(height: 16),
-            _buildStatusRow(),
-            const SizedBox(height: 16),
-            _buildDirectionBearingRow(),
-          ],
-        ),
+            padding: const EdgeInsets.all(16),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                Center(child: _buildRoadNameWidget()),
+                const SizedBox(height: 16),
+                Expanded(
+                  child: Row(
+                    children: [
+                      Expanded(flex: 2, child: _buildSpeedWidget()),
+                      const SizedBox(width: 16),
+                      Expanded(
+                        child: Column(
+                          children: [
+                            Expanded(child: _buildAccelerationWidget()),
+                            const SizedBox(height: 16),
+                            Expanded(child: _buildSpeedHistoryWidget()),
+                          ],
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                const SizedBox(height: 16),
+                _buildStatusRow(),
+                const SizedBox(height: 16),
+                _buildDirectionBearingRow(),
+              ],
+            ),
+          ),
+          if (hasCameraInfo)
+            Positioned(
+              top: 80,
+              right: 16,
+              child: SizedBox(width: 200, child: _buildCameraInfo()),
+            ),
+        ],
       ),
       floatingActionButton: Column(
         mainAxisAlignment: MainAxisAlignment.end,
@@ -544,26 +552,29 @@ class _DashboardPageState extends State<DashboardPage> {
                   );
                 },
               ),
-              Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Text(
-                    '${_speed.toStringAsFixed(0)}',
-                    style: const TextStyle(
-                      fontSize: 72,
-                      color: Colors.white,
-                      fontWeight: FontWeight.bold,
+              FittedBox(
+                fit: BoxFit.scaleDown,
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Text(
+                      '${_speed.toStringAsFixed(0)}',
+                      style: const TextStyle(
+                        fontSize: 72,
+                        color: Colors.white,
+                        fontWeight: FontWeight.bold,
+                      ),
                     ),
-                  ),
-                  const Text(
-                    'km/h',
-                    style: TextStyle(color: Colors.white70, fontSize: 24),
-                  ),
-                  if (_maxSpeed != null) ...[
-                    const SizedBox(height: 8),
-                    _buildMaxSpeedWidget(),
+                    const Text(
+                      'km/h',
+                      style: TextStyle(color: Colors.white70, fontSize: 24),
+                    ),
+                    if (_maxSpeed != null) ...[
+                      const SizedBox(height: 8),
+                      _buildMaxSpeedWidget(),
+                    ],
                   ],
-                ],
+                ),
               ),
               if (_overspeedDiff != null)
                 Align(
