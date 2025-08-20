@@ -928,6 +928,7 @@ class RectangleCalculatorThread {
 
     // Handle possible look-ahead interrupts.
     final interrupt = await processInterrupts();
+    print('Interrupt detected: $interrupt');
     if (interrupt == 'look_ahead') {
       await processLookAheadInterrupts();
     }
