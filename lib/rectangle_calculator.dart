@@ -19,6 +19,7 @@ import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
 import 'dart:math' as math;
+import 'package:path/path.dart' as p;
 
 import 'package:flutter/foundation.dart';
 import 'package:latlong2/latlong.dart';
@@ -157,18 +158,21 @@ class OsmLookupResult {
 /// purposes of this port the model is treated as an opaque object and the
 /// prediction logic is encapsulated in a standalone function.
 class PredictiveModel {
-  PredictiveModel();
+  /// Path to the helper Python script that performs inference using the
+  /// trained scikit-learn model.  By default the script bundled in the
+  /// repository under `python/ai` is used.
+  final String scriptPath;
+
+  PredictiveModel({String? scriptPath})
+      : scriptPath = scriptPath ??
+            p.join(Directory.current.path, 'python', 'ai', 'predict_camera.py');
 }
 
-/// Predict whether a speed camera lies ahead of the vehicle.  This function
-/// mimics ``predict_speed_camera`` from the Python code.  A real
-/// implementation could load a TensorFlow Lite model (e.g. via the
-/// ``tflite_flutter`` package) and feed in the numeric features.  Here we
-/// provide a deterministic but illustrative stub: if the vehicle’s latitude
-/// component truncated to three decimals is an even number we return a
-/// synthetic camera offset by a small distance; otherwise ``null``.  The
-/// returned position should be understood as approximate and used for
-/// demonstration only.
+/// Predict whether a speed camera lies ahead of the vehicle by delegating the
+/// work to the Python implementation of the predictive model.  The Python
+/// helper script loads the ``speed_camera_model.pkl`` file from the
+/// ``python/ai`` directory and returns the predicted latitude/longitude as a
+/// JSON array.
 Future<SpeedCameraEvent?> predictSpeedCamera({
   required PredictiveModel model,
   required double latitude,
@@ -176,25 +180,32 @@ Future<SpeedCameraEvent?> predictSpeedCamera({
   required String timeOfDay,
   required String dayOfWeek,
 }) async {
-  // This stub simply checks whether the sum of the integer parts of the
-  // latitude and longitude is even and, if so, returns a camera roughly
-  // 200 metres ahead in the direction of travel.  In a production system
-  // replace this with your own model inference logic.
-  final latInt = latitude.floor();
-  final lonInt = longitude.floor();
-  final even = ((latInt + lonInt) % 2) == 0;
-  if (!even) return null;
-  // Convert 200 m into degrees (approximation).  One degree of latitude is
-  // roughly 111 km; adjust longitude by cos(lat).
-  const cameraDistanceKm = 0.2; // 200 metres
-  final deltaLat = cameraDistanceKm / 111.0;
-  final deltaLon =
-      cameraDistanceKm / (111.0 * math.cos(latitude * math.pi / 180.0));
-  return SpeedCameraEvent(
-    latitude: latitude + deltaLat,
-    longitude: longitude + deltaLon,
-    predictive: true,
-  );
+  try {
+    final result = await Process.run(
+      'python',
+      [
+        model.scriptPath,
+        latitude.toString(),
+        longitude.toString(),
+        timeOfDay,
+        dayOfWeek,
+      ],
+    );
+    if (result.exitCode != 0) return null;
+    final output = result.stdout.toString().trim();
+    final coords = jsonDecode(output);
+    if (coords is List && coords.length >= 2) {
+      return SpeedCameraEvent(
+        latitude: (coords[0] as num).toDouble(),
+        longitude: (coords[1] as num).toDouble(),
+        predictive: true,
+      );
+    }
+  } catch (_) {
+    // Swallow errors and fall through to returning null so that a failure in
+    // the external model does not crash the application.
+  }
+  return null;
 }
 
 /// Record a newly detected camera to persistent storage (a JSON file) and
