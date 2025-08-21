@@ -1773,12 +1773,8 @@ class RectangleCalculatorThread {
 
   /// Process construction area lookup results and append them to the internal
   /// list. Resolves way nodes to coordinates and updates map and info page.
-  Future<void> processConstructionAreasLookupAheadResults(
-    dynamic data,
-    String lookupType,
-    double ccpLon,
-    double ccpLat,
-  ) async {
+  Future<void> processConstructionAreasLookupAheadResults(dynamic data,
+      String lookupType, GeoRect rect, http.Client? client) async {
     if (data is! List) return;
     final newAreas = <GeoRect>[];
     final processedNodeIds = <int>{};
@@ -1808,7 +1804,6 @@ class RectangleCalculatorThread {
             (e) => e['type'] == 'node' && (e['id'] as int) == n,
             orElse: () => null,
           );
-
           double? lat;
           double? lon;
           if (resultNode != null) {
@@ -1816,6 +1811,23 @@ class RectangleCalculatorThread {
             lat = (resultNode['lat'] as num?)?.toDouble();
             lon = (resultNode['lon'] as num?)?.toDouble();
             addNode(lat, lon, n);
+          } else {
+            logger.printLogLine('Node $n not found in lookup results');
+            final result = await triggerOsmLookup(
+              rect,
+              lookupType: lookupType,
+              nodeId: n,
+              client: client,
+            );
+            if (result.success && result.elements != null) {
+              logger.printLogLine(
+                'Node $n found in separate lookup results',
+              );
+              final firstEl = result.elements!.first;
+              final lat = (firstEl['lat'] as num?)?.toDouble();
+              final lon = (firstEl['lon'] as num?)?.toDouble();
+              addNode(lat, lon, n);
+            }
           }
           await Future.delayed(const Duration(milliseconds: 500));
         }
@@ -1969,9 +1981,9 @@ class RectangleCalculatorThread {
     if (result.success && result.elements != null) {
       await processConstructionAreasLookupAheadResults(
         result.elements!,
-        'construction_ahead',
-        ccpLon,
-        ccpLat,
+        'node',
+        rect,
+        client,
       );
     }
   }
