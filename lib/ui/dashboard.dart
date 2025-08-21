@@ -262,20 +262,14 @@ class _DashboardPageState extends State<DashboardPage> {
               children: [
                 Center(child: _buildRoadNameWidget()),
                 const SizedBox(height: 16),
+                Expanded(flex: 2, child: _buildSpeedWidget()),
+                const SizedBox(height: 16),
                 Expanded(
                   child: Row(
                     children: [
-                      Expanded(flex: 2, child: _buildSpeedWidget()),
+                      Expanded(child: _buildAccelerationWidget()),
                       const SizedBox(width: 16),
-                      Expanded(
-                        child: Column(
-                          children: [
-                            Expanded(child: _buildAccelerationWidget()),
-                            const SizedBox(height: 16),
-                            Expanded(child: _buildSpeedHistoryWidget()),
-                          ],
-                        ),
-                      ),
+                      Expanded(child: _buildSpeedHistoryWidget()),
                     ],
                   ),
                 ),
@@ -288,9 +282,12 @@ class _DashboardPageState extends State<DashboardPage> {
           ),
           if (hasCameraInfo)
             Positioned(
-              top: 80,
-              right: 16,
-              child: SizedBox(width: 200, child: _buildCameraInfo()),
+              top: 16,
+              left: 0,
+              right: 0,
+              child: Center(
+                child: SizedBox(width: 200, child: _buildCameraInfo()),
+              ),
             ),
         ],
       ),
