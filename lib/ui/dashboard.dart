@@ -697,15 +697,17 @@ class _DashboardPageState extends State<DashboardPage> {
     if (_speedCamDistance == null) return const SizedBox.shrink();
     final capped = _speedCamDistance!.clamp(0, 1000);
     final colors = _cameraGradientColors();
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.center,
       children: [
-        LinearProgressIndicator(
-          value: (1000 - capped) / 1000,
-          backgroundColor: Colors.white24,
-          valueColor: AlwaysStoppedAnimation<Color>(colors.last),
+        Expanded(
+          child: LinearProgressIndicator(
+            value: (1000 - capped) / 1000,
+            backgroundColor: Colors.white24,
+            valueColor: AlwaysStoppedAnimation<Color>(colors.last),
+          ),
         ),
-        const SizedBox(height: 4),
+        const SizedBox(width: 8),
         Text(
           '${_speedCamDistance!.toStringAsFixed(0)} m',
           style: const TextStyle(color: Colors.white70),
