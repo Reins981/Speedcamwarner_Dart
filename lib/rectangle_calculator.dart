@@ -2628,7 +2628,6 @@ class RectangleCalculatorThread {
             'triggerOsmLookup $lookupType non-200 HTTP ${resp.statusCode}',
             logLevel: 'WARNING',
           );
-          updateOnlineStatus(false);
           if (client == null) httpClient.close();
           return OsmLookupResult(
             false,
