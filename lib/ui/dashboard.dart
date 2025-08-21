@@ -394,10 +394,11 @@ class _DashboardPageState extends State<DashboardPage> {
   }
 
   Widget _buildAiWidget() {
+    final Color color = _arStatus == 'HUMAN' ? Colors.red : Colors.blueGrey;
     return _statusTile(
       icon: Icons.smart_toy,
       text: 'AI: $_arStatus',
-      color: Colors.blueGrey,
+      color: color,
     );
   }
 
