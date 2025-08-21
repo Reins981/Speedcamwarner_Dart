@@ -38,6 +38,9 @@ class DeviationCheckerThread extends Logger {
   }) : super('DeviationCheckerThread', logViewer: logViewer);
 
   void addAverageAngleData(dynamic data) {
+    if (_averageAngleController.isClosed) {
+      return;
+    }
     _averageAngleController.add(data);
   }
 
