@@ -260,9 +260,9 @@ class _DashboardPageState extends State<DashboardPage> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
-                Center(child: _buildRoadNameWidget()),
-                const SizedBox(height: 16),
                 Expanded(flex: 2, child: _buildSpeedWidget()),
+                const SizedBox(height: 16),
+                Center(child: _buildRoadNameWidget()),
                 const SizedBox(height: 16),
                 Expanded(
                   child: Row(
@@ -285,9 +285,7 @@ class _DashboardPageState extends State<DashboardPage> {
               top: 16,
               left: 0,
               right: 0,
-              child: Center(
-                child: SizedBox(width: 200, child: _buildCameraInfo()),
-              ),
+              child: _buildCameraInfo(),
             ),
         ],
       ),
@@ -329,6 +327,7 @@ class _DashboardPageState extends State<DashboardPage> {
     }
     final colors = _cameraGradientColors();
     return Container(
+      width: double.infinity,
       decoration: BoxDecoration(
         borderRadius: BorderRadius.circular(12),
         gradient: LinearGradient(
@@ -395,10 +394,11 @@ class _DashboardPageState extends State<DashboardPage> {
   }
 
   Widget _buildAiWidget() {
+    final Color color = _arStatus == 'HUMAN' ? Colors.red : Colors.blueGrey;
     return _statusTile(
       icon: Icons.smart_toy,
       text: 'AI: $_arStatus',
-      color: Colors.blueGrey,
+      color: color,
     );
   }
 
@@ -446,8 +446,7 @@ class _DashboardPageState extends State<DashboardPage> {
     required Color color,
   }) {
     return Container(
-      // Increase padding so the status tiles appear larger and easier to tap.
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
       decoration: BoxDecoration(
         color: color,
         borderRadius: BorderRadius.circular(12),
@@ -456,12 +455,12 @@ class _DashboardPageState extends State<DashboardPage> {
       child: Row(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          Icon(icon, color: Colors.white, size: 32),
+          Icon(icon, color: Colors.white, size: 24),
           const SizedBox(width: 8),
           Expanded(
             child: Text(
               text,
-              style: const TextStyle(color: Colors.white, fontSize: 18),
+              style: const TextStyle(color: Colors.white, fontSize: 14),
               overflow: TextOverflow.ellipsis,
               textAlign: TextAlign.center,
             ),
