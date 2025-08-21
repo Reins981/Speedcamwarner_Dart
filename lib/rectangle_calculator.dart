@@ -676,25 +676,28 @@ class RectangleCalculatorThread {
 
   /// print all config values
   void printConfigValues() {
-    print('Max Speed: $maxspeed');
-    print('OSM Timeout: $osmTimeout');
-    print(
+    logger.printLogLine('Max Speed: $maxspeed');
+    logger.printLogLine('OSM Timeout: $osmTimeout');
+    logger.printLogLine(
         'Construction Area Lookahead Distance: $maxConstructionAreaLookaheadDistance');
     // Add more print statements for other config values as needed
-    print('Max Speed Cam Lookahead Distance: $maxSpeedCamLookAheadDistance');
-    print('Fallback Rect Angle: $fallbackRectAngle');
-    print('Zoom: $zoom');
-    print('Max Cross Roads: $maxCrossRoads');
-    print('Disable Road Lookup: $disableRoadLookup');
-    print('Cameras Look Ahead Mode: $camerasLookAheadMode');
-    print('Alternative Road Lookup: $alternativeRoadLookup');
-    print('Use Only One Extrapolated Rect: $useOnlyOneExtrapolatedRect');
-    print('Consider Backup Rects: $considerBackupRects');
-    print('Dismiss POIs: $dismissPois');
-    print('Enable Ordered Rects Extrapolated: $enableOrderedRectsExtrapolated');
-    print('Consider Backup Rects: $considerBackupRects');
-    print('Dismiss POIs: $dismissPois');
-    print(
+    logger.printLogLine(
+        'Max Speed Cam Lookahead Distance: $maxSpeedCamLookAheadDistance');
+    logger.printLogLine('Fallback Rect Angle: $fallbackRectAngle');
+    logger.printLogLine('Zoom: $zoom');
+    logger.printLogLine('Max Cross Roads: $maxCrossRoads');
+    logger.printLogLine('Disable Road Lookup: $disableRoadLookup');
+    logger.printLogLine('Cameras Look Ahead Mode: $camerasLookAheadMode');
+    logger.printLogLine('Alternative Road Lookup: $alternativeRoadLookup');
+    logger.printLogLine(
+        'Use Only One Extrapolated Rect: $useOnlyOneExtrapolatedRect');
+    logger.printLogLine('Consider Backup Rects: $considerBackupRects');
+    logger.printLogLine('Dismiss POIs: $dismissPois');
+    logger.printLogLine(
+        'Enable Ordered Rects Extrapolated: $enableOrderedRectsExtrapolated');
+    logger.printLogLine('Consider Backup Rects: $considerBackupRects');
+    logger.printLogLine('Dismiss POIs: $dismissPois');
+    logger.printLogLine(
         'Construction Area Startup Trigger Max: $constructionAreaStartupTriggerMax');
   }
 
@@ -777,7 +780,7 @@ class RectangleCalculatorThread {
         await _processVector(vector);
       } catch (e, stack) {
         // Catch and log unexpected exceptions; avoid killing the stream.
-        print('RectangleCalculatorThread error: $e\n$stack');
+        logger.printLogLine('RectangleCalculatorThread error: $e\n$stack');
       }
     });
   }
@@ -928,6 +931,7 @@ class RectangleCalculatorThread {
 
     // Handle possible look-ahead interrupts.
     if (camerasLookAheadMode) {
+      logger.printLogLine('Process look-ahead interrupts');
       await processLookAheadInterrupts();
     }
     await processInterrupts();
@@ -1415,10 +1419,10 @@ class RectangleCalculatorThread {
     bool facility = false,
   }) {
     if (foundRoadName) {
-      print('Found road name: $roadName');
+      logger.printLogLine('Found road name: $roadName');
       final currentFr = getRoadClassValue(roadClass);
       if (currentFr != null && isFilteredRoadClass(currentFr)) {
-        print('Filtered road class: $currentFr');
+        logger.printLogLine('Filtered road class: $currentFr');
         return false;
       }
       if (poi && dismissPois) return false;
@@ -1583,8 +1587,6 @@ class RectangleCalculatorThread {
   }
 
   /// Perform a nominative road name lookup and update UI state accordingly.
-  /// The method is invoked when the current CCP becomes unstable and mirrors
-  /// ``process_look_ahead_interrupts`` from the Python code.
   Future<void> processLookAheadInterrupts() async {
     final roadName = await getRoadNameViaNominatim(latitude, longitude);
     if (roadName != null) {
@@ -1779,16 +1781,6 @@ class RectangleCalculatorThread {
   ) async {
     if (data is! List) return;
     final newAreas = <GeoRect>[];
-    // Build a lookup of node id -> element for fast access.
-    final nodeMap = <int, Map<String, dynamic>>{};
-    for (final el in data) {
-      if (el is Map<String, dynamic> && el['type'] == 'node') {
-        final id = el['id'] is int
-            ? el['id'] as int
-            : int.tryParse(el['id']?.toString() ?? '');
-        if (id != null) nodeMap[id] = el;
-      }
-    }
     final processedNodeIds = <int>{};
 
     // Helper to add a node if coordinates are known.
@@ -1812,25 +1804,21 @@ class RectangleCalculatorThread {
       if (type == 'way') {
         final nodes = element['nodes'] as List? ?? [];
         for (final n in nodes) {
-          final nodeId = n is int ? n : int.tryParse(n.toString());
-          if (nodeId == null) continue;
-          final nodeEl = nodeMap[nodeId];
+          var resultNode = data.firstWhere(
+            (e) => e['type'] == 'node' && (e['id'] as int) == n,
+            orElse: () => null,
+          );
+
           double? lat;
           double? lon;
-          if (nodeEl != null) {
-            lat = (nodeEl['lat'] as num?)?.toDouble();
-            lon = (nodeEl['lon'] as num?)?.toDouble();
+          if (resultNode != null) {
+            logger.printLogLine('Found node $n in lookup results');
+            lat = (resultNode['lat'] as num?)?.toDouble();
+            lon = (resultNode['lon'] as num?)?.toDouble();
+            addNode(lat, lon, n);
           }
-          addNode(lat, lon, nodeId);
           await Future.delayed(const Duration(milliseconds: 500));
         }
-      } else if (type == 'node') {
-        final lat = (element['lat'] as num?)?.toDouble();
-        final lon = (element['lon'] as num?)?.toDouble();
-        final nodeId = element['id'] is int
-            ? element['id'] as int
-            : int.tryParse(element['id']?.toString() ?? '0') ?? 0;
-        addNode(lat, lon, nodeId);
       }
     }
 
@@ -2437,10 +2425,12 @@ class RectangleCalculatorThread {
     Rect? currentRect,
   }) async {
     if (currentRect != null) {
-      print('Trigger Cache lookup from current Rect $currentRect');
+      logger
+          .printLogLine('Trigger Cache lookup from current Rect $currentRect');
     }
     if (linkedListGenerator == null) {
-      print(' trigger_cache_lookup: linkedListGenerator instance not created!');
+      logger.printLogLine(
+          ' trigger_cache_lookup: linkedListGenerator instance not created!');
       return false;
     }
     linkedListGenerator.setTreeGeneratorInstance(treeGenerator);
@@ -2758,11 +2748,11 @@ class RectangleCalculatorThread {
       roadNameNotifier.value = '';
       return;
     }
-    final parts =
-        roadname.split('/').where((p) => p.isNotEmpty).toList().reversed;
-    roadNameNotifier.value = parts.join('/');
-    // foundCombinedTags flag kept for parity with Python version.
-    foundCombinedTags;
+    if (foundCombinedTags) {
+      roadNameNotifier.value = "<combined_tags> not implemented!";
+    } else {
+      roadNameNotifier.value = roadname;
+    }
   }
 
   void updateCamRadius(double value) => camRadiusNotifier.value = value;
