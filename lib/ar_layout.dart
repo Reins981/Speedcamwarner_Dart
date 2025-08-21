@@ -45,6 +45,7 @@ class EdgeDetectState extends State<EdgeDetect> {
   int _lastArSoundTime = 0;
   bool _isProcessingImage = false;
   bool _alertShown = false;
+  bool _detectionStarted = false;
 
   static const int _triggerTimeArSoundMax = 3;
 
@@ -152,6 +153,10 @@ class EdgeDetectState extends State<EdgeDetect> {
     if (_faceDetector == null || _objectDetector == null) return;
     if (_isProcessingImage) return;
     _isProcessingImage = true;
+    if (!_detectionStarted) {
+      _logViewer?.call('AR detection stream started');
+      _detectionStarted = true;
+    }
 
     try {
       final WriteBuffer allBytes = WriteBuffer();
@@ -195,22 +200,7 @@ class EdgeDetectState extends State<EdgeDetect> {
         WidgetsBinding.instance.addPostFrameCallback((_) {
           speedL?.updateAr('!!!');
           widget.statusNotifier?.value = 'HUMAN';
-          if (Platform.isAndroid && !_alertShown && mounted) {
-            showDialog(
-              context: context,
-              builder: (BuildContext context) => AlertDialog(
-                title: const Text('Alert'),
-                content: const Text('Face or body detected'),
-                actions: <Widget>[
-                  TextButton(
-                    onPressed: () => Navigator.of(context).pop(),
-                    child: const Text('OK'),
-                  ),
-                ],
-              ),
-            );
-            _alertShown = true;
-          }
+          _showDetectionAlert();
         });
         final int currentTime = DateTime.now().millisecondsSinceEpoch;
         if (currentTime - _lastArSoundTime >=
@@ -228,9 +218,7 @@ class EdgeDetectState extends State<EdgeDetect> {
         WidgetsBinding.instance.addPostFrameCallback((_) {
           speedL?.updateAr('OK');
           widget.statusNotifier?.value = 'FREEFLOW';
-          if (Platform.isAndroid) {
-            _alertShown = false;
-          }
+          _dismissDetectionAlert();
         });
         if (!(g?.cameraInProgress() ?? true) && !_freeflow) {
           g?.updateSpeedCamera('FREEFLOW');
@@ -248,6 +236,35 @@ class EdgeDetectState extends State<EdgeDetect> {
       _logViewer?.call('Image processing error: $e');
     } finally {
       _isProcessingImage = false;
+    }
+  }
+
+  void _showDetectionAlert() {
+    if (Platform.isAndroid && !_alertShown && mounted) {
+      showDialog(
+        context: context,
+        builder: (BuildContext context) => AlertDialog(
+          title: const Text('Alert'),
+          content: const Text('Face or body detected'),
+          actions: <Widget>[
+            TextButton(
+              onPressed: () => Navigator.of(context).pop(),
+              child: const Text('OK'),
+            ),
+          ],
+        ),
+      );
+      _alertShown = true;
+    }
+  }
+
+  void _dismissDetectionAlert() {
+    if (Platform.isAndroid && _alertShown && mounted) {
+      final navigator = Navigator.of(context, rootNavigator: true);
+      if (navigator.canPop()) {
+        navigator.pop();
+      }
+      _alertShown = false;
     }
   }
 
