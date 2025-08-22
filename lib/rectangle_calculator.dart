@@ -802,7 +802,7 @@ class RectangleCalculatorThread {
       get speedCamEventController => _speedCamEventController;
 
   /// Stream of construction areas discovered during look‑ahead queries.
-  Stream<GeoRect> get constructions => _constructionStreamController.stream;
+  Stream<GeoRect?> get constructions => _constructionStreamController.stream;
 
   /// Connect a stream of [VectorData] samples (e.g. from [GpsThread]) directly
   /// to this calculator.  Each incoming vector is forwarded to
