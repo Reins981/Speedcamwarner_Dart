@@ -83,10 +83,69 @@ class GeoRect {
     required this.maxLon,
   });
 
+  /// Maximum distance (in degrees) used by [pointsCloseToBorderLatLon] when
+  /// checking if a lat/lon pair lies close to the rectangle boundary.
+  final double maxCloseToBorderLatLon = 0.001; // ~111 m
+  final double maxCloseToBorderLatLonLookAhead = 0.0007; // ~77 m
+
+  LatLon topLeftLatLon() => LatLon(lat: maxLat, lon: minLon);
+  LatLon topRightLatLon() => LatLon(lat: maxLat, lon: maxLon);
+  LatLon bottomLeftLatLon() => LatLon(lat: minLat, lon: minLon);
+  LatLon bottomRightLatLon() => LatLon(lat: minLat, lon: maxLon);
+
   @override
   String toString() {
     return 'GeoRect(minLat: $minLat, minLon: $minLon, maxLat: $maxLat, maxLon: $maxLon)';
   }
+
+  /// Check if a geographic point lies inside [rect].
+  bool geoPointInRect(double lat, double lon) {
+    return lat >= minLat && lat <= maxLat && lon >= minLon && lon <= maxLon;
+  }
+
+  bool pointsCloseToBorderLatLon(
+    double lat,
+    double lon, {
+    bool lookAhead = false,
+    String lookAheadMode = 'Speed Camera lookahead',
+  }) {
+    // Get corners in lat/lon
+    final rect = [
+      topLeftLatLon(),
+      topRightLatLon(),
+      bottomLeftLatLon(),
+      bottomRightLatLon()
+    ];
+
+    final double maxVal =
+        lookAhead ? maxCloseToBorderLatLonLookAhead : maxCloseToBorderLatLon;
+
+    double pt1Lat = rect[0].lat;
+    double pt1Lon = rect[0].lon;
+
+    for (var i = 1; i <= rect.length; i++) {
+      final pt2Lat = rect[i % rect.length].lat;
+      final pt2Lon = rect[i % rect.length].lon;
+
+      if ((lat - math.min(pt1Lat, pt2Lat)).abs() <= maxVal ||
+          (lat - math.max(pt1Lat, pt2Lat)).abs() <= maxVal ||
+          (lon - math.min(pt1Lon, pt2Lon)).abs() <= maxVal ||
+          (lon - math.max(pt1Lon, pt2Lon)).abs() <= maxVal) {
+        return true;
+      }
+
+      pt1Lat = pt2Lat;
+      pt1Lon = pt2Lon;
+    }
+
+    return false;
+  }
+}
+
+class LatLon {
+  final double lat;
+  final double lon;
+  LatLon({required this.lat, required this.lon});
 }
 
 /// Data class representing a speed camera event.  The fields describe the
@@ -294,8 +353,8 @@ class RectangleCalculatorThread {
       StreamController<Timestamped<Map<String, dynamic>>>.broadcast();
 
   /// Controller used to broadcast newly discovered construction areas.
-  final StreamController<GeoRect> _constructionStreamController =
-      StreamController<GeoRect>.broadcast();
+  final StreamController<GeoRect?> _constructionStreamController =
+      StreamController<GeoRect?>.broadcast();
 
   /// The predictive model used by [predictSpeedCamera].
   final PredictiveModel _predictiveModel;
@@ -851,7 +910,7 @@ class RectangleCalculatorThread {
     );
     constructionAreaLookaheadDistance = constructionLookAheadKm;
     if (calculateNewRect) {
-      final GeoRect rect = _computeBoundingRect(
+      final GeoRect? rect = _computeBoundingRect_simple(
         latitude,
         longitude,
         camLookAheadKm,
@@ -865,14 +924,14 @@ class RectangleCalculatorThread {
       logger.printLogLine('No new camera rectangle to add');
     }
     if (calculateNewRectConstruction) {
-      final GeoRect rect = _computeBoundingRect(
+      final GeoRect? rect = _computeBoundingRect_simple(
         latitude,
         longitude,
         constructionLookAheadKm,
         'construction',
       );
       currentRectAngle = bearing;
-      _rectangleStreamController
+      _constructionStreamController
         ..add(null)
         ..add(rect);
     } else {
@@ -962,7 +1021,7 @@ class RectangleCalculatorThread {
   /// bounding rectangle.  The rectangle is aligned to the cardinal directions
   /// (north, south, east, west).  The calculation assumes a spherical Earth
   /// with radius 6371 km and converts the linear distances into degrees.
-  GeoRect _computeBoundingRect(
+  GeoRect? _computeBoundingRect_simple(
     double latitude,
     double longitude,
     double lookAheadKm,
@@ -986,33 +1045,102 @@ class RectangleCalculatorThread {
     // such as [Rect.pointInRect] or [Rect.pointsCloseToBorder].
     final minTile = longLatToTile(minLat, minLon, zoom);
     final maxTile = longLatToTile(maxLat, maxLon, zoom);
-    GeoRect rect;
+    GeoRect geoRect;
+    Rect rect;
+    GeoRect? finalRect;
     if (rectType == 'camera') {
-      lastRect = Rect(
+      rect = Rect(
         pt1: Point(minTile.x, minTile.y),
         pt2: Point(maxTile.x, maxTile.y),
       );
-      rect = GeoRect(
+      geoRect = GeoRect(
         minLat: minLat,
         minLon: minLon,
         maxLat: maxLat,
         maxLon: maxLon,
       );
-      lastGeoRect = rect;
+      lastGeoRect = geoRect;
+      lastRect = rect;
+      finalRect = lastGeoRect;
     } else {
-      lastRectConstruction = Rect(
+      rect = Rect(
         pt1: Point(minTile.x, minTile.y),
         pt2: Point(maxTile.x, maxTile.y),
       );
-      rect = GeoRect(
+      geoRect = GeoRect(
         minLat: minLat,
         minLon: minLon,
         maxLat: maxLat,
         maxLon: maxLon,
       );
-      lastGeoRectConstruction = rect;
+      lastGeoRectConstruction = geoRect;
+      lastRectConstruction = rect;
+      finalRect = lastGeoRectConstruction;
     }
-    return rect;
+    return finalRect;
+  }
+
+  GeoRect? _computeBoundingRect_advanced(
+      double ccpLat, double ccpLon, double xtile, double ytile, String type) {
+    // Convert lookahead distance in kilometres to tile units at the current
+    // latitude/zoom.  Each slippy map tile spans ``40075.016686 / 2^zoom`` km at
+    // the equator and shrinks by ``cos(lat)`` towards the poles.
+    double lookaheadDistance;
+    if (type == "camera") {
+      lookaheadDistance = speedCamLookAheadDistance;
+    } else {
+      lookaheadDistance = constructionAreaLookaheadDistance;
+    }
+    final double kmPerTile =
+        (40075.016686 * math.cos(ccpLat * math.pi / 180.0)) / math.pow(2, zoom);
+    final double tileDistance = lookaheadDistance / kmPerTile;
+    final pts = calculatePoints2Angle(
+      xtile,
+      ytile,
+      tileDistance,
+      currentRectAngle * math.pi / 180.0,
+    );
+    final poly = createGeoJsonTilePolygonAngle(
+      zoom,
+      pts[0],
+      pts[2],
+      pts[1],
+      pts[3],
+    );
+    double minLat = poly[0].y;
+    double maxLat = poly[0].y;
+    double minLon = poly[0].x;
+    double maxLon = poly[0].x;
+    for (final p in poly) {
+      if (p.y < minLat) minLat = p.y;
+      if (p.y > maxLat) maxLat = p.y;
+      if (p.x < minLon) minLon = p.x;
+      if (p.x > maxLon) maxLon = p.x;
+    }
+    final geoRect = GeoRect(
+      minLat: minLat,
+      minLon: minLon,
+      maxLat: maxLat,
+      maxLon: maxLon,
+    );
+
+    final rect = Rect(
+      pt1: Point(pts[0], pts[0]),
+      pt2: Point(pts[2], pts[2]),
+    );
+
+    GeoRect? finalRect;
+    if (type == "camera") {
+      lastRect = rect;
+      lastGeoRect = geoRect;
+      finalRect = lastGeoRect;
+    } else {
+      lastRectConstruction = rect;
+      lastGeoRectConstruction = geoRect;
+      finalRect = lastGeoRectConstruction;
+    }
+
+    return finalRect;
   }
 
   /// Convert a longitude/latitude pair into tile coordinates.  This is
@@ -1177,6 +1305,7 @@ class RectangleCalculatorThread {
     }
     if (newAreas.isEmpty) return;
 
+    logger.printLogLine('Adding ${newAreas.length} new construction areas');
     constructionAreas.addAll(newAreas);
     constructionAreaCountNotifier.value = constructionAreas.length;
 
@@ -1233,14 +1362,6 @@ class RectangleCalculatorThread {
     final double distance = tile2hypotenuse(xtile, ytile);
     final double angle = math.atan2(ytile, xtile) * 180.0 / math.pi;
     return math.Point<double>(distance, angle);
-  }
-
-  /// Check if a geographic point lies inside [rect].
-  bool _geoPointInRect(double lat, double lon, GeoRect rect) {
-    return lat >= rect.minLat &&
-        lat <= rect.maxLat &&
-        lon >= rect.minLon &&
-        lon <= rect.maxLon;
   }
 
   /// Calculate opposite tile bounds when looking ahead from a given
@@ -1525,7 +1646,7 @@ class RectangleCalculatorThread {
   /// [updateCcpOnly] skips the predictive camera lookup.
   Future<void> process(VectorData vector, {bool updateCcpOnly = false}) async {
     if (updateCcpOnly) {
-      final rect = _computeBoundingRect(
+      final rect = _computeBoundingRect_simple(
         vector.latitude,
         vector.longitude,
         _computeLookAheadDistance(0, maxSpeedCamLookAheadDistance),
@@ -1708,23 +1829,19 @@ class RectangleCalculatorThread {
       final String msg = item['msg'] as String;
       final String rectType = item['type'] as String;
       final func = item['func'] as Future<void> Function(
-        Future<void> Function(double, double, double, double),
+        Future<void> Function(GeoRect),
         int,
-        double,
-        double,
-        double,
-        double,
+        GeoRect?,
       );
-      final trigger = item['trigger'] as Future<void> Function(
-          double, double, double, double);
+      final trigger = item['trigger'] as Future<void> Function(GeoRect);
 
       if (rect != null) {
         final GeoRect? geoRect = item['geoRect'] as GeoRect?;
         if (geoRect != null) {
-          final inside = _geoPointInRect(ccpLat, ccpLon, geoRect);
-          final close = rect.pointsCloseToBorder(
-            xtile,
-            ytile,
+          final inside = geoRect.geoPointInRect(latitude, longitude);
+          final close = geoRect.pointsCloseToBorderLatLon(
+            latitude,
+            longitude,
             lookAhead: true,
             lookAheadMode: msg,
           );
@@ -1769,16 +1886,17 @@ class RectangleCalculatorThread {
       cleanupMapContent();
 
       logger.printLogLine('Executing $msg lookup');
-      await func(trigger, 1, xtile, ytile, ccpLon, ccpLat);
-      logger.printLogLine('$msg lookup finished');
-      _lastLookaheadExecution[msg] = DateTime.now();
       if (msg == 'Speed Camera lookahead') {
         rectSpeedCamLookahead = lastRect;
         rectSpeedCamLookaheadGeo = lastGeoRect;
+        await func(trigger, 1, lastGeoRect);
       } else if (msg == 'Construction area lookahead') {
         rectConstructionAreasLookahead = lastRectConstruction;
         rectConstructionAreasLookaheadGeo = lastGeoRectConstruction;
+        await func(trigger, 1, lastGeoRectConstruction);
       }
+      logger.printLogLine('$msg lookup finished');
+      _lastLookaheadExecution[msg] = DateTime.now();
     }
   }
 
@@ -1840,17 +1958,17 @@ class RectangleCalculatorThread {
               addNode(lat, lon, n);
             }
           }
-          await Future.delayed(const Duration(milliseconds: 500));
+
+          if (newAreas.isNotEmpty) {
+            final total = constructionAreas.length + newAreas.length;
+            await updateConstructionAreas(newAreas);
+            updateMapQueue();
+            updateInfoPage('CONSTRUCTION_AREAS:$total');
+            logger.printLogLine('Total construction areas: $total');
+            newAreas.clear();
+          }
         }
       }
-    }
-
-    if (newAreas.isNotEmpty) {
-      final total = constructionAreas.length + newAreas.length;
-      await updateConstructionAreas(newAreas);
-      updateMapQueue();
-      updateInfoPage('CONSTRUCTION_AREAS:$total');
-      logger.printLogLine('Total construction areas: $total');
     }
   }
 
@@ -1867,51 +1985,9 @@ class RectangleCalculatorThread {
       );
 
   Future<void> speedCamLookupAhead(
-    double xtile,
-    double ytile,
-    double ccpLon,
-    double ccpLat, {
+    GeoRect rect, {
     http.Client? client,
   }) async {
-    // Convert lookahead distance in kilometres to tile units at the current
-    // latitude/zoom.  Each slippy map tile spans ``40075.016686 / 2^zoom`` km at
-    // the equator and shrinks by ``cos(lat)`` towards the poles.
-    final double kmPerTile =
-        (40075.016686 * math.cos(ccpLat * math.pi / 180.0)) / math.pow(2, zoom);
-    final double tileDistance = speedCamLookAheadDistance / kmPerTile;
-    final pts = calculatePoints2Angle(
-      xtile,
-      ytile,
-      tileDistance,
-      currentRectAngle * math.pi / 180.0,
-    );
-    final poly = createGeoJsonTilePolygonAngle(
-      zoom,
-      pts[0],
-      pts[2],
-      pts[1],
-      pts[3],
-    );
-    double minLat = poly[0].y;
-    double maxLat = poly[0].y;
-    double minLon = poly[0].x;
-    double maxLon = poly[0].x;
-    for (final p in poly) {
-      if (p.y < minLat) minLat = p.y;
-      if (p.y > maxLat) maxLat = p.y;
-      if (p.x < minLon) minLon = p.x;
-      if (p.x > maxLon) maxLon = p.x;
-    }
-    final rect = GeoRect(
-      minLat: minLat,
-      minLon: minLon,
-      maxLat: maxLat,
-      maxLon: maxLon,
-    );
-    // Notify listeners so geo bounds can be visualised on the map
-    _rectangleStreamController
-      ..add(null)
-      ..add(rect);
     logger.printLogLine('speedCamLookupAhead bounds: $rect');
     for (final type in ['camera_ahead', 'distance_cam']) {
       logger.printLogLine('speedCamLookupAhead requesting $type');
@@ -1927,56 +2003,15 @@ class RectangleCalculatorThread {
         await processSpeedCamLookupAheadResults(
           result.elements!,
           type,
-          ccpLon,
-          ccpLat,
         );
       }
     }
   }
 
   Future<void> constructionsLookupAhead(
-    double xtile,
-    double ytile,
-    double ccpLon,
-    double ccpLat, {
+    GeoRect rect, {
     http.Client? client,
   }) async {
-    // Convert lookahead distance in kilometres to tile units at the current
-    // latitude/zoom.  Each slippy map tile spans ``40075.016686 / 2^zoom`` km at
-    // the equator and shrinks by ``cos(lat)`` towards the poles.
-    final double kmPerTile =
-        (40075.016686 * math.cos(ccpLat * math.pi / 180.0)) / math.pow(2, zoom);
-    final double tileDistance = constructionAreaLookaheadDistance / kmPerTile;
-    final pts = calculatePoints2Angle(
-      xtile,
-      ytile,
-      tileDistance,
-      currentRectAngle * math.pi / 180.0,
-    );
-    final poly = createGeoJsonTilePolygonAngle(
-      zoom,
-      pts[0],
-      pts[2],
-      pts[1],
-      pts[3],
-    );
-    double minLat = poly[0].y;
-    double maxLat = poly[0].y;
-    double minLon = poly[0].x;
-    double maxLon = poly[0].x;
-    for (final p in poly) {
-      if (p.y < minLat) minLat = p.y;
-      if (p.y > maxLat) maxLat = p.y;
-      if (p.x < minLon) minLon = p.x;
-      if (p.x > maxLon) maxLon = p.x;
-    }
-    final rect = GeoRect(
-      minLat: minLat,
-      minLon: minLon,
-      maxLat: maxLat,
-      maxLon: maxLon,
-    );
-    _rectangleStreamController.add(rect);
     logger.printLogLine('constructionsLookupAhead bounds: $rect');
     logger.printLogLine(
       'constructionsLookupAhead requesting construction_ahead',
@@ -2002,8 +2037,6 @@ class RectangleCalculatorThread {
   Future<void> processSpeedCamLookupAheadResults(
     dynamic data,
     String lookupType,
-    double ccpLon,
-    double ccpLat,
   ) async {
     if (data is! List) return;
     final List<SpeedCameraEvent> cams = [];
@@ -2347,14 +2380,11 @@ class RectangleCalculatorThread {
   // keep API parity without relying on native threads.
 
   static Future<void> startThreadPoolConstructionAreas(
-    Future<void> Function(double, double, double, double) func,
+    Future<void> Function(GeoRect) func,
     int workerThreads,
-    double xtile,
-    double ytile,
-    double ccpLon,
-    double ccpLat,
+    GeoRect lastGeoRect,
   ) async {
-    await Future.microtask(() => func(xtile, ytile, ccpLon, ccpLat));
+    await Future.microtask(() => func(lastGeoRect));
   }
 
   static Future<void> startThreadPoolDataLookup(
@@ -2417,14 +2447,11 @@ class RectangleCalculatorThread {
   }
 
   static Future<void> startThreadPoolSpeedCamera(
-    Future<void> Function(double, double, double, double) func,
+    Future<void> Function(GeoRect) func,
     int workerThreads,
-    double xtile,
-    double ytile,
-    double ccpLon,
-    double ccpLat,
+    GeoRect lastGeoRect,
   ) async {
-    await Future.microtask(() => func(xtile, ytile, ccpLon, ccpLat));
+    await Future.microtask(() => func(lastGeoRect));
   }
 
   static Future<void> startThreadPoolUploadSpeedCameraToDrive(

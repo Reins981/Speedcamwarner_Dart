@@ -9,7 +9,7 @@
     "dos_attack_prevention_interval_downloads": 30,
     "speed_cam_look_ahead_distance_max": 300,
     "construction_area_lookahead_distance_max": 30,
-    "construction_area_startup_trigger_max": 10,
+    "construction_area_startup_trigger_max": 60,
     "initial_rect_distance": 3,
     "speed_influence_on_rect_boundary": 110,
     "current_rect_angle": 90,

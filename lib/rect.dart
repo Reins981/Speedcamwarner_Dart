@@ -131,10 +131,8 @@ class Rect {
   /// rectangle edge. When [lookAheadMode] equals
   /// ``"Construction area lookahead"`` the check always returns false.
   bool pointsCloseToBorder(double x, double y,
-      {bool lookAhead = false, String lookAheadMode = 'Speed Camera lookahead'}) {
-    if (lookAheadMode == 'Construction area lookahead') {
-      return false;
-    }
+      {bool lookAhead = false,
+      String lookAheadMode = 'Speed Camera lookahead'}) {
     final rect = [topLeft(), topRight(), bottomLeft(), bottomRight()];
     final double maxVal =
         lookAhead ? maxCloseToBorderValueLookAhead : maxCloseToBorderValue;
