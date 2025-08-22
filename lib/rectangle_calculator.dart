@@ -1309,21 +1309,21 @@ class RectangleCalculatorThread {
     constructionAreas.addAll(newAreas);
     constructionAreaCountNotifier.value = constructionAreas.length;
 
-    for (var i = 0; i < newAreas.length; i += batchSize) {
-      final batch = newAreas.sublist(
-        i,
-        math.min(i + batchSize, newAreas.length),
-      );
-      logger.printLogLine(
-        'Emitting construction area batch of ${batch.length} items',
-      );
-      for (final area in batch) {
-        _constructionStreamController.add(area);
-      }
-      if (i + batchSize < newAreas.length) {
-        await Future.delayed(const Duration(milliseconds: 10));
-      }
-    }
+    // for (var i = 0; i < newAreas.length; i += batchSize) {
+    //   final batch = newAreas.sublist(
+    //     i,
+    //     math.min(i + batchSize, newAreas.length),
+    //   );
+    //   logger.printLogLine(
+    //     'Emitting construction area batch of ${batch.length} items',
+    //   );
+    //   for (final area in batch) {
+    //     _constructionStreamController.add(area);
+    //   }
+    //   if (i + batchSize < newAreas.length) {
+    //     await Future.delayed(const Duration(milliseconds: 10));
+    //   }
+    // }
   }
 
   /// Reset transient state and clear construction areas.
