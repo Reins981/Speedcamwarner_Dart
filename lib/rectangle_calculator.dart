@@ -420,6 +420,7 @@ class RectangleCalculatorThread {
   /// Caching and state management helpers
 
   final List<SpeedCameraEvent> _cameraCache = [];
+  final Set<String> _cameraCacheKeys = {};
   final Map<String, dynamic> _tileCache = {};
   final Map<String, dynamic> _speedCache = {};
   final Map<String, dynamic> _directionCache = {};
@@ -791,6 +792,9 @@ class RectangleCalculatorThread {
   /// Subscribe to speed camera notifications.  These may come from either
   /// predictive analytics (machine learning) or from some external data source.
   Stream<SpeedCameraEvent> get cameras => _cameraStreamController.stream;
+
+  /// Current list of known speed cameras.
+  List<SpeedCameraEvent> get speedCameras => List.unmodifiable(_cameraCache);
 
   /// Stream of legacy speed camera map updates mirroring the old queue items.
   Stream<Timestamped<Map<String, dynamic>>> get speedCamEvents =>
@@ -1253,8 +1257,16 @@ class RectangleCalculatorThread {
     int batchSize = 10,
   }) async {
     final cams = removeDuplicateCameras(speedCams);
-    for (var i = 0; i < cams.length; i += batchSize) {
-      final batch = cams.sublist(i, math.min(i + batchSize, cams.length));
+    final newCams = <SpeedCameraEvent>[];
+    for (final cam in cams) {
+      final key = '${cam.latitude},${cam.longitude}';
+      if (_cameraCacheKeys.add(key)) {
+        _cameraCache.add(cam);
+        newCams.add(cam);
+      }
+    }
+    for (var i = 0; i < newCams.length; i += batchSize) {
+      final batch = newCams.sublist(i, math.min(i + batchSize, newCams.length));
       logger.printLogLine('Emitting camera batch of ${batch.length} items');
       for (final cam in batch) {
         _cameraStreamController.add(cam);
@@ -1276,7 +1288,7 @@ class RectangleCalculatorThread {
           }),
         );
       }
-      if (i + batchSize < cams.length) {
+      if (i + batchSize < newCams.length) {
         await Future.delayed(const Duration(milliseconds: 10));
       }
     }
@@ -2247,6 +2259,7 @@ class RectangleCalculatorThread {
 
   void cleanupMapContent() {
     _cameraCache.clear();
+    _cameraCacheKeys.clear();
     _tileCache.clear();
     _speedCache.clear();
     _directionCache.clear();
