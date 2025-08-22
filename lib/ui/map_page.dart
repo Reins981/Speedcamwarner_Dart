@@ -56,10 +56,11 @@ class _MapPageState extends State<MapPage> {
     _constructionSub = widget.calculator.constructions.listen(
       _onConstructionArea,
     );
-    // Populate map with already known construction areas so that opening the
-    // map after the lookup has finished still shows them.  The construction
-    // stream only emits new areas, so we need to manually add existing ones.
-    // Add them in a single setState call to avoid jank on startup.
+    // Populate map with already known cameras and construction areas so that
+    // opening the map after lookups have finished still shows them.  The
+    // streams only emit new items, so we need to manually add existing ones in
+    // a single setState call to avoid jank on startup.
+    _addExistingCameras(widget.calculator.speedCameras);
     _addConstructionAreas(widget.calculator.constructionAreas);
   }
 
@@ -93,6 +94,28 @@ class _MapPageState extends State<MapPage> {
     setState(() {
       _cameraMarkers.add(marker);
       _markerData[marker] = cam;
+    });
+  }
+
+  void _addExistingCameras(Iterable<SpeedCameraEvent> cams) {
+    final newMarkers = <Marker>[];
+    for (final cam in cams) {
+      final exists = _markerData.values.any(
+        (c) => c.latitude == cam.latitude && c.longitude == cam.longitude,
+      );
+      if (exists) continue;
+      final marker = Marker(
+        point: LatLng(cam.latitude, cam.longitude),
+        width: 40,
+        height: 40,
+        child: Image.asset(_iconForCamera(cam)),
+      );
+      newMarkers.add(marker);
+      _markerData[marker] = cam;
+    }
+    if (newMarkers.isEmpty) return;
+    setState(() {
+      _cameraMarkers.addAll(newMarkers);
     });
   }
 
@@ -200,9 +223,13 @@ class _MapPageState extends State<MapPage> {
             urlTemplate: 'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
             userAgentPackageName: 'com.example.speedcamwarner',
           ),
-          if (_rectPolygons.isNotEmpty) PolygonLayer(polygons: _rectPolygons),
-          if (_constructionPolygons.isNotEmpty)
-            PolygonLayer(polygons: _constructionPolygons),
+          if (_rectPolygons.isNotEmpty || _constructionPolygons.isNotEmpty)
+            PolygonLayer(
+              polygons: [
+                ..._rectPolygons,
+                ..._constructionPolygons,
+              ],
+            ),
           if (_gpsMarker != null) MarkerLayer(markers: [_gpsMarker!]),
           PopupMarkerLayer(
             options: PopupMarkerLayerOptions(
