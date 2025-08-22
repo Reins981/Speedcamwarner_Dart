@@ -1831,7 +1831,7 @@ class RectangleCalculatorThread {
       final func = item['func'] as Future<void> Function(
         Future<void> Function(GeoRect),
         int,
-        GeoRect?,
+        GeoRect,
       );
       final trigger = item['trigger'] as Future<void> Function(GeoRect);
 
@@ -1889,11 +1889,11 @@ class RectangleCalculatorThread {
       if (msg == 'Speed Camera lookahead') {
         rectSpeedCamLookahead = lastRect;
         rectSpeedCamLookaheadGeo = lastGeoRect;
-        await func(trigger, 1, lastGeoRect);
+        await func(trigger, 1, lastGeoRect!);
       } else if (msg == 'Construction area lookahead') {
         rectConstructionAreasLookahead = lastRectConstruction;
         rectConstructionAreasLookaheadGeo = lastGeoRectConstruction;
-        await func(trigger, 1, lastGeoRectConstruction);
+        await func(trigger, 1, lastGeoRectConstruction!);
       }
       logger.printLogLine('$msg lookup finished');
       _lastLookaheadExecution[msg] = DateTime.now();
