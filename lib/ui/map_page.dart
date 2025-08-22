@@ -28,7 +28,7 @@ class _MapPageState extends State<MapPage> {
   final MapController _mapController = MapController();
   StreamSubscription<SpeedCameraEvent>? _camSub;
   StreamSubscription<GeoRect?>? _rectSub;
-  StreamSubscription<GeoRect>? _constructionSub;
+  StreamSubscription<GeoRect?>? _constructionSub;
   List<Polygon> _rectPolygons = [];
   List<Polygon> _constructionPolygons = [];
   GeoRect? _lastRect;
@@ -96,8 +96,10 @@ class _MapPageState extends State<MapPage> {
     });
   }
 
-  void _onConstructionArea(GeoRect area) {
-    _addConstructionAreas([area]);
+  void _onConstructionArea(GeoRect? area) {
+    if (area != null) {
+      _addConstructionAreas([area]);
+    }
   }
 
   void _addConstructionAreas(Iterable<GeoRect> areas) {
