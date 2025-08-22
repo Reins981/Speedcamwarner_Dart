@@ -931,9 +931,7 @@ class RectangleCalculatorThread {
         'construction',
       );
       currentRectAngle = bearing;
-      _constructionStreamController
-        ..add(null)
-        ..add(rect);
+      //_constructionStreamController.add(rect);
     } else {
       logger.printLogLine('No new construction area rectangle to add');
     }
@@ -1856,6 +1854,9 @@ class RectangleCalculatorThread {
           if (rectType == 'camera') calculateNewRect = true;
           if (rectType == 'construction') calculateNewRectConstruction = true;
         }
+      } else {
+        calculateNewRect = false;
+        calculateNewRectConstruction = false;
       }
 
       final now = DateTime.now();
