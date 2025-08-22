@@ -2056,14 +2056,34 @@ class RectangleCalculatorThread {
     for (final element in data) {
       if (element is! Map<String, dynamic>) continue;
       final tags = element['tags'] as Map<String, dynamic>? ?? {};
-      final lat = (element['lat'] as num?)?.toDouble();
-      final lon = (element['lon'] as num?)?.toDouble();
+      var lat = (element['lat'] as num?)?.toDouble();
+      var lon = (element['lon'] as num?)?.toDouble();
+      if ((lat == null || lon == null) && element['center'] is Map) {
+        final center = element['center'] as Map<String, dynamic>;
+        lat = (center['lat'] as num?)?.toDouble();
+        lon = (center['lon'] as num?)?.toDouble();
+      }
+      if ((lat == null || lon == null) &&
+          element['geometry'] is List &&
+          (element['geometry'] as List).isNotEmpty) {
+        final first = (element['geometry'] as List).first;
+        if (first is Map<String, dynamic>) {
+          lat = (first['lat'] as num?)?.toDouble();
+          lon = (first['lon'] as num?)?.toDouble();
+        }
+      }
       // ``maxspeed`` tags in OSM may be stored as strings (e.g. "50" or
       // "50 km/h") which previously caused a runtime type cast error when
       // casting directly to ``num``.  Use ``resolveMaxSpeed`` to safely parse the
       // numeric portion instead.
       final maxspeed = resolveMaxSpeed(tags);
-      if (lat == null || lon == null) continue;
+      if (lat == null || lon == null) {
+        logger.printLogLine(
+          'Skipping speed camera element without coordinates: ${element['id']}',
+          logLevel: 'DEBUG',
+        );
+        continue;
+      }
 
       final roadName = await getRoadNameViaNominatim(lat, lon);
       if (lookupType == 'distance_cam') {
