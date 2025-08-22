@@ -1,13 +1,12 @@
 import 'package:test/test.dart';
-import 'package:workspace/overspeed_checker.dart';
+import 'package:workspace/overspeed_thread.dart';
 
 void main() {
   test('detects overspeed and reset', () {
-    final checker = OverspeedChecker();
-    checker.updateLimit(50);
-    checker.updateSpeed(60);
+    final checker = OverspeedThread(cond: {}, isResumed: true);
+    checker.setSpeedAndLimit(speed: 60, limit: 50);
     expect(checker.lastDifference, 10);
-    checker.updateLimit(null);
+    checker.setSpeedAndLimit(speed: 40, limit: null);
     expect(checker.lastDifference, isNull);
   });
 }

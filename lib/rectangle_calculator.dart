@@ -513,7 +513,7 @@ class RectangleCalculatorThread {
   double constructionAreaLookaheadDistance = 0.0;
 
   /// Maximum distance in kilometres for construction area look‑ahead.
-  double maxConstructionAreaLookaheadDistance = 30.0;
+  double maxConstructionAreaLookaheadDistance = 10.0;
 
   /// Minimum interval between network lookups to avoid excessive
   /// requests for speed cameras only.
