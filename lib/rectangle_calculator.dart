@@ -847,16 +847,18 @@ class RectangleCalculatorThread {
   void _start() {
     if (_loopStarted) return;
     _loopStarted = true;
-    // ignore: unawaited_futures
-    _vectorStreamController.stream.listen((vector) async {
-      if (!_running) return;
-      try {
-        await _processVector(vector);
-      } catch (e, stack) {
-        // Catch and log unexpected exceptions; avoid killing the stream.
-        logger.printLogLine('RectangleCalculatorThread error: $e\n$stack');
-      }
-    });
+    _vectorStreamController.stream
+        .asyncMap((vector) async {
+          if (!_running) return null;
+          try {
+            await _processVector(vector);
+          } catch (e, stack) {
+            // Catch and log unexpected exceptions; avoid killing the stream.
+            logger.printLogLine('RectangleCalculatorThread error: $e\n$stack');
+          }
+          return null;
+        })
+        .listen((_) {});
   }
 
   /// Process a single vector sample.  This routine extracts the relevant
@@ -2055,10 +2057,11 @@ class RectangleCalculatorThread {
 
     /// print the data
     print('Speed camera lookup ahead results:');
-    for (final element in data) {
-      print(' - $element');
-    }
-    final List<SpeedCameraEvent> cams = [];
+  for (final element in data) {
+    print(' - $element');
+  }
+  final List<SpeedCameraEvent> cams = [];
+  try {
     for (final element in data) {
       try {
         if (element is! Map<String, dynamic>) continue;
@@ -2175,6 +2178,13 @@ class RectangleCalculatorThread {
         logger.printLogLine(stack.toString(), logLevel: 'DEBUG');
       }
     }
+  } catch (e, stack) {
+    logger.printLogLine(
+      'Error processing $lookupType lookup: $e',
+      logLevel: 'ERROR',
+    );
+    logger.printLogLine(stack.toString(), logLevel: 'DEBUG');
+  } finally {
     logger.printLogLine(
       'Processed ${cams.length} cameras from $lookupType lookup',
     );
