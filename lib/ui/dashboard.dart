@@ -38,6 +38,7 @@ class DashboardPage extends StatefulWidget {
 class _DashboardPageState extends State<DashboardPage> {
   // UI state mirrored from the calculator notifiers.
   double _speed = 0.0;
+  double _previousSpeed = 0.0;
   int? _overspeedDiff;
   String? _speedCamWarning;
   String? _speedCamIcon;
@@ -54,7 +55,6 @@ class _DashboardPageState extends State<DashboardPage> {
   String _arStatus = '';
   ValueNotifier<String>? _arNotifier;
   double _acceleration = 0.0;
-  double? _lastSpeed;
   String _direction = '-';
   String _averageBearing = '---.-°';
   ValueNotifier<String>? _directionNotifier;
@@ -69,6 +69,7 @@ class _DashboardPageState extends State<DashboardPage> {
     _controller = widget.controller;
     if (_calculator != null) {
       _speed = _calculator!.currentSpeedNotifier.value;
+      _previousSpeed = _speed;
       _speedCamWarning = _calculator!.speedCamNotifier.value;
       if (_speedCamWarning == 'FREEFLOW') {
         _clearCameraInfo();
@@ -78,7 +79,6 @@ class _DashboardPageState extends State<DashboardPage> {
         _cameraRoad = _calculator!.cameraRoadNotifier.value;
       }
       _maxSpeed = _calculator!.maxspeedNotifier.value;
-      _speed = _calculator!.currentSpeedNotifier.value;
       _overspeedDiff = (_maxSpeed != null && _speed > _maxSpeed!)
           ? (_speed - _maxSpeed!).round()
           : null;
@@ -114,6 +114,7 @@ class _DashboardPageState extends State<DashboardPage> {
 
   void _updateFromCalculator() {
     setState(() {
+      _previousSpeed = _speed;
       _speed = _calculator!.currentSpeedNotifier.value;
       _maxSpeed = _calculator!.maxspeedNotifier.value;
       _overspeedDiff = (_maxSpeed != null && _speed > _maxSpeed!)
@@ -133,9 +134,8 @@ class _DashboardPageState extends State<DashboardPage> {
       if (_speedHistory.length > 30) _speedHistory.removeAt(0);
       // Smooth the acceleration bar by easing toward the new acceleration
       // value instead of jumping directly based on the full speed change.
-      final targetAcceleration = (_speed - (_lastSpeed ?? _speed)) / 3.6;
+      final targetAcceleration = (_speed - _previousSpeed) / 3.6;
       _acceleration = ui.lerpDouble(_acceleration, targetAcceleration, 0.2)!;
-      _lastSpeed = _speed;
     });
   }
 
@@ -524,7 +524,7 @@ class _DashboardPageState extends State<DashboardPage> {
             alignment: Alignment.center,
             children: [
               TweenAnimationBuilder<double>(
-                tween: Tween(begin: 0, end: _speed),
+                tween: Tween(begin: _previousSpeed, end: _speed),
                 duration: const Duration(milliseconds: 500),
                 builder: (context, value, child) {
                   final progress = (value / max).clamp(0.0, 1.0);
