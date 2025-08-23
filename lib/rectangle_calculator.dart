@@ -2060,102 +2060,119 @@ class RectangleCalculatorThread {
     }
     final List<SpeedCameraEvent> cams = [];
     for (final element in data) {
-      if (element is! Map<String, dynamic>) continue;
-      final tags = element['tags'] as Map<String, dynamic>? ?? {};
-      var lat = (element['lat'] as num?)?.toDouble();
-      var lon = (element['lon'] as num?)?.toDouble();
-      if ((lat == null || lon == null) && element['center'] is Map) {
-        final center = element['center'] as Map<String, dynamic>;
-        lat = (center['lat'] as num?)?.toDouble();
-        lon = (center['lon'] as num?)?.toDouble();
-      }
-      if ((lat == null || lon == null) &&
-          element['geometry'] is List &&
-          (element['geometry'] as List).isNotEmpty) {
-        final first = (element['geometry'] as List).first;
-        if (first is Map<String, dynamic>) {
-          lat = (first['lat'] as num?)?.toDouble();
-          lon = (first['lon'] as num?)?.toDouble();
+      try {
+        if (element is! Map<String, dynamic>) continue;
+        final tags = element['tags'] as Map<String, dynamic>? ?? {};
+        var lat = (element['lat'] as num?)?.toDouble();
+        var lon = (element['lon'] as num?)?.toDouble();
+        if ((lat == null || lon == null) && element['center'] is Map) {
+          final center = element['center'] as Map<String, dynamic>;
+          lat = (center['lat'] as num?)?.toDouble();
+          lon = (center['lon'] as num?)?.toDouble();
         }
-      }
-      // ``maxspeed`` tags in OSM may be stored as strings (e.g. "50" or
-      // "50 km/h") which previously caused a runtime type cast error when
-      // casting directly to ``num``.  Use ``resolveMaxSpeed`` to safely parse the
-      // numeric portion instead.
-      final maxspeed = resolveMaxSpeed(tags);
-      if (lat == null || lon == null) {
-        logger.printLogLine(
-          'Skipping speed camera element without coordinates: ${element['id']}',
-          logLevel: 'DEBUG',
-        );
-        continue;
-      }
+        if ((lat == null || lon == null) &&
+            element['geometry'] is List &&
+            (element['geometry'] as List).isNotEmpty) {
+          final first = (element['geometry'] as List).first;
+          if (first is Map<String, dynamic>) {
+            lat = (first['lat'] as num?)?.toDouble();
+            lon = (first['lon'] as num?)?.toDouble();
+          }
+        }
+        // ``maxspeed`` tags in OSM may be stored as strings (e.g. "50" or
+        // "50 km/h") which previously caused a runtime type cast error when
+        // casting directly to ``num``.  Use ``resolveMaxSpeed`` to safely parse the
+        // numeric portion instead.
+        final maxspeed = resolveMaxSpeed(tags);
+        if (lat == null || lon == null) {
+          logger.printLogLine(
+            'Skipping speed camera element without coordinates: ${element['id']}',
+            logLevel: 'DEBUG',
+          );
+          continue;
+        }
 
-      final roadName = await getRoadNameViaNominatim(lat, lon);
-      if (lookupType == 'distance_cam') {
-        updateNumberOfDistanceCameras(tags);
-        final role = tags['role'];
-        if (role == 'device') {
-          logger.printLogLine('Adding device speed camera: $tags');
+        String? roadName;
+        try {
+          roadName = await getRoadNameViaNominatim(lat, lon);
+        } catch (e, stack) {
+          logger.printLogLine(
+            'getRoadNameViaNominatim failed: $e',
+            logLevel: 'ERROR',
+          );
+          logger.printLogLine(stack.toString(), logLevel: 'DEBUG');
+        }
+        if (lookupType == 'distance_cam') {
+          updateNumberOfDistanceCameras(tags);
+          final role = tags['role'];
+          if (role == 'device') {
+            logger.printLogLine('Adding device speed camera: $tags');
+            final cam = SpeedCameraEvent(
+              latitude: lat,
+              longitude: lon,
+              distance: true,
+              name: tags['name']?.toString() ?? roadName ?? '',
+              maxspeed: maxspeed,
+            );
+            _cameraCache.add(cam);
+            cams.add(cam);
+            distance_cams += 1;
+          }
+          continue;
+        }
+
+        final camTypeTag = tags['camera:type']?.toString();
+        if (camTypeTag == 'mobile' || tags['mobile'] == 'yes') {
+          logger.printLogLine('Adding mobile speed camera: $tags');
           final cam = SpeedCameraEvent(
             latitude: lat,
             longitude: lon,
-            distance: true,
+            mobile: true,
             name: tags['name']?.toString() ?? roadName ?? '',
             maxspeed: maxspeed,
           );
           _cameraCache.add(cam);
           cams.add(cam);
-          distance_cams += 1;
+          mobile_cams += 1;
+          continue;
         }
-        continue;
-      }
 
-      final camTypeTag = tags['camera:type']?.toString();
-      if (camTypeTag == 'mobile' || tags['mobile'] == 'yes') {
-        logger.printLogLine('Adding mobile speed camera: $tags');
-        final cam = SpeedCameraEvent(
-          latitude: lat,
-          longitude: lon,
-          mobile: true,
-          name: tags['name']?.toString() ?? roadName ?? '',
-          maxspeed: maxspeed,
-        );
-        _cameraCache.add(cam);
-        cams.add(cam);
-        mobile_cams += 1;
-        continue;
-      }
+        final highwayVal = tags['highway']?.toString();
+        final speedCamVal = tags['speed_camera']?.toString();
+        if (highwayVal == 'speed_camera' && speedCamVal == null) {
+          logger.printLogLine('Adding fixed speed camera: $tags');
+          final cam = SpeedCameraEvent(
+            latitude: lat,
+            longitude: lon,
+            fixed: true,
+            name: tags['name']?.toString() ?? roadName ?? '',
+            maxspeed: maxspeed,
+          );
+          _cameraCache.add(cam);
+          cams.add(cam);
+          fix_cams += 1;
+          continue;
+        }
 
-      final highwayVal = tags['highway']?.toString();
-      final speedCamVal = tags['speed_camera']?.toString();
-      if (highwayVal == 'speed_camera' && speedCamVal == null) {
-        logger.printLogLine('Adding fixed speed camera: $tags');
-        final cam = SpeedCameraEvent(
-          latitude: lat,
-          longitude: lon,
-          fixed: true,
-          name: tags['name']?.toString() ?? roadName ?? '',
-          maxspeed: maxspeed,
+        if (speedCamVal == 'traffic_signals') {
+          logger.printLogLine('Adding traffic speed camera: $tags');
+          final cam = SpeedCameraEvent(
+            latitude: lat,
+            longitude: lon,
+            traffic: true,
+            name: tags['name']?.toString() ?? roadName ?? '',
+            maxspeed: maxspeed,
+          );
+          _cameraCache.add(cam);
+          cams.add(cam);
+          traffic_cams += 1;
+        }
+      } catch (e, stack) {
+        logger.printLogLine(
+          'Error processing speed camera element: $e',
+          logLevel: 'ERROR',
         );
-        _cameraCache.add(cam);
-        cams.add(cam);
-        fix_cams += 1;
-        continue;
-      }
-
-      if (speedCamVal == 'traffic_signals') {
-        logger.printLogLine('Adding traffic speed camera: $tags');
-        final cam = SpeedCameraEvent(
-          latitude: lat,
-          longitude: lon,
-          traffic: true,
-          name: tags['name']?.toString() ?? roadName ?? '',
-          maxspeed: maxspeed,
-        );
-        _cameraCache.add(cam);
-        cams.add(cam);
-        traffic_cams += 1;
+        logger.printLogLine(stack.toString(), logLevel: 'DEBUG');
       }
     }
     logger.printLogLine(
