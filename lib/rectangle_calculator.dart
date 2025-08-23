@@ -2096,6 +2096,7 @@ class RectangleCalculatorThread {
         updateNumberOfDistanceCameras(tags);
         final role = tags['role'];
         if (role == 'device') {
+          logger.printLogLine('Adding device speed camera: $tags');
           final cam = SpeedCameraEvent(
             latitude: lat,
             longitude: lon,
@@ -2112,6 +2113,7 @@ class RectangleCalculatorThread {
 
       final camTypeTag = tags['camera:type']?.toString();
       if (camTypeTag == 'mobile' || tags['mobile'] == 'yes') {
+        logger.printLogLine('Adding mobile speed camera: $tags');
         final cam = SpeedCameraEvent(
           latitude: lat,
           longitude: lon,
@@ -2125,19 +2127,10 @@ class RectangleCalculatorThread {
         continue;
       }
 
+      final highwayVal = tags['highway']?.toString();
       final speedCamVal = tags['speed_camera']?.toString();
-      if (speedCamVal == 'traffic_signals') {
-        final cam = SpeedCameraEvent(
-          latitude: lat,
-          longitude: lon,
-          traffic: true,
-          name: tags['name']?.toString() ?? roadName ?? '',
-          maxspeed: maxspeed,
-        );
-        _cameraCache.add(cam);
-        cams.add(cam);
-        traffic_cams += 1;
-      } else {
+      if (highwayVal == 'speed_camera' && speedCamVal == null) {
+        logger.printLogLine('Adding fixed speed camera: $tags');
         final cam = SpeedCameraEvent(
           latitude: lat,
           longitude: lon,
@@ -2148,8 +2141,26 @@ class RectangleCalculatorThread {
         _cameraCache.add(cam);
         cams.add(cam);
         fix_cams += 1;
+        continue;
+      }
+
+      if (speedCamVal == 'traffic_signals') {
+        logger.printLogLine('Adding traffic speed camera: $tags');
+        final cam = SpeedCameraEvent(
+          latitude: lat,
+          longitude: lon,
+          traffic: true,
+          name: tags['name']?.toString() ?? roadName ?? '',
+          maxspeed: maxspeed,
+        );
+        _cameraCache.add(cam);
+        cams.add(cam);
+        traffic_cams += 1;
       }
     }
+    logger.printLogLine(
+      'Processed ${cams.length} cameras from $lookupType lookup',
+    );
     if (cams.isNotEmpty) {
       logger.printLogLine(
         'Found ${cams.length} cameras from $lookupType lookup',
