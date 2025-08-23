@@ -2057,10 +2057,11 @@ class RectangleCalculatorThread {
 
     /// print the data
     print('Speed camera lookup ahead results:');
-    for (final element in data) {
-      print(' - $element');
-    }
-    final List<SpeedCameraEvent> cams = [];
+  for (final element in data) {
+    print(' - $element');
+  }
+  final List<SpeedCameraEvent> cams = [];
+  try {
     for (final element in data) {
       try {
         if (element is! Map<String, dynamic>) continue;
@@ -2177,6 +2178,13 @@ class RectangleCalculatorThread {
         logger.printLogLine(stack.toString(), logLevel: 'DEBUG');
       }
     }
+  } catch (e, stack) {
+    logger.printLogLine(
+      'Error processing $lookupType lookup: $e',
+      logLevel: 'ERROR',
+    );
+    logger.printLogLine(stack.toString(), logLevel: 'DEBUG');
+  } finally {
     logger.printLogLine(
       'Processed ${cams.length} cameras from $lookupType lookup',
     );
