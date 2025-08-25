@@ -2184,30 +2184,30 @@ class RectangleCalculatorThread {
         logLevel: 'ERROR',
       );
       logger.printLogLine(stack.toString(), logLevel: 'DEBUG');
-    } finally {
+    }
+
+    logger.printLogLine(
+      'Processed ${cams.length} cameras from $lookupType lookup',
+    );
+    if (cams.isNotEmpty) {
       logger.printLogLine(
-        'Processed ${cams.length} cameras from $lookupType lookup',
+        'Found ${cams.length} cameras from $lookupType lookup',
       );
-      if (cams.isNotEmpty) {
+      try {
+        // Await the update so the speed cam warner sees new cameras before
+        // handling the next CCP event.
+        await updateSpeedCams(cams);
+      } catch (e, stack) {
         logger.printLogLine(
-          'Found ${cams.length} cameras from $lookupType lookup',
+          'updateSpeedCams failed: $e',
+          logLevel: 'ERROR',
         );
-        try {
-          // Await the update so the speed cam warner sees new cameras before
-          // handling the next CCP event.
-          await updateSpeedCams(cams);
-        } catch (e, stack) {
-          logger.printLogLine(
-            'updateSpeedCams failed: $e',
-            logLevel: 'ERROR',
-          );
-          logger.printLogLine(stack.toString(), logLevel: 'DEBUG');
-        }
-        updateMapQueue();
-        updateInfoPage(
-          'SPEED_CAMERAS:$fix_cams,$traffic_cams,$distance_cams,$mobile_cams',
-        );
+        logger.printLogLine(stack.toString(), logLevel: 'DEBUG');
       }
+      updateMapQueue();
+      updateInfoPage(
+        'SPEED_CAMERAS:$fix_cams,$traffic_cams,$distance_cams,$mobile_cams',
+      );
     }
   }
 
