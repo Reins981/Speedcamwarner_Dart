@@ -3,6 +3,7 @@ import 'dart:async';
 import 'gps_thread.dart';
 import 'location_manager.dart';
 import 'rectangle_calculator.dart';
+import 'dart:math' as math;
 import 'voice_prompt_events.dart';
 import 'package:geolocator/geolocator.dart';
 import 'poi_reader.dart';
@@ -145,6 +146,13 @@ class AppController {
   /// Supplies direction and coordinates for POI queries.
   final GpsProducer gpsProducer = GpsProducer();
 
+  /// Stream distributing POI lookup results to listeners such as the map.
+  final StreamController<List<List<double>>> _poiController =
+      StreamController<List<List<double>>>.broadcast();
+
+  /// Public stream of POI coordinate lists.
+  Stream<List<List<double>>> get poiStream => _poiController.stream;
+
   // Interrupt queue for handling real-time interruptions.
   final InterruptQueue<String>? interruptQueue = InterruptQueue<String>();
 
@@ -221,6 +229,7 @@ class AppController {
     poiReader.stopTimer();
     await voiceThread.stop();
     stopDeviationCheckerThread();
+    await _poiController.close();
   }
 
   /// Start monitoring the distance to [poi] and emit `POI_REACHED` once the
@@ -297,6 +306,76 @@ class AppController {
     _deviationRunning = false;
     deviationChecker.terminate();
     averageAngleQueue.clearAverageAngleData();
+  }
+
+  /// Trigger a POI lookup around the current position for the given [type].
+  Future<void> lookupPois(String type) async {
+    final coords = gpsProducer.get_lon_lat();
+    final lon = coords[0];
+    final lat = coords[1];
+    if ((lon == 0 && lat == 0) || lon.isNaN || lat.isNaN) {
+      voicePromptEvents.emit('POI_FAILED');
+      return;
+    }
+
+    final tiles = calculator.longlat2tile(lat, lon, calculator.zoom);
+    final xtile = tiles[0];
+    final ytile = tiles[1];
+
+    final poiDistance =
+        (AppConfig.get<num>('main.poi_distance') ?? 50).toDouble();
+    final kmPerTile =
+        (40075.016686 * math.cos(lat * math.pi / 180.0)) /
+            math.pow(2, calculator.zoom);
+    final tileDistance = poiDistance / kmPerTile;
+
+    final pts = calculator.calculatePoints2Angle(
+      xtile,
+      ytile,
+      tileDistance,
+      calculator.currentRectAngle * math.pi / 180.0,
+    );
+    final poly = calculator.createGeoJsonTilePolygonAngle(
+      calculator.zoom,
+      pts[0],
+      pts[2],
+      pts[1],
+      pts[3],
+    );
+    final lonMin = poly[0].x;
+    final latMin = poly[0].y;
+    final lonMax = poly[2].x;
+    final latMax = poly[2].y;
+    final area = GeoRect(
+      minLat: latMin,
+      minLon: lonMin,
+      maxLat: latMax,
+      maxLon: lonMax,
+    );
+
+    final result =
+        await calculator.triggerOsmLookup(area, lookupType: type);
+    if (result.success && result.elements != null) {
+      final pois = <List<double>>[];
+      for (final el in result.elements!) {
+        final latPoi = (el['lat'] as num?)?.toDouble();
+        final lonPoi = (el['lon'] as num?)?.toDouble();
+        if (latPoi != null && lonPoi != null) {
+          pois.add([latPoi, lonPoi]);
+        }
+      }
+      _poiController.add(pois);
+      calculator.updatePoiCount(pois.length);
+      if (pois.isNotEmpty) {
+        voicePromptEvents.emit('POI_SUCCESS');
+      } else {
+        voicePromptEvents.emit('POI_FAILED');
+      }
+    } else {
+      _poiController.add([]);
+      calculator.updatePoiCount(0);
+      voicePromptEvents.emit('POI_FAILED');
+    }
   }
 }
 
