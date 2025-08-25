@@ -142,6 +142,7 @@ class _MapPageState extends State<MapPage> {
         height: 40,
         child: Image.asset('images/construction_marker.png'),
       );
+
       final points = [
         LatLng(area.minLat, area.minLon),
         LatLng(area.minLat, area.maxLon),
@@ -154,8 +155,8 @@ class _MapPageState extends State<MapPage> {
         borderColor: Colors.orange,
         borderStrokeWidth: 2,
       );
-      newMarkers.add(marker);
       newPolygons.add(polygon);
+      newMarkers.add(marker);
       _constructionData[marker] = area;
     }
     if (newMarkers.isEmpty && newPolygons.isEmpty) return;

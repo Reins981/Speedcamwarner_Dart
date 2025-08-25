@@ -937,7 +937,7 @@ class RectangleCalculatorThread {
         'construction',
       );
       currentRectAngle = bearing;
-      //_constructionStreamController.add(rect);
+      _constructionStreamController.add(rect);
     } else {
       logger.printLogLine('No new construction area rectangle to add');
     }
