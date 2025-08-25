@@ -2492,7 +2492,7 @@ class RectangleCalculatorThread {
     int workerThreads,
     GeoRect lastGeoRect,
   ) async {
-    await Future.microtask(() => func(lastGeoRect));
+    await func(lastGeoRect);
   }
 
   static Future<void> startThreadPoolDataLookup(
@@ -2559,7 +2559,7 @@ class RectangleCalculatorThread {
     int workerThreads,
     GeoRect lastGeoRect,
   ) async {
-    await Future.microtask(() => func(lastGeoRect));
+    await func(lastGeoRect);
   }
 
   static Future<void> startThreadPoolUploadSpeedCameraToDrive(
@@ -2569,7 +2569,7 @@ class RectangleCalculatorThread {
     double latitude,
     double longitude,
   ) async {
-    await Future.microtask(() => func(name, latitude, longitude));
+    await func(name, latitude, longitude);
   }
 
   // ---------------------------------------------------------------------------
