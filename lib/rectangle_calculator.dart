@@ -261,9 +261,10 @@ Future<SpeedCameraEvent?> predictSpeedCamera({
         predictive: true,
       );
     }
-  } catch (_) {
+  } catch (e) {
     // Swallow errors and fall through to returning null so that a failure in
     // the external model does not crash the application.
+    print('Error occurred while predicting speed camera: $e');
   }
   return null;
 }
@@ -451,8 +452,6 @@ class RectangleCalculatorThread {
   final ValueNotifier<int> constructionAreaCountNotifier = ValueNotifier<int>(
     0,
   );
-  /// Tracks the number of POIs returned by the last lookup.
-  final ValueNotifier<int> poiCountNotifier = ValueNotifier<int>(0);
   final ValueNotifier<bool> onlineStatusNotifier = ValueNotifier<bool>(false);
   final ValueNotifier<bool> gpsStatusNotifier = ValueNotifier<bool>(false);
   final ValueNotifier<String?> maxspeedStatusNotifier = ValueNotifier<String?>(
@@ -470,6 +469,9 @@ class RectangleCalculatorThread {
   final ValueNotifier<LatLng> positionNotifier = ValueNotifier<LatLng>(
     const LatLng(0, 0),
   );
+
+  /// Tracks the number of POIs returned by the last lookup.
+  final ValueNotifier<int> poiCountNotifier = ValueNotifier<int>(0);
 
   /// If ``true`` points of interest (POIs) are ignored when resolving road
   /// names and max speed values.
@@ -939,7 +941,8 @@ class RectangleCalculatorThread {
         'construction',
       );
       currentRectAngle = bearing;
-      _constructionStreamController.add(rect);
+
+      ///_constructionStreamController.add(rect);
     } else {
       logger.printLogLine('No new construction area rectangle to add');
     }
