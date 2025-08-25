@@ -379,6 +379,13 @@ class RectangleCalculatorThread {
   /// listened to`` exception.
   bool _loopStarted = false;
 
+  /// Queue that serializes vector processing so a new update waits for the
+  /// previous one to finish. This avoids overlapping lookahead work.
+  Future<void> _processingQueue = Future.value();
+
+  /// Tracks whether a vector is currently being processed.
+  bool _isProcessing = false;
+
   /// The current zoom level used when converting between tiles and
   /// latitude/longitude.  You may expose this as a public field if your map
   /// layer needs to remain in sync with the calculator.
@@ -846,22 +853,32 @@ class RectangleCalculatorThread {
   }
 
   /// Kick off the asynchronous processing loop.  New vector samples are
-  /// consumed immediately while heavy processing occurs on detached futures so
-  /// that reception of subsequent samples is never blocked.
+  /// consumed immediately while heavy processing occurs sequentially so that
+  /// operations do not overlap.  Subsequent samples are queued until the
+  /// previous one completes.
   void _start() {
     if (_loopStarted) return;
     _loopStarted = true;
     _vectorStreamController.stream.listen((vector) {
       if (!_running) return;
-      // Process each vector on a separate task to avoid delaying the stream.
-      unawaited(Future(() async {
+      final alreadyProcessing = _isProcessing;
+      _isProcessing = true;
+      _processingQueue = _processingQueue.then((_) async {
         try {
-          await _processVector(vector);
+          if (_running) {
+            await _processVector(vector);
+          }
         } catch (e, stack) {
           // Catch and log unexpected exceptions; avoid killing the stream.
           logger.printLogLine('RectangleCalculatorThread error: $e\n$stack');
+        } finally {
+          _isProcessing = false;
         }
-      }));
+      });
+      if (alreadyProcessing) {
+        logger.printLogLine(
+            'Queueing vector while previous processing is still running');
+      }
     });
   }
 
@@ -2184,30 +2201,30 @@ class RectangleCalculatorThread {
         logLevel: 'ERROR',
       );
       logger.printLogLine(stack.toString(), logLevel: 'DEBUG');
-    } finally {
+    }
+
+    logger.printLogLine(
+      'Processed ${cams.length} cameras from $lookupType lookup',
+    );
+    if (cams.isNotEmpty) {
       logger.printLogLine(
-        'Processed ${cams.length} cameras from $lookupType lookup',
+        'Found ${cams.length} cameras from $lookupType lookup',
       );
-      if (cams.isNotEmpty) {
+      try {
+        // Await the update so the speed cam warner sees new cameras before
+        // handling the next CCP event.
+        await updateSpeedCams(cams);
+      } catch (e, stack) {
         logger.printLogLine(
-          'Found ${cams.length} cameras from $lookupType lookup',
+          'updateSpeedCams failed: $e',
+          logLevel: 'ERROR',
         );
-        try {
-          // Await the update so the speed cam warner sees new cameras before
-          // handling the next CCP event.
-          await updateSpeedCams(cams);
-        } catch (e, stack) {
-          logger.printLogLine(
-            'updateSpeedCams failed: $e',
-            logLevel: 'ERROR',
-          );
-          logger.printLogLine(stack.toString(), logLevel: 'DEBUG');
-        }
-        updateMapQueue();
-        updateInfoPage(
-          'SPEED_CAMERAS:$fix_cams,$traffic_cams,$distance_cams,$mobile_cams',
-        );
+        logger.printLogLine(stack.toString(), logLevel: 'DEBUG');
       }
+      updateMapQueue();
+      updateInfoPage(
+        'SPEED_CAMERAS:$fix_cams,$traffic_cams,$distance_cams,$mobile_cams',
+      );
     }
 
   void resolveDangersOnTheRoad(Map<String, dynamic> way) {
