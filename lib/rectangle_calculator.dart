@@ -2189,11 +2189,39 @@ class RectangleCalculatorThread {
         logger.printLogLine(
           'Found ${cams.length} cameras from $lookupType lookup',
         );
-        unawaited(updateSpeedCams(cams));
+        try {
+          // Await the update so the speed cam warner sees new cameras before
+          // handling the next CCP event.
+          await updateSpeedCams(cams);
+        } catch (e, stack) {
+          logger.printLogLine(
+            'updateSpeedCams failed: $e',
+            logLevel: 'ERROR',
+          );
+          logger.printLogLine(stack.toString(), logLevel: 'DEBUG');
+        }
         updateMapQueue();
         updateInfoPage(
           'SPEED_CAMERAS:$fix_cams,$traffic_cams,$distance_cams,$mobile_cams',
         );
+      }
+    }
+
+  void resolveDangersOnTheRoad(Map<String, dynamic> way) {
+    final hazard = way['hazard'];
+    if (hazard != null) {
+      infoPageNotifier.value = hazard.toString().toUpperCase();
+      if (!_hazardVoice) {
+        voicePromptEvents.emit('HAZARD');
+        _hazardVoice = true;
+      }
+    } else {
+      if (_hazardVoice) {
+        _hazardVoice = false;
+      }
+      if (infoPageNotifier.value != null &&
+          infoPageNotifier.value!.isNotEmpty) {
+        infoPageNotifier.value = null;
       }
     }
 
