@@ -2209,6 +2209,7 @@ class RectangleCalculatorThread {
         );
       }
     }
+  }
 
   void resolveDangersOnTheRoad(Map<String, dynamic> way) {
     final hazard = way['hazard'];
