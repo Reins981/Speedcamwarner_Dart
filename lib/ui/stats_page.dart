@@ -26,22 +26,30 @@ class _StatsPageState extends State<StatsPage> {
   int _mobile = 0;
   int _predictive = 0;
   int _construction = 0;
-  int _poi = 0; // Placeholder for future POI integration
+    int _poi = 0;
   final Set<String> _seenCameras = {};
 
-  void _onConstructionCount() {
-    setState(() {
-      _construction = widget.calculator.constructionAreaCountNotifier.value;
-    });
-  }
+    void _onConstructionCount() {
+      setState(() {
+        _construction = widget.calculator.constructionAreaCountNotifier.value;
+      });
+    }
+
+    void _onPoiCount() {
+      setState(() {
+        _poi = widget.calculator.poiCountNotifier.value;
+      });
+    }
 
   @override
   void initState() {
     super.initState();
-    _construction = widget.calculator.constructionAreaCountNotifier.value;
-    widget.calculator.constructionAreaCountNotifier
-        .addListener(_onConstructionCount);
-    _sub = widget.calculator.cameras.listen((cam) {
+      _construction = widget.calculator.constructionAreaCountNotifier.value;
+      _poi = widget.calculator.poiCountNotifier.value;
+      widget.calculator.constructionAreaCountNotifier
+          .addListener(_onConstructionCount);
+      widget.calculator.poiCountNotifier.addListener(_onPoiCount);
+      _sub = widget.calculator.cameras.listen((cam) {
       final key = '${cam.latitude},${cam.longitude}';
       if (_seenCameras.add(key)) {
         setState(() {
@@ -57,11 +65,12 @@ class _StatsPageState extends State<StatsPage> {
 
   @override
   void dispose() {
-    _sub.cancel();
-    widget.calculator.constructionAreaCountNotifier
-        .removeListener(_onConstructionCount);
-    super.dispose();
-  }
+      _sub.cancel();
+      widget.calculator.constructionAreaCountNotifier
+          .removeListener(_onConstructionCount);
+      widget.calculator.poiCountNotifier.removeListener(_onPoiCount);
+      super.dispose();
+    }
 
   @override
   Widget build(BuildContext context) {

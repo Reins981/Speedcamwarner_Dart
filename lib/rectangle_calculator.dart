@@ -451,6 +451,8 @@ class RectangleCalculatorThread {
   final ValueNotifier<int> constructionAreaCountNotifier = ValueNotifier<int>(
     0,
   );
+  /// Tracks the number of POIs returned by the last lookup.
+  final ValueNotifier<int> poiCountNotifier = ValueNotifier<int>(0);
   final ValueNotifier<bool> onlineStatusNotifier = ValueNotifier<bool>(false);
   final ValueNotifier<bool> gpsStatusNotifier = ValueNotifier<bool>(false);
   final ValueNotifier<String?> maxspeedStatusNotifier = ValueNotifier<String?>(
@@ -2880,6 +2882,7 @@ class RectangleCalculatorThread {
 
   void updateCamRadius(double value) => camRadiusNotifier.value = value;
   void updateInfoPage(String value) => infoPageNotifier.value = value;
+  void updatePoiCount(int value) => poiCountNotifier.value = value;
   void updateOnlineStatus(bool value) => onlineStatusNotifier.value = value;
   void updateGpsStatus(bool value) => gpsStatusNotifier.value = value;
 
