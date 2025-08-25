@@ -19,6 +19,7 @@ import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
 import 'dart:math' as math;
+import 'dart:math' show Point;
 import 'package:path/path.dart' as p;
 
 import 'package:flutter/foundation.dart';
@@ -450,6 +451,8 @@ class RectangleCalculatorThread {
   final ValueNotifier<int> constructionAreaCountNotifier = ValueNotifier<int>(
     0,
   );
+  /// Tracks the number of POIs returned by the last lookup.
+  final ValueNotifier<int> poiCountNotifier = ValueNotifier<int>(0);
   final ValueNotifier<bool> onlineStatusNotifier = ValueNotifier<bool>(false);
   final ValueNotifier<bool> gpsStatusNotifier = ValueNotifier<bool>(false);
   final ValueNotifier<String?> maxspeedStatusNotifier = ValueNotifier<String?>(
@@ -854,8 +857,7 @@ class RectangleCalculatorThread {
           await _processVector(vector);
         } catch (e, stack) {
           // Catch and log unexpected exceptions; avoid killing the stream.
-          logger
-              .printLogLine('RectangleCalculatorThread error: $e\n$stack');
+          logger.printLogLine('RectangleCalculatorThread error: $e\n$stack');
         }
       }));
     });
@@ -937,7 +939,7 @@ class RectangleCalculatorThread {
         'construction',
       );
       currentRectAngle = bearing;
-      //_constructionStreamController.add(rect);
+      _constructionStreamController.add(rect);
     } else {
       logger.printLogLine('No new construction area rectangle to add');
     }
@@ -2223,26 +2225,45 @@ class RectangleCalculatorThread {
       }
     }
 
-    if (way.containsKey('waterway')) {
-      infoPageNotifier.value = way['waterway'].toString().toUpperCase();
-      if (!_waterVoice) {
-        voicePromptEvents.emit('WATER');
-        _waterVoice = true;
+    void resolveDangersOnTheRoad(Map<String, dynamic> way) {
+      final hazard = way['hazard'];
+      if (hazard != null) {
+        infoPageNotifier.value = hazard.toString().toUpperCase();
+        if (!_hazardVoice) {
+          voicePromptEvents.emit('HAZARD');
+          _hazardVoice = true;
+        }
+      } else {
+        if (_hazardVoice) {
+          _hazardVoice = false;
+        }
+        if (infoPageNotifier.value != null &&
+            infoPageNotifier.value!.isNotEmpty) {
+          infoPageNotifier.value = null;
+        }
       }
-    } else {
-      if (_waterVoice) {
-        _waterVoice = false;
-      }
-    }
 
-    if (way.containsKey('access') && way['access'] != 'yes') {
-      if (!_accessControlVoice) {
-        voicePromptEvents.emit('ACCESS_CONTROL');
-        _accessControlVoice = true;
+      if (way.containsKey('waterway')) {
+        infoPageNotifier.value = way['waterway'].toString().toUpperCase();
+        if (!_waterVoice) {
+          voicePromptEvents.emit('WATER');
+          _waterVoice = true;
+        }
+      } else {
+        if (_waterVoice) {
+          _waterVoice = false;
+        }
       }
-    } else {
-      if (_accessControlVoice) {
-        _accessControlVoice = false;
+
+      if (way.containsKey('access') && way['access'] != 'yes') {
+        if (!_accessControlVoice) {
+          voicePromptEvents.emit('ACCESS_CONTROL');
+          _accessControlVoice = true;
+        }
+      } else {
+        if (_accessControlVoice) {
+          _accessControlVoice = false;
+        }
       }
     }
   }
@@ -2889,6 +2910,7 @@ class RectangleCalculatorThread {
 
   void updateCamRadius(double value) => camRadiusNotifier.value = value;
   void updateInfoPage(String value) => infoPageNotifier.value = value;
+  void updatePoiCount(int value) => poiCountNotifier.value = value;
   void updateOnlineStatus(bool value) => onlineStatusNotifier.value = value;
   void updateGpsStatus(bool value) => gpsStatusNotifier.value = value;
 
