@@ -840,25 +840,25 @@ class RectangleCalculatorThread {
     await _constructionStreamController.close();
   }
 
-  /// Kick off the asynchronous processing loop.  In Dart we rely on
-  /// asynchronous streams rather than OS threads.  This method listens for
-  /// incoming vector samples and processes them sequentially.  If
-  /// [_running] becomes false the loop exits gracefully.
+  /// Kick off the asynchronous processing loop.  New vector samples are
+  /// consumed immediately while heavy processing occurs on detached futures so
+  /// that reception of subsequent samples is never blocked.
   void _start() {
     if (_loopStarted) return;
     _loopStarted = true;
-    _vectorStreamController.stream
-        .asyncMap((vector) async {
-          if (!_running) return null;
-          try {
-            await _processVector(vector);
-          } catch (e, stack) {
-            // Catch and log unexpected exceptions; avoid killing the stream.
-            logger.printLogLine('RectangleCalculatorThread error: $e\n$stack');
-          }
-          return null;
-        })
-        .listen((_) {});
+    _vectorStreamController.stream.listen((vector) {
+      if (!_running) return;
+      // Process each vector on a separate task to avoid delaying the stream.
+      unawaited(Future(() async {
+        try {
+          await _processVector(vector);
+        } catch (e, stack) {
+          // Catch and log unexpected exceptions; avoid killing the stream.
+          logger
+              .printLogLine('RectangleCalculatorThread error: $e\n$stack');
+        }
+      }));
+    });
   }
 
   /// Process a single vector sample.  This routine extracts the relevant
