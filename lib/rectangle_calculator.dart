@@ -218,21 +218,39 @@ class OsmLookupResult {
 /// purposes of this port the model is treated as an opaque object and the
 /// prediction logic is encapsulated in a standalone function.
 class PredictiveModel {
-  /// Path to the helper Python script that performs inference using the
-  /// trained scikit-learn model.  By default the script bundled in the
-  /// repository under `python/ai` is used.
-  final String scriptPath;
+  /// List of known camera coordinates loaded from `training.json`.
+  final List<Point<double>> cameras;
 
-  PredictiveModel({String? scriptPath})
-      : scriptPath = scriptPath ??
-            p.join(Directory.current.path, 'python', 'ai', 'predict_camera.py');
+  PredictiveModel._(this.cameras);
+
+  /// Load the training data used for the lightweight predictive model. The
+  /// file lives under `python/ai` in the repository. Each entry in the JSON
+  /// contains one or more latitude/longitude pairs describing the position of a
+  /// fixed speed camera.
+  factory PredictiveModel({String? trainingFile}) {
+    final path = trainingFile ??
+        p.join(Directory.current.path, 'python', 'ai', 'training.json');
+    final data =
+        jsonDecode(File(path).readAsStringSync()) as Map<String, dynamic>;
+    final cams = <Point<double>>[];
+    for (final cam in data['cameras'] as List<dynamic>) {
+      final coords = cam['coordinates'] as List<dynamic>;
+      for (final coord in coords) {
+        cams.add(Point<double>(
+          (coord['latitude'] as num).toDouble(),
+          (coord['longitude'] as num).toDouble(),
+        ));
+      }
+    }
+    return PredictiveModel._(cams);
+  }
 }
 
-/// Predict whether a speed camera lies ahead of the vehicle by delegating the
-/// work to the Python implementation of the predictive model.  The Python
-/// helper script loads the ``speed_camera_model.pkl`` file from the
-/// ``python/ai`` directory and returns the predicted latitude/longitude as a
-/// JSON array.
+/// Predict whether a speed camera lies ahead of the vehicle using a very
+/// simple nearest-neighbour search over the training coordinates.  The original
+/// Python implementation employed a scikit-learn model which is not available
+/// in a pure Dart environment; this replacement provides a lightweight
+/// approximation so the application can run without invoking Python.
 Future<SpeedCameraEvent?> predictSpeedCamera({
   required PredictiveModel model,
   required double latitude,
@@ -240,33 +258,25 @@ Future<SpeedCameraEvent?> predictSpeedCamera({
   required String timeOfDay,
   required String dayOfWeek,
 }) async {
-  try {
-    final result = await Process.run(
-      'python',
-      [
-        model.scriptPath,
-        latitude.toString(),
-        longitude.toString(),
-        timeOfDay,
-        dayOfWeek,
-      ],
-    );
-    if (result.exitCode != 0) return null;
-    final output = result.stdout.toString().trim();
-    final coords = jsonDecode(output);
-    if (coords is List && coords.length >= 2) {
-      return SpeedCameraEvent(
-        latitude: (coords[0] as num).toDouble(),
-        longitude: (coords[1] as num).toDouble(),
-        predictive: true,
-      );
+  if (model.cameras.isEmpty) return null;
+  final current = Point<double>(latitude, longitude);
+  Point<double>? best;
+  var bestDist = double.infinity;
+  for (final cam in model.cameras) {
+    final dx = current.x - cam.x;
+    final dy = current.y - cam.y;
+    final dist = math.sqrt(dx * dx + dy * dy);
+    if (dist < bestDist) {
+      bestDist = dist;
+      best = cam;
     }
-  } catch (e) {
-    // Swallow errors and fall through to returning null so that a failure in
-    // the external model does not crash the application.
-    print('Error occurred while predicting speed camera: $e');
   }
-  return null;
+  if (best == null) return null;
+  return SpeedCameraEvent(
+    latitude: best.x,
+    longitude: best.y,
+    predictive: true,
+  );
 }
 
 /// Record a newly detected camera to persistent storage (a JSON file) and
