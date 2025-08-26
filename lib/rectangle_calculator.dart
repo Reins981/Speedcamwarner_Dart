@@ -379,6 +379,9 @@ class RectangleCalculatorThread {
   /// listened to`` exception.
   bool _loopStarted = false;
 
+  /// Chain of pending vector processing tasks to keep lookups sequential.
+  Future<void> _processingChain = Future.value();
+
   /// The current zoom level used when converting between tiles and
   /// latitude/longitude.  You may expose this as a public field if your map
   /// layer needs to remain in sync with the calculator.
@@ -853,15 +856,13 @@ class RectangleCalculatorThread {
     _loopStarted = true;
     _vectorStreamController.stream.listen((vector) {
       if (!_running) return;
-      // Process each vector on a separate task to avoid delaying the stream.
-      unawaited(Future(() async {
+      _processingChain = _processingChain.then((_) async {
         try {
           await _processVector(vector);
         } catch (e, stack) {
-          // Catch and log unexpected exceptions; avoid killing the stream.
           logger.printLogLine('RectangleCalculatorThread error: $e\n$stack');
         }
-      }));
+      });
     });
   }
 
