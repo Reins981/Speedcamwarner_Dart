@@ -21,6 +21,7 @@ import 'dart:io';
 import 'dart:math' as math;
 import 'dart:math' show Point;
 import 'package:path/path.dart' as p;
+import 'package:synchronized/synchronized.dart';
 
 import 'package:flutter/foundation.dart';
 import 'package:latlong2/latlong.dart';
@@ -218,39 +219,21 @@ class OsmLookupResult {
 /// purposes of this port the model is treated as an opaque object and the
 /// prediction logic is encapsulated in a standalone function.
 class PredictiveModel {
-  /// List of known camera coordinates loaded from `training.json`.
-  final List<Point<double>> cameras;
+  /// Path to the helper Python script that performs inference using the
+  /// trained scikit-learn model.  By default the script bundled in the
+  /// repository under `python/ai` is used.
+  final String scriptPath;
 
-  PredictiveModel._(this.cameras);
-
-  /// Load the training data used for the lightweight predictive model. The
-  /// file lives under `python/ai` in the repository. Each entry in the JSON
-  /// contains one or more latitude/longitude pairs describing the position of a
-  /// fixed speed camera.
-  factory PredictiveModel({String? trainingFile}) {
-    final path = trainingFile ??
-        p.join(Directory.current.path, 'python', 'ai', 'training.json');
-    final data =
-        jsonDecode(File(path).readAsStringSync()) as Map<String, dynamic>;
-    final cams = <Point<double>>[];
-    for (final cam in data['cameras'] as List<dynamic>) {
-      final coords = cam['coordinates'] as List<dynamic>;
-      for (final coord in coords) {
-        cams.add(Point<double>(
-          (coord['latitude'] as num).toDouble(),
-          (coord['longitude'] as num).toDouble(),
-        ));
-      }
-    }
-    return PredictiveModel._(cams);
-  }
+  PredictiveModel({String? scriptPath})
+      : scriptPath = scriptPath ??
+            p.join(Directory.current.path, 'python', 'ai', 'predict_camera.py');
 }
 
-/// Predict whether a speed camera lies ahead of the vehicle using a very
-/// simple nearest-neighbour search over the training coordinates.  The original
-/// Python implementation employed a scikit-learn model which is not available
-/// in a pure Dart environment; this replacement provides a lightweight
-/// approximation so the application can run without invoking Python.
+/// Predict whether a speed camera lies ahead of the vehicle by delegating the
+/// work to the Python implementation of the predictive model.  The Python
+/// helper script loads the ``speed_camera_model.pkl`` file from the
+/// ``python/ai`` directory and returns the predicted latitude/longitude as a
+/// JSON array.
 Future<SpeedCameraEvent?> predictSpeedCamera({
   required PredictiveModel model,
   required double latitude,
@@ -258,25 +241,33 @@ Future<SpeedCameraEvent?> predictSpeedCamera({
   required String timeOfDay,
   required String dayOfWeek,
 }) async {
-  if (model.cameras.isEmpty) return null;
-  final current = Point<double>(latitude, longitude);
-  Point<double>? best;
-  var bestDist = double.infinity;
-  for (final cam in model.cameras) {
-    final dx = current.x - cam.x;
-    final dy = current.y - cam.y;
-    final dist = math.sqrt(dx * dx + dy * dy);
-    if (dist < bestDist) {
-      bestDist = dist;
-      best = cam;
+  try {
+    final result = await Process.run(
+      'python',
+      [
+        model.scriptPath,
+        latitude.toString(),
+        longitude.toString(),
+        timeOfDay,
+        dayOfWeek,
+      ],
+    );
+    if (result.exitCode != 0) return null;
+    final output = result.stdout.toString().trim();
+    final coords = jsonDecode(output);
+    if (coords is List && coords.length >= 2) {
+      return SpeedCameraEvent(
+        latitude: (coords[0] as num).toDouble(),
+        longitude: (coords[1] as num).toDouble(),
+        predictive: true,
+      );
     }
+  } catch (e) {
+    // Swallow errors and fall through to returning null so that a failure in
+    // the external model does not crash the application.
+    print('Error occurred while predicting speed camera: $e');
   }
-  if (best == null) return null;
-  return SpeedCameraEvent(
-    latitude: best.x,
-    longitude: best.y,
-    predictive: true,
-  );
+  return null;
 }
 
 /// Record a newly detected camera to persistent storage (a JSON file) and
@@ -382,15 +373,65 @@ class RectangleCalculatorThread {
   bool _running = true;
   bool get isRunning => _running;
 
+  /// Whether a camera lookup is in progress.
+  bool _camLookupInProgress = false;
+  bool get camLookupInProgress => _camLookupInProgress;
+  set camLookupInProgress(bool value) {
+    _camLookupInProgress = value;
+  }
+
+  bool _constructionLookupInProgress = false;
+  bool get constructionLookupInProgress => _constructionLookupInProgress;
+  set constructionLookupInProgress(bool value) {
+    _constructionLookupInProgress = value;
+  }
+
+  bool _predictiveSpeedLookupInProgress = false;
+  bool get predictiveSpeedLookupInProgress => _predictiveSpeedLookupInProgress;
+  set predictiveSpeedLookupInProgress(bool value) {
+    _predictiveSpeedLookupInProgress = value;
+  }
+
+  final Lock _speedCamLock = Lock();
+  final Lock _constructionLock = Lock();
+  final Lock _predictiveCamLock = Lock();
+
+  Future<void> setSpeedCamFlag(bool value) async {
+    await _speedCamLock.synchronized(() async {
+      // only one thread/future can execute this at a time
+      print('Setting flag from $camLookupInProgress to $value');
+      await Future.delayed(Duration(milliseconds: 10));
+      camLookupInProgress = value;
+      print('Flag is now $camLookupInProgress');
+    });
+  }
+
+  Future<void> setConstructionFlag(bool value) async {
+    await _constructionLock.synchronized(() async {
+      // only one thread/future can execute this at a time
+      print('Setting flag from $constructionLookupInProgress to $value');
+      await Future.delayed(Duration(milliseconds: 10));
+      constructionLookupInProgress = value;
+      print('Flag is now $constructionLookupInProgress');
+    });
+  }
+
+  Future<void> setPredictiveCamFlag(bool value) async {
+    await _predictiveCamLock.synchronized(() async {
+      // only one thread/future can execute this at a time
+      print('Setting flag from $predictiveSpeedLookupInProgress to $value');
+      await Future.delayed(Duration(milliseconds: 10));
+      predictiveSpeedLookupInProgress = value;
+      print('Flag is now $predictiveSpeedLookupInProgress');
+    });
+  }
+
   /// Guard to ensure the processing loop is only attached once.  The
   /// constructor calls [_start] and some external code may invoke [run]
   /// for API parity.  Without this flag the stream would be listened to
   /// multiple times which throws a ``Bad state: Stream has already been
   /// listened to`` exception.
   bool _loopStarted = false;
-
-  /// Chain of pending vector processing tasks to keep lookups sequential.
-  Future<void> _processingChain = Future.value();
 
   /// The current zoom level used when converting between tiles and
   /// latitude/longitude.  You may expose this as a public field if your map
@@ -542,11 +583,11 @@ class RectangleCalculatorThread {
   /// from [dosAttackPreventionIntervalDownloads] to reduce the frequency of
   /// construction related requests which are less time critical than speed
   /// camera updates.
-  double constructionAreaLookupInterval = 60.0;
+  double constructionAreaLookupInterval = 20.0;
 
   /// Disable construction lookups during application start up for this many
   /// seconds.
-  double constructionAreaStartupTriggerMax = 30.0;
+  double constructionAreaStartupTriggerMax = 60.0;
 
   /// Track the last execution time of look‑ahead routines.
   final Map<String, DateTime> _lastLookaheadExecution = {};
@@ -866,13 +907,15 @@ class RectangleCalculatorThread {
     _loopStarted = true;
     _vectorStreamController.stream.listen((vector) {
       if (!_running) return;
-      _processingChain = _processingChain.then((_) async {
+      // Process each vector on a separate task to avoid delaying the stream.
+      unawaited(Future(() async {
         try {
           await _processVector(vector);
         } catch (e, stack) {
+          // Catch and log unexpected exceptions; avoid killing the stream.
           logger.printLogLine('RectangleCalculatorThread error: $e\n$stack');
         }
-      });
+      }));
     });
   }
 
@@ -918,98 +961,67 @@ class RectangleCalculatorThread {
     _tileCache['xtile'] = xtile;
     _tileCache['ytile'] = ytile;
 
-    // Compute look-ahead distances based on the current speed.  Separate
-    // maxima are used for cameras and construction areas.
-    final double camLookAheadKm = _computeLookAheadDistance(
-      speedKmH,
-      maxSpeedCamLookAheadDistance,
-    );
-    speedCamLookAheadDistance = camLookAheadKm;
-    final double constructionLookAheadKm = _computeLookAheadDistance(
-      speedKmH,
-      maxConstructionAreaLookaheadDistance,
-    );
-    constructionAreaLookaheadDistance = constructionLookAheadKm;
-    if (calculateNewRect) {
-      final GeoRect? rect = _computeBoundingRect_simple(
-        latitude,
-        longitude,
-        camLookAheadKm,
-        'camera',
-      );
-      currentRectAngle = bearing;
-      _rectangleStreamController
-        ..add(null)
-        ..add(rect);
-    } else {
-      logger.printLogLine('No new camera rectangle to add');
-    }
-    if (calculateNewRectConstruction) {
-      final GeoRect? rect = _computeBoundingRect_simple(
-        latitude,
-        longitude,
-        constructionLookAheadKm,
-        'construction',
-      );
-      currentRectAngle = bearing;
-
-      ///_constructionStreamController.add(rect);
-    } else {
-      logger.printLogLine('No new construction area rectangle to add');
-    }
-
     // Predictive camera detection.  Evaluate the model with the current
     // coordinates and time.  This call is asynchronous to permit future
     // integration with remote services.
-    final now = DateTime.now();
-    final timeOfDay = _formatTimeOfDay(now);
-    final dayOfWeek = _formatDayOfWeek(now);
-    final SpeedCameraEvent? predicted = await predictSpeedCamera(
-      model: _predictiveModel,
-      latitude: latitude,
-      longitude: longitude,
-      timeOfDay: timeOfDay,
-      dayOfWeek: dayOfWeek,
-    );
-    if (predicted != null) {
-      logger.printLogLine(
-        'Predictive camera detected at ${predicted.latitude}, ${predicted.longitude}',
+    if (!predictiveSpeedLookupInProgress) {
+      await setPredictiveCamFlag(true);
+      final now = DateTime.now();
+      final timeOfDay = _formatTimeOfDay(now);
+      final dayOfWeek = _formatDayOfWeek(now);
+      final SpeedCameraEvent? predicted = await processPredictiveCameras(
+        longitude,
+        latitude,
       );
-      final roadName = await getRoadNameViaNominatim(latitude, longitude);
-      predicted.name = roadName ?? '';
-      // If a camera was predicted ahead, publish it on the camera stream and
-      // optionally record it to persistent storage.
-      _cameraStreamController.add(predicted);
+      if (predicted != null) {
+        logger.printLogLine(
+          'Predictive camera detected at ${predicted.latitude}, ${predicted.longitude}',
+        );
+        final roadName = await getRoadNameViaNominatim(latitude, longitude);
+        predicted.name = roadName ?? '';
+        // If a camera was predicted ahead, publish it on the camera stream and
+        // optionally record it to persistent storage.
+        _cameraStreamController.add(predicted);
 
-      logger.printLogLine('Emitting camera event: $predicted');
-      _speedCamEventController.add(
-        Timestamped<Map<String, dynamic>>({
-          'bearing': 0.0,
-          'stable_ccp': ccpStable,
-          'ccp': ['IGNORE', 'IGNORE'],
-          'fix_cam': [false, 0.0, 0.0, true],
-          'traffic_cam': [false, 0.0, 0.0, true],
-          'distance_cam': [false, 0.0, 0.0, true],
-          'mobile_cam': [true, predicted.longitude, predicted.latitude, true],
-          'ccp_node': ['IGNORE', 'IGNORE'],
-          'list_tree': [null, null],
-          'name': predicted.name,
-          'maxspeed': null,
-          'direction': '',
-          'predictive': true,
-        }),
-      );
-      await uploadCameraToDriveMethod(
-        roadNameNotifier.value,
-        predicted.latitude,
-        predicted.longitude,
-        camType: predicted.name,
-      );
+        logger.printLogLine('Emitting camera event: $predicted');
+        _speedCamEventController.add(
+          Timestamped<Map<String, dynamic>>({
+            'bearing': 0.0,
+            'stable_ccp': ccpStable,
+            'ccp': ['IGNORE', 'IGNORE'],
+            'fix_cam': [false, 0.0, 0.0, true],
+            'traffic_cam': [false, 0.0, 0.0, true],
+            'distance_cam': [false, 0.0, 0.0, true],
+            'mobile_cam': [true, predicted.longitude, predicted.latitude, true],
+            'ccp_node': ['IGNORE', 'IGNORE'],
+            'list_tree': [null, null],
+            'name': predicted.name,
+            'maxspeed': null,
+            'direction': '',
+            'predictive': true,
+          }),
+        );
+        await uploadCameraToDriveMethod(
+          roadNameNotifier.value,
+          predicted.latitude,
+          predicted.longitude,
+          camType: predicted.name,
+        );
+        await setPredictiveCamFlag(false);
+      }
     }
 
     if (camerasLookAheadMode) {
-      logger.printLogLine('Triggering camera lookahead');
-      await processLookaheadItems(_applicationStartTime);
+      if (!camLookupInProgress) {
+        logger.printLogLine('Triggering camera lookahead');
+        await processLookaheadItemsSpeedCameras(
+            _applicationStartTime, speedKmH, bearing);
+      }
+      if (!constructionLookupInProgress) {
+        logger.printLogLine('Triggering construction area lookahead');
+        await processLookaheadItemsConstruction(
+            _applicationStartTime, speedKmH, bearing);
+      }
     }
 
     // Inform the overspeed checker about the latest speed limit so it can
@@ -1809,12 +1821,37 @@ class RectangleCalculatorThread {
   /// Trigger asynchronous look‑ahead downloads for speed cameras and
   /// construction areas.  ``previousCcp`` reuses cached coordinates from the
   /// last stable CCP.
-  Future<void> processLookaheadItems(DateTime applicationStartTime) async {
+  Future<void> processLookaheadItemsSpeedCameras(
+      DateTime applicationStartTime, double speedKmH, double bearing) async {
+    await setSpeedCamFlag(true);
     logger.printLogLine('processLookaheadItems');
     double xtile;
     double ytile;
     double ccpLon;
     double ccpLat;
+
+    // Compute look-ahead distances based on the current speed.  Separate
+    // maxima are used for cameras and construction areas.
+    final double camLookAheadKm = _computeLookAheadDistance(
+      speedKmH,
+      maxSpeedCamLookAheadDistance,
+    );
+    speedCamLookAheadDistance = camLookAheadKm;
+
+    if (calculateNewRect) {
+      final GeoRect? rect = _computeBoundingRect_simple(
+        latitude,
+        longitude,
+        camLookAheadKm,
+        'camera',
+      );
+      currentRectAngle = bearing;
+      _rectangleStreamController
+        ..add(null)
+        ..add(rect);
+    } else {
+      logger.printLogLine('No new camera rectangle to add');
+    }
 
     final p = longLatToTile(latitude, longitude, zoom);
     xtile = p.x;
@@ -1830,9 +1867,6 @@ class RectangleCalculatorThread {
       'Lookahead for tiles ($xtile,$ytile) at ($ccpLat,$ccpLon)',
     );
 
-    // Process predictive cameras
-    await processPredictiveCameras(ccpLon, ccpLat);
-
     final lookups = [
       {
         'rect': rectSpeedCamLookahead,
@@ -1841,14 +1875,6 @@ class RectangleCalculatorThread {
         'msg': 'Speed Camera lookahead',
         'trigger': speedCamLookupAhead,
         'type': 'camera',
-      },
-      {
-        'rect': rectConstructionAreasLookahead,
-        'geoRect': rectConstructionAreasLookaheadGeo,
-        'func': RectangleCalculatorThread.startThreadPoolConstructionAreas,
-        'msg': 'Construction area lookahead',
-        'trigger': constructionsLookupAhead,
-        'type': 'construction',
       },
     ];
 
@@ -1875,18 +1901,13 @@ class RectangleCalculatorThread {
           );
           if (inside && !close) {
             logger.printLogLine('Skipping $msg - inside existing lookahead');
-            if (rectType == 'camera') calculateNewRect = false;
-            if (rectType == 'construction') {
-              calculateNewRectConstruction = false;
-            }
+            calculateNewRect = false;
             continue;
           }
-          if (rectType == 'camera') calculateNewRect = true;
-          if (rectType == 'construction') calculateNewRectConstruction = true;
+          calculateNewRect = true;
         }
       } else {
         calculateNewRect = false;
-        calculateNewRectConstruction = false;
       }
 
       final now = DateTime.now();
@@ -1929,6 +1950,133 @@ class RectangleCalculatorThread {
       logger.printLogLine('$msg lookup finished');
       _lastLookaheadExecution[msg] = DateTime.now();
     }
+    await setSpeedCamFlag(false);
+  }
+
+  Future<void> processLookaheadItemsConstruction(
+      DateTime applicationStartTime, double speedKmH, double bearing) async {
+    await setConstructionFlag(true);
+    logger.printLogLine('processLookaheadItems');
+    double xtile;
+    double ytile;
+    double ccpLon;
+    double ccpLat;
+
+    final double constructionLookAheadKm = _computeLookAheadDistance(
+      speedKmH,
+      maxConstructionAreaLookaheadDistance,
+    );
+    constructionAreaLookaheadDistance = constructionLookAheadKm;
+
+    if (calculateNewRectConstruction) {
+      final GeoRect? rect = _computeBoundingRect_simple(
+        latitude,
+        longitude,
+        constructionLookAheadKm,
+        'construction',
+      );
+      currentRectAngle = bearing;
+
+      _constructionStreamController.add(rect);
+    } else {
+      logger.printLogLine('No new construction area rectangle to add');
+    }
+
+    final p = longLatToTile(latitude, longitude, zoom);
+    xtile = p.x;
+    ytile = p.y;
+    xtileCached = xtile;
+    ytileCached = ytile;
+    longitudeCached = longitude;
+    latitudeCached = latitude;
+    ccpLon = longitude;
+    ccpLat = latitude;
+
+    logger.printLogLine(
+      'Lookahead for tiles ($xtile,$ytile) at ($ccpLat,$ccpLon)',
+    );
+
+    final lookups = [
+      {
+        'rect': rectConstructionAreasLookahead,
+        'geoRect': rectConstructionAreasLookaheadGeo,
+        'func': RectangleCalculatorThread.startThreadPoolConstructionAreas,
+        'msg': 'Construction area lookahead',
+        'trigger': constructionsLookupAhead,
+        'type': 'construction',
+      },
+    ];
+
+    for (final item in lookups) {
+      final Rect? rect = item['rect'] as Rect?;
+      final String msg = item['msg'] as String;
+      final String rectType = item['type'] as String;
+      final func = item['func'] as Future<void> Function(
+        Future<void> Function(GeoRect),
+        int,
+        GeoRect,
+      );
+      final trigger = item['trigger'] as Future<void> Function(GeoRect);
+
+      if (rect != null) {
+        final GeoRect? geoRect = item['geoRect'] as GeoRect?;
+        if (geoRect != null) {
+          final inside = geoRect.geoPointInRect(latitude, longitude);
+          final close = geoRect.pointsCloseToBorderLatLon(
+            latitude,
+            longitude,
+            lookAhead: true,
+            lookAheadMode: msg,
+          );
+          if (inside && !close) {
+            logger.printLogLine('Skipping $msg - inside existing lookahead');
+            calculateNewRectConstruction = false;
+            continue;
+          }
+          calculateNewRectConstruction = true;
+        }
+      } else {
+        calculateNewRectConstruction = false;
+      }
+
+      final now = DateTime.now();
+      final last = _lastLookaheadExecution[msg];
+      final rateLimit = msg == 'Construction area lookahead'
+          ? constructionAreaLookupInterval
+          : dosAttackPreventionIntervalDownloads;
+      if (last != null) {
+        final elapsed = now.difference(last).inMilliseconds / 1000;
+        if (elapsed < rateLimit) {
+          final wait = (rateLimit - elapsed).toStringAsFixed(1);
+          logger.printLogLine(
+              'Skipping ' + msg + ' - rate limited (wait ' + wait + 's)');
+          continue;
+        }
+      }
+
+      if (msg == 'Construction area lookahead') {
+        final elapsed =
+            DateTime.now().difference(applicationStartTime).inSeconds;
+        if (elapsed <= constructionAreaStartupTriggerMax) {
+          logger.printLogLine('Skipping $msg during startup grace period');
+          continue;
+        }
+      }
+
+      logger.printLogLine('Executing $msg lookup');
+      if (msg == 'Speed Camera lookahead') {
+        rectSpeedCamLookahead = lastRect;
+        rectSpeedCamLookaheadGeo = lastGeoRect;
+        await func(trigger, 1, lastGeoRect!);
+      } else if (msg == 'Construction area lookahead') {
+        rectConstructionAreasLookahead = lastRectConstruction;
+        rectConstructionAreasLookaheadGeo = lastGeoRectConstruction;
+        await func(trigger, 1, lastGeoRectConstruction!);
+      }
+      logger.printLogLine('$msg lookup finished');
+      _lastLookaheadExecution[msg] = DateTime.now();
+    }
+    await setConstructionFlag(false);
   }
 
   /// Process construction area lookup results and append them to the internal
