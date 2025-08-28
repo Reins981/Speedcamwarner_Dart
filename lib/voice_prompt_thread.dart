@@ -83,6 +83,7 @@ class VoicePromptThread {
   Future<void> playSound(String fileName) async {
     _lock = true;
     try {
+      await _audioPlayer.setSource(AssetSource('$_basePath/$fileName'));
       await _audioPlayer.play(AssetSource('$_basePath/$fileName'));
     } catch (e) {
       print('Error playing sound: $e');
