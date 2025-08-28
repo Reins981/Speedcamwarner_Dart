@@ -228,12 +228,10 @@ class PredictiveModel {
   /// file lives under `python/ai` in the repository. Each entry in the JSON
   /// contains one or more latitude/longitude pairs describing the position of a
   /// fixed speed camera.
-  factory PredictiveModel({String? trainingFile}) {
-    final path = trainingFile ??
-        p.join(Directory.current.path, 'python', 'ai', 'training.json');
+  static Future<PredictiveModel> load({String? trainingFile}) async {
+    final path = trainingFile ?? '/python/ai/training.json';
     print('Loading training data from $path');
-    final data =
-        jsonDecode(File(path).readAsStringSync()) as Map<String, dynamic>;
+    final data = await AppConfig.loadAssetConfig(path);
     final cams = <math.Point<double>>[];
     for (final cam in data['cameras'] as List<dynamic>) {
       final coords = cam['coordinates'] as List<dynamic>;
@@ -371,7 +369,7 @@ class RectangleCalculatorThread {
       StreamController<GeoRect?>.broadcast();
 
   /// The predictive model used by [predictSpeedCamera].
-  final PredictiveModel _predictiveModel;
+  late final PredictiveModel _predictiveModel;
 
   /// Event bus used to emit voice prompts for camera events and system messages.
   final VoicePromptEvents voicePromptEvents;
@@ -517,6 +515,7 @@ class RectangleCalculatorThread {
   final ValueNotifier<int> constructionAreaCountNotifier = ValueNotifier<int>(
     0,
   );
+
   /// Tracks the number of POIs returned by the last lookup.
   final ValueNotifier<int> poiCountNotifier = ValueNotifier<int>(0);
   final ValueNotifier<bool> onlineStatusNotifier = ValueNotifier<bool>(false);
@@ -536,9 +535,6 @@ class RectangleCalculatorThread {
   final ValueNotifier<LatLng> positionNotifier = ValueNotifier<LatLng>(
     const LatLng(0, 0),
   );
-
-  /// Tracks the number of POIs returned by the last lookup.
-  final ValueNotifier<int> poiCountNotifier = ValueNotifier<int>(0);
 
   /// If ``true`` points of interest (POIs) are ignored when resolving road
   /// names and max speed values.
@@ -708,15 +704,15 @@ class RectangleCalculatorThread {
   };
 
   RectangleCalculatorThread({
-    PredictiveModel? model,
     VoicePromptEvents? voicePromptEvents,
     required this.overspeedChecker,
     required this.deviationCheckerThread,
-  })  : _predictiveModel = model ?? PredictiveModel(),
-        voicePromptEvents = voicePromptEvents ?? VoicePromptEvents(),
-        mostProbableWay = MostProbableWay() {
+  })  : voicePromptEvents = voicePromptEvents ?? VoicePromptEvents(),
+        mostProbableWay = MostProbableWay();
+
+  Future<void> init() async {
+    _predictiveModel = await PredictiveModel.load();
     _loadConfigs();
-    _start();
   }
 
   /// Update run‑time configuration values.  The map [configs] is merged into an

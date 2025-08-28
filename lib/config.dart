@@ -22,6 +22,12 @@ class AppConfig {
     _values = values;
   }
 
+  static Future<Map<String, dynamic>> loadAssetConfig(String path) async {
+    final jsonString = await rootBundle.loadString(path);
+    final data = jsonDecode(jsonString) as Map<String, dynamic>;
+    return data;
+  }
+
   /// Retrieve a configuration value using dot separated [path] notation.
   /// Returns `null` if the key does not exist or if [T] does not match.
   static T? get<T>(String path) {
