@@ -195,8 +195,9 @@ class AppController {
       gpxFile: gpxFile,
       positionStream: positionStream,
     );
-    gps.start(source: locationManager.stream);
+    await calculator.init();
     calculator.run();
+    gps.start(source: locationManager.stream);
     deviationChecker.start();
     _running = true;
   }
