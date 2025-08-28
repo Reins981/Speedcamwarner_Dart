@@ -151,7 +151,7 @@ class _DashboardPageState extends State<DashboardPage> {
     } else {
       colors = [Colors.red, Colors.red.shade900];
     }
-    return colors.map((c) => c.withOpacity(0.9)).toList();
+    return colors.map((c) => c.withOpacity(0.5)).toList();
   }
 
   void _clearCameraInfo() {
