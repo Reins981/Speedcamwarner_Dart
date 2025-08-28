@@ -221,6 +221,52 @@ class _DashboardPageState extends State<DashboardPage> {
     });
   }
 
+  Future<void> _selectPoiLookup() async {
+    String selected = 'hospital';
+    final type = await showDialog<String>(
+      context: context,
+      builder: (context) {
+        return AlertDialog(
+          title: const Text('POI lookup'),
+          content: StatefulBuilder(
+            builder: (context, setState) {
+              return Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  RadioListTile<String>(
+                    title: const Text('Hospitals'),
+                    value: 'hospital',
+                    groupValue: selected,
+                    onChanged: (v) => setState(() => selected = v!),
+                  ),
+                  RadioListTile<String>(
+                    title: const Text('Gas stations'),
+                    value: 'fuel',
+                    groupValue: selected,
+                    onChanged: (v) => setState(() => selected = v!),
+                  ),
+                ],
+              );
+            },
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context),
+              child: const Text('Cancel'),
+            ),
+            ElevatedButton(
+              onPressed: () => Navigator.pop(context, selected),
+              child: const Text('Search'),
+            ),
+          ],
+        );
+      },
+    );
+    if (type != null) {
+      await _controller?.lookupPois(type);
+    }
+  }
+
   @override
   void dispose() {
     if (_calculator != null) {
@@ -293,6 +339,12 @@ class _DashboardPageState extends State<DashboardPage> {
         mainAxisAlignment: MainAxisAlignment.end,
         crossAxisAlignment: CrossAxisAlignment.end,
         children: [
+          FloatingActionButton(
+            onPressed: _selectPoiLookup,
+            tooltip: 'Find POIs',
+            child: const Icon(Icons.location_searching),
+          ),
+          const SizedBox(height: 8),
           FloatingActionButton(
             onPressed: _addCamera,
             tooltip: 'Add police camera',
