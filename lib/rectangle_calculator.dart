@@ -163,7 +163,7 @@ class SpeedCameraEvent {
   final bool distance;
   final bool mobile;
   final bool predictive;
-  String name;
+  String? name;
   final int? maxspeed;
 
   SpeedCameraEvent({
@@ -174,7 +174,7 @@ class SpeedCameraEvent {
     this.distance = false,
     this.mobile = false,
     this.predictive = false,
-    this.name = '',
+    this.name,
     this.maxspeed,
   });
 
@@ -286,14 +286,14 @@ Future<SpeedCameraEvent?> predictSpeedCamera({
 /// the upload succeeded.
 Future<(bool, String?)> uploadCameraToDrive({
   required String name,
-  required String roadName,
+  required String? roadName,
   required double latitude,
   required double longitude,
 }) async {
   await ServiceAccount.init();
   final (added, status) = await ServiceAccount.addCameraToJson(
     name,
-    roadName,
+    roadName ?? "Unknown",
     latitude,
     longitude,
   );
@@ -355,18 +355,18 @@ class RectangleCalculatorThread {
   /// Controller used to broadcast detected speed camera events.  Multiple
   /// listeners may subscribe and react (e.g. warn the user or annotate a map).
   final StreamController<SpeedCameraEvent> _cameraStreamController =
-      StreamController<SpeedCameraEvent>.broadcast();
+      StreamController<SpeedCameraEvent>.broadcast(sync: true);
 
   /// Stream of legacy speed camera updates in the original map format.
   /// Replaces the old [SpeedCamQueue] mechanism and includes a timestamp for
   /// staleness checks.
   final StreamController<Timestamped<Map<String, dynamic>>>
       _speedCamEventController =
-      StreamController<Timestamped<Map<String, dynamic>>>.broadcast();
+      StreamController<Timestamped<Map<String, dynamic>>>.broadcast(sync: true);
 
   /// Controller used to broadcast newly discovered construction areas.
   final StreamController<GeoRect?> _constructionStreamController =
-      StreamController<GeoRect?>.broadcast();
+      StreamController<GeoRect?>.broadcast(sync: true);
 
   /// The predictive model used by [predictSpeedCamera].
   late final PredictiveModel _predictiveModel;
@@ -381,6 +381,9 @@ class RectangleCalculatorThread {
   /// stop processing samples.
   bool _running = true;
   bool get isRunning => _running;
+
+  bool _predictionsLoaded = false;
+  bool get predictionsLoaded => _predictionsLoaded;
 
   /// Whether a camera lookup is in progress.
   bool _camLookupInProgress = false;
@@ -407,31 +410,19 @@ class RectangleCalculatorThread {
 
   Future<void> setSpeedCamFlag(bool value) async {
     await _speedCamLock.synchronized(() async {
-      // only one thread/future can execute this at a time
-      print('Setting flag from $camLookupInProgress to $value');
-      await Future.delayed(Duration(milliseconds: 10));
       camLookupInProgress = value;
-      print('Flag is now $camLookupInProgress');
     });
   }
 
   Future<void> setConstructionFlag(bool value) async {
     await _constructionLock.synchronized(() async {
-      // only one thread/future can execute this at a time
-      print('Setting flag from $constructionLookupInProgress to $value');
-      await Future.delayed(Duration(milliseconds: 10));
       constructionLookupInProgress = value;
-      print('Flag is now $constructionLookupInProgress');
     });
   }
 
   Future<void> setPredictiveCamFlag(bool value) async {
     await _predictiveCamLock.synchronized(() async {
-      // only one thread/future can execute this at a time
-      print('Setting flag from $predictiveSpeedLookupInProgress to $value');
-      await Future.delayed(Duration(milliseconds: 10));
       predictiveSpeedLookupInProgress = value;
-      print('Flag is now $predictiveSpeedLookupInProgress');
     });
   }
 
@@ -919,6 +910,11 @@ class RectangleCalculatorThread {
       // Process each vector on a separate task to avoid delaying the stream.
       unawaited(Future(() async {
         try {
+          if (_predictionsLoaded == false) {
+            _predictionsLoaded = true;
+            logger.printLogLine('Loading predictive model');
+            await init();
+          }
           await _processVector(vector);
         } catch (e, stack) {
           // Catch and log unexpected exceptions; avoid killing the stream.
@@ -975,9 +971,6 @@ class RectangleCalculatorThread {
     // integration with remote services.
     if (!predictiveSpeedLookupInProgress) {
       await setPredictiveCamFlag(true);
-      final now = DateTime.now();
-      final timeOfDay = _formatTimeOfDay(now);
-      final dayOfWeek = _formatDayOfWeek(now);
       final SpeedCameraEvent? predicted = await processPredictiveCameras(
         longitude,
         latitude,
@@ -986,8 +979,9 @@ class RectangleCalculatorThread {
         logger.printLogLine(
           'Predictive camera detected at ${predicted.latitude}, ${predicted.longitude}',
         );
-        final roadName = await getRoadNameViaNominatim(latitude, longitude);
-        predicted.name = roadName ?? '';
+        final roadName =
+            await RectangleCalculatorThread.getRoadNameViaNominatim(
+                latitude, longitude);
         // If a camera was predicted ahead, publish it on the camera stream and
         // optionally record it to persistent storage.
         _cameraStreamController.add(predicted);
@@ -1004,17 +998,17 @@ class RectangleCalculatorThread {
             'mobile_cam': [true, predicted.longitude, predicted.latitude, true],
             'ccp_node': ['IGNORE', 'IGNORE'],
             'list_tree': [null, null],
-            'name': predicted.name,
+            'name': roadName,
             'maxspeed': null,
             'direction': '',
             'predictive': true,
           }),
         );
         await uploadCameraToDriveMethod(
-          roadNameNotifier.value,
+          roadName ?? "Unknown",
           predicted.latitude,
           predicted.longitude,
-          camType: predicted.name,
+          camType: "AI Camera",
         );
         await setPredictiveCamFlag(false);
       }
@@ -1769,7 +1763,8 @@ class RectangleCalculatorThread {
 
   /// Perform a nominative road name lookup and update UI state accordingly.
   Future<void> processLookAheadInterrupts() async {
-    final roadName = await getRoadNameViaNominatim(latitude, longitude);
+    final roadName = await RectangleCalculatorThread.getRoadNameViaNominatim(
+        latitude, longitude);
     if (roadName != null) {
       if (!roadName.startsWith('ERROR:')) {
         processRoadName(
@@ -1801,7 +1796,7 @@ class RectangleCalculatorThread {
   }
 
   Future<(bool, String?)> uploadCameraToDriveMethod(
-    String roadName,
+    String? roadName,
     double latitude,
     double longitude, {
     String camType = 'Manual Camera',
@@ -1986,7 +1981,7 @@ class RectangleCalculatorThread {
       );
       currentRectAngle = bearing;
 
-      _constructionStreamController.add(rect);
+      ///_constructionStreamController.add(rect);
     } else {
       logger.printLogLine('No new construction area rectangle to add');
     }
@@ -2172,27 +2167,30 @@ class RectangleCalculatorThread {
         dayOfWeek: _formatDayOfWeek(DateTime.now()),
       );
 
-  Future<void> speedCamLookupAhead(
-    GeoRect rect, {
-    http.Client? client,
-  }) async {
+  Future<void> speedCamLookupAhead(GeoRect rect, {http.Client? client}) async {
     logger.printLogLine('speedCamLookupAhead bounds: $rect');
-    for (final type in ['camera_ahead', 'distance_cam']) {
-      logger.printLogLine('speedCamLookupAhead requesting $type');
-      final result = await triggerOsmLookup(
-        rect,
-        lookupType: type,
-        client: client,
-      );
-      logger.printLogLine(
-        'speedCamLookupAhead result for $type success=${result.success} elements=${result.elements?.length ?? 0}',
-      );
-      if (result.success && result.elements != null) {
-        await processSpeedCamLookupAheadResults(
-          result.elements!,
-          type,
-        );
-      }
+
+    final camFuture =
+        triggerOsmLookup(rect, lookupType: 'camera_ahead', client: client);
+    final distFuture =
+        triggerOsmLookup(rect, lookupType: 'distance_cam', client: client);
+
+    final camRes = await camFuture;
+    final distRes = await distFuture;
+
+    logger.printLogLine(
+      'speedCamLookupAhead result for camera_ahead success=${camRes.success} elements=${camRes.elements?.length ?? 0}',
+    );
+    if (camRes.success && camRes.elements != null) {
+      await processSpeedCamLookupAheadResults(camRes.elements!, 'camera_ahead');
+    }
+
+    logger.printLogLine(
+      'speedCamLookupAhead result for distance_cam success=${distRes.success} elements=${distRes.elements?.length ?? 0}',
+    );
+    if (distRes.success && distRes.elements != null) {
+      await processSpeedCamLookupAheadResults(
+          distRes.elements!, 'distance_cam');
     }
   }
 
@@ -2262,17 +2260,6 @@ class RectangleCalculatorThread {
             );
             continue;
           }
-
-          String? roadName;
-          try {
-            roadName = await getRoadNameViaNominatim(lat, lon);
-          } catch (e, stack) {
-            logger.printLogLine(
-              'getRoadNameViaNominatim failed: $e',
-              logLevel: 'ERROR',
-            );
-            logger.printLogLine(stack.toString(), logLevel: 'DEBUG');
-          }
           if (lookupType == 'distance_cam') {
             updateNumberOfDistanceCameras(tags);
             final role = tags['role'];
@@ -2282,7 +2269,7 @@ class RectangleCalculatorThread {
                 latitude: lat,
                 longitude: lon,
                 distance: true,
-                name: tags['name']?.toString() ?? roadName ?? '',
+                name: tags['name']?.toString(),
                 maxspeed: maxspeed,
               );
               _cameraCache.add(cam);
@@ -2299,7 +2286,7 @@ class RectangleCalculatorThread {
               latitude: lat,
               longitude: lon,
               mobile: true,
-              name: tags['name']?.toString() ?? roadName ?? '',
+              name: tags['name']?.toString(),
               maxspeed: maxspeed,
             );
             _cameraCache.add(cam);
@@ -2316,7 +2303,7 @@ class RectangleCalculatorThread {
               latitude: lat,
               longitude: lon,
               fixed: true,
-              name: tags['name']?.toString() ?? roadName ?? '',
+              name: tags['name']?.toString(),
               maxspeed: maxspeed,
             );
             _cameraCache.add(cam);
@@ -2331,7 +2318,7 @@ class RectangleCalculatorThread {
               latitude: lat,
               longitude: lon,
               traffic: true,
-              name: tags['name']?.toString() ?? roadName ?? '',
+              name: tags['name']?.toString(),
               maxspeed: maxspeed,
             );
             _cameraCache.add(cam);
@@ -2353,10 +2340,6 @@ class RectangleCalculatorThread {
       );
       logger.printLogLine(stack.toString(), logLevel: 'DEBUG');
     }
-
-    logger.printLogLine(
-      'Processed ${cams.length} cameras from $lookupType lookup',
-    );
     if (cams.isNotEmpty) {
       logger.printLogLine(
         'Found ${cams.length} cameras from $lookupType lookup',
@@ -2768,7 +2751,9 @@ class RectangleCalculatorThread {
       resolveDangersOnTheRoad(way.tags);
       if (!disableRoadLookup) {
         if (alternativeRoadLookup) {
-          final roadName = await getRoadNameViaNominatim(latitude, longitude);
+          final roadName =
+              await RectangleCalculatorThread.getRoadNameViaNominatim(
+                  latitude, longitude);
           if (roadName != null) {
             processRoadName(
               foundRoadName: true,
@@ -3000,7 +2985,7 @@ class RectangleCalculatorThread {
     }
   }
 
-  Future<String?> getRoadNameViaNominatim(double lat, double lon) async {
+  static Future<String?> getRoadNameViaNominatim(double lat, double lon) async {
     final uri = Uri.parse(
       'https://nominatim.openstreetmap.org/reverse?format=jsonv2&lat=$lat&lon=$lon',
     );

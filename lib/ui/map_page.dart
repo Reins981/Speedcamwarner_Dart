@@ -60,12 +60,12 @@ class _MapPageState extends State<MapPage> {
       child: Image.asset('images/car.png'),
     );
     widget.calculator.positionNotifier.addListener(_updatePosition);
-      _camSub = widget.calculator.cameras.listen(_onCameraEvent);
-      _rectSub = widget.calculator.rectangles.listen(_onRect);
-      _constructionSub = widget.calculator.constructions.listen(
-        _onConstructionArea,
-      );
-      _poiSub = widget.poiStream.listen(_onPois);
+    _camSub = widget.calculator.cameras.listen(_onCameraEvent);
+    _rectSub = widget.calculator.rectangles.listen(_onRect);
+    _constructionSub = widget.calculator.constructions.listen(
+      _onConstructionArea,
+    );
+    _poiSub = widget.poiStream.listen(_onPois);
     // Populate map with already known cameras and construction areas so that
     // opening the map after lookups have finished still shows them.  The
     // streams only emit new items, so we need to manually add existing ones in
@@ -216,12 +216,12 @@ class _MapPageState extends State<MapPage> {
   @override
   void dispose() {
     widget.calculator.positionNotifier.removeListener(_updatePosition);
-      _camSub?.cancel();
-      _rectSub?.cancel();
-      _constructionSub?.cancel();
-      _poiSub?.cancel();
-      super.dispose();
-    }
+    _camSub?.cancel();
+    _rectSub?.cancel();
+    _constructionSub?.cancel();
+    _poiSub?.cancel();
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -243,12 +243,16 @@ class _MapPageState extends State<MapPage> {
               ],
             ),
           if (_gpsMarker != null) MarkerLayer(markers: [_gpsMarker!]),
-            PopupMarkerLayer(
-              options: PopupMarkerLayerOptions(
-                popupController: _popupController,
-                markers: [..._cameraMarkers, ..._constructionMarkers, ..._poiMarkers],
-                popupDisplayOptions: PopupDisplayOptions(
-                  builder: (context, marker) {
+          PopupMarkerLayer(
+            options: PopupMarkerLayerOptions(
+              popupController: _popupController,
+              markers: [
+                ..._cameraMarkers,
+                ..._constructionMarkers,
+                ..._poiMarkers
+              ],
+              popupDisplayOptions: PopupDisplayOptions(
+                builder: (context, marker) {
                   final cam = _markerData[marker];
                   if (cam != null) {
                     final types = <String>[
@@ -266,7 +270,9 @@ class _MapPageState extends State<MapPage> {
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
                             Text(
-                              cam.name.isNotEmpty ? cam.name : 'Speed camera',
+                              (cam.name != null && cam.name!.isNotEmpty)
+                                  ? cam.name!
+                                  : 'Speed camera',
                             ),
                             if (types.isNotEmpty)
                               Text(types, style: const TextStyle(fontSize: 12)),
@@ -290,95 +296,95 @@ class _MapPageState extends State<MapPage> {
           ),
         ],
       ),
-        floatingActionButton: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            FloatingActionButton(
-              onPressed: _addPoliceCamera,
-              tooltip: 'Add police camera',
-              child: const Icon(Icons.local_police),
+      floatingActionButton: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          FloatingActionButton(
+            onPressed: _addPoliceCamera,
+            tooltip: 'Add police camera',
+            child: const Icon(Icons.local_police),
+          ),
+          const SizedBox(height: 16),
+          FloatingActionButton(
+            onPressed: _selectPoiLookup,
+            tooltip: 'Search POIs',
+            child: const Icon(Icons.place),
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _onPois(List<List<double>> pois) {
+    final markers = <Marker>[];
+    final seen = <String>{};
+    for (final poi in pois) {
+      final key = '${poi[0]},${poi[1]}';
+      if (seen.add(key)) {
+        markers.add(
+          Marker(
+            point: LatLng(poi[0], poi[1]),
+            width: 40,
+            height: 40,
+            child: Image.asset('images/poi_marker.png'),
+          ),
+        );
+      }
+    }
+    setState(() {
+      _poiMarkers
+        ..clear()
+        ..addAll(markers);
+    });
+  }
+
+  Future<void> _selectPoiLookup() async {
+    String selected = 'hospital';
+    final type = await showDialog<String>(
+      context: context,
+      builder: (context) {
+        return AlertDialog(
+          title: const Text('POI lookup'),
+          content: StatefulBuilder(
+            builder: (context, setState) {
+              return Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  RadioListTile<String>(
+                    title: const Text('Hospitals'),
+                    value: 'hospital',
+                    groupValue: selected,
+                    onChanged: (v) => setState(() => selected = v!),
+                  ),
+                  RadioListTile<String>(
+                    title: const Text('Gas stations'),
+                    value: 'fuel',
+                    groupValue: selected,
+                    onChanged: (v) => setState(() => selected = v!),
+                  ),
+                ],
+              );
+            },
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context),
+              child: const Text('Cancel'),
             ),
-            const SizedBox(height: 16),
-            FloatingActionButton(
-              onPressed: _selectPoiLookup,
-              tooltip: 'Search POIs',
-              child: const Icon(Icons.place),
+            ElevatedButton(
+              onPressed: () => Navigator.pop(context, selected),
+              child: const Text('Search'),
             ),
           ],
-        ),
-      );
+        );
+      },
+    );
+    if (type != null) {
+      await widget.onPoiLookup(type);
     }
+  }
 
-    void _onPois(List<List<double>> pois) {
-      final markers = <Marker>[];
-      final seen = <String>{};
-      for (final poi in pois) {
-        final key = '${poi[0]},${poi[1]}';
-        if (seen.add(key)) {
-          markers.add(
-            Marker(
-              point: LatLng(poi[0], poi[1]),
-              width: 40,
-              height: 40,
-              child: Image.asset('images/poi_marker.png'),
-            ),
-          );
-        }
-      }
-      setState(() {
-        _poiMarkers
-          ..clear()
-          ..addAll(markers);
-      });
-    }
-
-    Future<void> _selectPoiLookup() async {
-      String selected = 'hospital';
-      final type = await showDialog<String>(
-        context: context,
-        builder: (context) {
-          return AlertDialog(
-            title: const Text('POI lookup'),
-            content: StatefulBuilder(
-              builder: (context, setState) {
-                return Column(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    RadioListTile<String>(
-                      title: const Text('Hospitals'),
-                      value: 'hospital',
-                      groupValue: selected,
-                      onChanged: (v) => setState(() => selected = v!),
-                    ),
-                    RadioListTile<String>(
-                      title: const Text('Gas stations'),
-                      value: 'fuel',
-                      groupValue: selected,
-                      onChanged: (v) => setState(() => selected = v!),
-                    ),
-                  ],
-                );
-              },
-            ),
-            actions: [
-              TextButton(
-                onPressed: () => Navigator.pop(context),
-                child: const Text('Cancel'),
-              ),
-              ElevatedButton(
-                onPressed: () => Navigator.pop(context, selected),
-                child: const Text('Search'),
-              ),
-            ],
-          );
-        },
-      );
-      if (type != null) {
-        await widget.onPoiLookup(type);
-      }
-    }
-
-    String _iconForCamera(SpeedCameraEvent cam) {
+  String _iconForCamera(SpeedCameraEvent cam) {
     if (cam.fixed) return 'images/fixcamera_map.png';
     if (cam.traffic) return 'images/trafficlightcamera_map.jpg';
     if (cam.distance) return 'images/distancecamera_map.jpg';

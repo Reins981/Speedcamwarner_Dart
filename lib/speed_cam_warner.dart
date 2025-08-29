@@ -135,7 +135,7 @@ class SpeedCamWarner {
     _lastPosition = LatLng(vector.latitude, vector.longitude);
   }
 
-  void process(Timestamped<Map<String, dynamic>> envelope) {
+  void process(Timestamped<Map<String, dynamic>> envelope) async {
     logger.printLogLine('Processing speedcam event');
     if (DateTime.now().difference(envelope.timestamp) > _staleThreshold) {
       // Skip stale updates that may arrive out of order.
@@ -188,7 +188,21 @@ class SpeedCamWarner {
         var linkedList = item['list_tree'][0];
         var tree = item['list_tree'][1];
         var startTime = DateTime.now().millisecondsSinceEpoch / 1000.0;
-        var roadname = item['name'];
+
+        String? roadname = item['name'];
+
+        /// First resolve the road name
+        if (roadname == null) {
+          try {
+            roadname = await RectangleCalculatorThread.getRoadNameViaNominatim(
+                camCoordinates[1]!, camCoordinates[0]!);
+          } catch (e) {
+            logger.printLogLine(
+              'getRoadNameViaNominatim failed: $e',
+              logLevel: 'ERROR',
+            );
+          }
+        }
         var maxSpeed = item['maxspeed'];
         var newCam = true;
         var previousLife = 'was_none';
@@ -245,7 +259,21 @@ class SpeedCamWarner {
         var linkedList = item['list_tree'][0];
         var tree = item['list_tree'][1];
         var startTime = DateTime.now().millisecondsSinceEpoch / 1000.0;
-        var roadname = item['name'];
+
+        String? roadname = item['name'];
+
+        /// First resolve the road name
+        if (roadname == null) {
+          try {
+            roadname = await RectangleCalculatorThread.getRoadNameViaNominatim(
+                camCoordinates[1]!, camCoordinates[0]!);
+          } catch (e) {
+            logger.printLogLine(
+              'getRoadNameViaNominatim failed: $e',
+              logLevel: 'ERROR',
+            );
+          }
+        }
         var maxSpeed = item['maxspeed'];
         var newCam = true;
         var previousLife = 'was_none';
@@ -302,7 +330,21 @@ class SpeedCamWarner {
         var linkedList = item['list_tree'][0];
         var tree = item['list_tree'][1];
         var startTime = DateTime.now().millisecondsSinceEpoch / 1000.0;
-        var roadname = item['name'];
+
+        String? roadname = item['name'];
+
+        /// First resolve the road name
+        if (roadname == null) {
+          try {
+            roadname = await RectangleCalculatorThread.getRoadNameViaNominatim(
+                camCoordinates[1]!, camCoordinates[0]!);
+          } catch (e) {
+            logger.printLogLine(
+              'getRoadNameViaNominatim failed: $e',
+              logLevel: 'ERROR',
+            );
+          }
+        }
         var maxSpeed = item['maxspeed'];
         var newCam = true;
         var previousLife = 'was_none';
@@ -362,7 +404,21 @@ class SpeedCamWarner {
         var linkedList = item['list_tree'][0];
         var tree = item['list_tree'][1];
         var startTime = DateTime.now().millisecondsSinceEpoch / 1000.0;
-        var roadname = item['name'];
+
+        String? roadname = item['name'];
+
+        /// First resolve the road name
+        if (roadname == null) {
+          try {
+            roadname = await RectangleCalculatorThread.getRoadNameViaNominatim(
+                camCoordinates[1]!, camCoordinates[0]!);
+          } catch (e) {
+            logger.printLogLine(
+              'getRoadNameViaNominatim failed: $e',
+              logLevel: 'ERROR',
+            );
+          }
+        }
         var maxSpeed = item['maxspeed'];
         var predictive = item['predictive'] ?? false;
         var newCam = true;

@@ -195,9 +195,8 @@ class AppController {
       gpxFile: gpxFile,
       positionStream: positionStream,
     );
-    await calculator.init();
-    calculator.run();
     gps.start(source: locationManager.stream);
+    calculator.run();
     deviationChecker.start();
     _running = true;
   }
@@ -325,9 +324,8 @@ class AppController {
 
     final poiDistance =
         (AppConfig.get<num>('main.poi_distance') ?? 50).toDouble();
-    final kmPerTile =
-        (40075.016686 * math.cos(lat * math.pi / 180.0)) /
-            math.pow(2, calculator.zoom);
+    final kmPerTile = (40075.016686 * math.cos(lat * math.pi / 180.0)) /
+        math.pow(2, calculator.zoom);
     final tileDistance = poiDistance / kmPerTile;
 
     final pts = calculator.calculatePoints2Angle(
@@ -354,8 +352,7 @@ class AppController {
       maxLon: lonMax,
     );
 
-    final result =
-        await calculator.triggerOsmLookup(area, lookupType: type);
+    final result = await calculator.triggerOsmLookup(area, lookupType: type);
     if (result.success && result.elements != null) {
       final pois = <List<double>>[];
       for (final el in result.elements!) {
