@@ -229,7 +229,7 @@ class PredictiveModel {
   /// contains one or more latitude/longitude pairs describing the position of a
   /// fixed speed camera.
   static Future<PredictiveModel> load({String? trainingFile}) async {
-    final path = trainingFile ?? '/python/ai/training.json';
+    final path = trainingFile ?? 'python/ai/training.json';
     print('Loading training data from $path');
     final data = await AppConfig.loadAssetConfig(path);
     final cams = <math.Point<double>>[];
