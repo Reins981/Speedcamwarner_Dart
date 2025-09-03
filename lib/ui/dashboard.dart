@@ -124,9 +124,17 @@ class _DashboardPageState extends State<DashboardPage> {
       if (_speedCamWarning == 'FREEFLOW') {
         _clearCameraInfo();
       } else {
-        _speedCamIcon = _iconForWarning(_speedCamWarning);
         _speedCamDistance = _calculator!.speedCamDistanceNotifier.value;
         _cameraRoad = _calculator!.cameraRoadNotifier.value;
+        // When a real camera is active, ignore generic CAMERA_AHEAD updates
+        // so the UI keeps displaying the actual camera instead of toggling
+        // between the two icons.
+        if (_activeCamera != null &&
+            !_activeCamera!.predictive &&
+            _speedCamWarning == 'CAMERA_AHEAD') {
+          _speedCamWarning = _cameraTypeString(_activeCamera!);
+        }
+        _speedCamIcon = _iconForWarning(_speedCamWarning);
       }
       _gpsOn = _calculator!.gpsStatusNotifier.value;
       _online = _calculator!.onlineStatusNotifier.value;
@@ -165,9 +173,16 @@ class _DashboardPageState extends State<DashboardPage> {
   }
 
   void _onCamera(SpeedCameraEvent cam) {
+    // Predictive cameras can arrive while a real camera is active.  Ignore
+    // those updates to prevent the dashboard from alternating between the
+    // predictive and real camera icons.
+    if (_activeCamera != null && !_activeCamera!.predictive && cam.predictive) {
+      return;
+    }
     setState(() {
       _activeCamera = cam;
-      _speedCamIcon = _iconForWarning(_cameraTypeString(cam));
+      _speedCamWarning = _cameraTypeString(cam);
+      _speedCamIcon = _iconForWarning(_speedCamWarning);
     });
   }
 
