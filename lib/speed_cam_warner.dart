@@ -25,8 +25,8 @@ class SpeedCamWarner {
   final RectangleCalculatorThread calculator;
 
   // runtime state --------------------------------------------------------
-  List<double?> camCoordinates = [null, null];
   List<double?> ccpNodeCoordinates = [null, null];
+  List<double> camKey = [];
   double? ccpBearing;
   Map<dynamic, List<dynamic>> itemQueue = {};
   Map<dynamic, List<dynamic>> itemQueueBackup = {};
@@ -180,7 +180,7 @@ class SpeedCamWarner {
         logger.printLogLine(
           'Add new fix cam (${item['fix_cam'][1]}, ${item['fix_cam'][2]})',
         );
-        camCoordinates = [item['fix_cam'][1], item['fix_cam'][2]];
+        camKey = [item['fix_cam'][1], item['fix_cam'][2]]; // new stable object
         ccpNodeCoordinates = [
           double.tryParse(item['ccp_node'][0].toString()),
           double.tryParse(item['ccp_node'][1].toString())
@@ -190,26 +190,13 @@ class SpeedCamWarner {
         var startTime = DateTime.now().millisecondsSinceEpoch / 1000.0;
 
         String? roadname = item['name'];
-
-        /// First resolve the road name
-        if (roadname == null) {
-          try {
-            roadname = await RectangleCalculatorThread.getRoadNameViaNominatim(
-                camCoordinates[1]!, camCoordinates[0]!);
-          } catch (e) {
-            logger.printLogLine(
-              'getRoadNameViaNominatim failed: $e',
-              logLevel: 'ERROR',
-            );
-          }
-        }
         var maxSpeed = item['maxspeed'];
         var newCam = true;
         var previousLife = 'was_none';
         var predictive = false;
         var camDirection = convertCamDirection(item['direction']);
-        startTimes[camCoordinates] = startTime;
-        itemQueue[camCoordinates] = [
+        startTimes[camKey] = startTime;
+        itemQueue[camKey] = [
           'fix',
           false,
           ccpNodeCoordinates,
@@ -251,7 +238,10 @@ class SpeedCamWarner {
         logger.printLogLine(
           'Add new traffic cam (${item['traffic_cam'][1]}, ${item['traffic_cam'][2]})',
         );
-        camCoordinates = [item['traffic_cam'][1], item['traffic_cam'][2]];
+        camKey = [
+          item['traffic_cam'][1],
+          item['traffic_cam'][2]
+        ]; // new stable object
         ccpNodeCoordinates = [
           double.tryParse(item['ccp_node'][0].toString()),
           double.tryParse(item['ccp_node'][1].toString())
@@ -261,26 +251,13 @@ class SpeedCamWarner {
         var startTime = DateTime.now().millisecondsSinceEpoch / 1000.0;
 
         String? roadname = item['name'];
-
-        /// First resolve the road name
-        if (roadname == null) {
-          try {
-            roadname = await RectangleCalculatorThread.getRoadNameViaNominatim(
-                camCoordinates[1]!, camCoordinates[0]!);
-          } catch (e) {
-            logger.printLogLine(
-              'getRoadNameViaNominatim failed: $e',
-              logLevel: 'ERROR',
-            );
-          }
-        }
         var maxSpeed = item['maxspeed'];
         var newCam = true;
         var previousLife = 'was_none';
         var predictive = false;
         var camDirection = convertCamDirection(item['direction']);
-        startTimes[camCoordinates] = startTime;
-        itemQueue[camCoordinates] = [
+        startTimes[camKey] = startTime;
+        itemQueue[camKey] = [
           'traffic',
           false,
           ccpNodeCoordinates,
@@ -322,7 +299,10 @@ class SpeedCamWarner {
         logger.printLogLine(
           'Add new distance cam (${item['distance_cam'][1]}, ${item['distance_cam'][2]})',
         );
-        camCoordinates = [item['distance_cam'][1], item['distance_cam'][2]];
+        camKey = [
+          item['distance_cam'][1],
+          item['distance_cam'][2]
+        ]; // new stable object
         ccpNodeCoordinates = [
           double.tryParse(item['ccp_node'][0].toString()),
           double.tryParse(item['ccp_node'][1].toString())
@@ -332,26 +312,13 @@ class SpeedCamWarner {
         var startTime = DateTime.now().millisecondsSinceEpoch / 1000.0;
 
         String? roadname = item['name'];
-
-        /// First resolve the road name
-        if (roadname == null) {
-          try {
-            roadname = await RectangleCalculatorThread.getRoadNameViaNominatim(
-                camCoordinates[1]!, camCoordinates[0]!);
-          } catch (e) {
-            logger.printLogLine(
-              'getRoadNameViaNominatim failed: $e',
-              logLevel: 'ERROR',
-            );
-          }
-        }
         var maxSpeed = item['maxspeed'];
         var newCam = true;
         var previousLife = 'was_none';
         var predictive = false;
         var camDirection = convertCamDirection(item['direction']);
-        startTimes[camCoordinates] = startTime;
-        itemQueue[camCoordinates] = [
+        startTimes[camKey] = startTime;
+        itemQueue[camKey] = [
           'distance',
           false,
           ccpNodeCoordinates,
@@ -396,7 +363,10 @@ class SpeedCamWarner {
         logger.printLogLine(
           'Add new mobile cam (${item['mobile_cam'][1]}, ${item['mobile_cam'][2]})',
         );
-        camCoordinates = [item['mobile_cam'][1], item['mobile_cam'][2]];
+        camKey = [
+          item['mobile_cam'][1],
+          item['mobile_cam'][2]
+        ]; // new stable object
         ccpNodeCoordinates = [
           double.tryParse(item['ccp_node'][0].toString()),
           double.tryParse(item['ccp_node'][1].toString())
@@ -406,26 +376,13 @@ class SpeedCamWarner {
         var startTime = DateTime.now().millisecondsSinceEpoch / 1000.0;
 
         String? roadname = item['name'];
-
-        /// First resolve the road name
-        if (roadname == null) {
-          try {
-            roadname = await RectangleCalculatorThread.getRoadNameViaNominatim(
-                camCoordinates[1]!, camCoordinates[0]!);
-          } catch (e) {
-            logger.printLogLine(
-              'getRoadNameViaNominatim failed: $e',
-              logLevel: 'ERROR',
-            );
-          }
-        }
         var maxSpeed = item['maxspeed'];
         var predictive = item['predictive'] ?? false;
         var newCam = true;
         var previousLife = 'was_none';
         var camDirection = convertCamDirection(item['direction']);
-        startTimes[camCoordinates] = startTime;
-        itemQueue[camCoordinates] = [
+        startTimes[camKey] = startTime;
+        itemQueue[camKey] = [
           'mobile',
           false,
           ccpNodeCoordinates,
@@ -498,16 +455,15 @@ class SpeedCamWarner {
       var cam = entry.key;
       var camAttributes = entry.value;
       var distance = camAttributes.last;
+      var roadName = itemQueue[cam]?[7] ?? '';
       print(
-        'Initial Distance to speed cam (${cam[0]}, ${cam[1]}, ${camAttributes[0]}): $distance meters , last distance: ${camAttributes[5]}, storage_time: ${camAttributes[6]} seconds, predictive: ${camAttributes[13]}',
+        'Initial Distance to speed cam (${cam[0]}, ${cam[1]}, ${camAttributes[0]}): $distance meters , last distance: ${camAttributes[5]}, storage_time: ${camAttributes[6]} seconds, predictive: ${camAttributes[13]}, road name: $roadName',
       );
 
       if (distance < 0 || camAttributes[1] == true) {
         camsToDelete.add(cam);
         removeCachedCamera(cam);
         triggerFreeFlow();
-        updateCamRoad(reset: true);
-        updateMaxSpeed(reset: true);
         updateCalculatorCams(camAttributes);
       } else {
         if (startTimes.containsKey(cam) && itemQueue.containsKey(cam)) {
@@ -614,7 +570,7 @@ class SpeedCamWarner {
     if (attributes[1] == false) {
       distance = checkDistanceBetweenTwoPoints(cam, [longitude, latitude]);
       print(
-        ' Followup Distance to current speed cam (${cam[0]}, ${cam[1]}, $speedcamType): '
+        ' Followup Distance to current speed cam (${cam[0]}, ${cam[1]}, $speedcamType, $camRoadName): '
         '${distance.toDouble()} meters , last distance: $lastDistance, '
         'storage_time: ${attributes[6]} seconds, predictive: $predictive',
       );
@@ -645,6 +601,7 @@ class SpeedCamWarner {
     }
 
     triggerSpeedCamUpdate(
+      roadName: camRoadName,
       distance: distance,
       camCoordinates: cam,
       speedcam: speedcamType,
@@ -689,17 +646,6 @@ class SpeedCamWarner {
     if (!insideRelevantAngle(cam, currentDistanceToCam)) {
       camInProgress = false;
       triggerFreeFlow();
-      if (dismissCounter <= maxDismissCounter) {
-        updateCamRoad(
-          road: 'DISMISS\n$camRoadName',
-          color: [0, 1, .3, .8],
-          size: '26sp',
-        );
-        dismissCounter += 1;
-      } else {
-        updateCamRoad(reset: true);
-      }
-      updateMaxSpeed(reset: true);
       print(
         'Leaving Speed Camera with coordinates: (${cam[0]} ${cam[1]}), road name: $camRoadName because of Angle mismatch',
       );
@@ -716,6 +662,7 @@ class SpeedCamWarner {
       var cpCamQueue = Map.from(itemQueue);
       itemQueueBackup[cam] = cpCamQueue[cam]!;
       itemQueueBackup[cam]![1] = false;
+      itemQueueBackup[cam]![7] = cpCamQueue[cam]![7];
       itemQueueBackup[cam]![8] = distance;
       itemQueueBackup[cam]![12] = 'was_standard';
       var startTime =
@@ -760,12 +707,13 @@ class SpeedCamWarner {
     if (resume?.isResumed() ?? true) {
       updateSpeedcam('FREEFLOW');
       updateBarWidgetMeters('');
-      updateCamText(reset: true);
       updateCamRoad(reset: true);
+      updateMaxSpeed(reset: true);
     }
   }
 
   void triggerSpeedCamUpdate({
+    required String? roadName,
     required double distance,
     required dynamic camCoordinates,
     required String speedcam,
@@ -815,42 +763,18 @@ class SpeedCamWarner {
 
         checkRoadName(linkedList, tree, camCoordinates);
         if (resume?.isResumed() ?? true) {
-          updateSpeedcam(speedcam);
-          updateBarWidget100m();
-          updateBarWidget300m();
-          updateBarWidget500m();
-          updateBarWidget1000m();
           updateBarWidgetMeters(distance);
-          updateCamText(distance: distance.toInt());
-        }
-        if (itemQueue.containsKey(camCoordinates)) {
-          try {
-            updateCamRoad(road: itemQueue[camCoordinates]?[7]);
-            updateMaxSpeed(maxSpeed: maxSpeed);
-          } catch (_) {
-            updateCamRoad(road: '');
-            updateMaxSpeed(reset: true);
-          }
+          updateCamRoad(road: roadName);
+          updateMaxSpeed(maxSpeed: maxSpeed);
+          updateSpeedcam(speedcam);
         }
       } else {
         checkRoadName(linkedList, tree, camCoordinates);
         if (resume?.isResumed() ?? true) {
-          updateSpeedcam(speedcam);
-          updateBarWidget100m();
-          updateBarWidget300m();
-          updateBarWidget500m();
-          updateBarWidget1000m();
           updateBarWidgetMeters(distance);
-          updateCamText(distance: distance.toInt());
-        }
-        if (itemQueue.containsKey(camCoordinates)) {
-          try {
-            updateCamRoad(road: itemQueue[camCoordinates]?[7]);
-            updateMaxSpeed(maxSpeed: maxSpeed);
-          } catch (_) {
-            updateCamRoad(road: '');
-            updateMaxSpeed(reset: true);
-          }
+          updateCamRoad(road: roadName);
+          updateMaxSpeed(maxSpeed: maxSpeed);
+          updateSpeedcam(speedcam);
         }
       }
       lastDistance = 100;
@@ -875,62 +799,23 @@ class SpeedCamWarner {
 
         checkRoadName(linkedList, tree, camCoordinates);
         if (resume?.isResumed() ?? true) {
-          updateSpeedcam(speedcam);
-          updateBarWidget100m(color: 2);
-          updateBarWidget300m();
-          updateBarWidget500m();
-          updateBarWidget1000m();
           updateBarWidgetMeters(distance);
-          updateCamText(distance: distance.toInt());
-        }
-        if (itemQueue.containsKey(camCoordinates)) {
-          try {
-            updateCamRoad(road: itemQueue[camCoordinates]?[7]);
-            updateMaxSpeed(maxSpeed: maxSpeed);
-          } catch (_) {
-            updateCamRoad(road: '');
-            updateMaxSpeed(reset: true);
-          }
+          updateCamRoad(road: roadName);
+          updateMaxSpeed(maxSpeed: maxSpeed);
+          updateSpeedcam(speedcam);
         }
       } else {
         if (lastDistance == 300) {
           checkRoadName(linkedList, tree, camCoordinates);
           if (resume?.isResumed() ?? true) {
-            updateSpeedcam(speedcam);
-            updateBarWidget100m(color: 2);
-            updateBarWidget300m();
-            updateBarWidget500m();
-            updateBarWidget1000m();
             updateBarWidgetMeters(distance);
-            updateCamText(distance: distance.toInt());
-          }
-          if (itemQueue.containsKey(camCoordinates)) {
-            try {
-              updateCamRoad(road: itemQueue[camCoordinates]?[7]);
-              updateMaxSpeed(maxSpeed: maxSpeed);
-            } catch (_) {
-              updateCamRoad(road: '');
-              updateMaxSpeed(reset: true);
-            }
+            updateCamRoad(road: roadName);
+            updateMaxSpeed(maxSpeed: maxSpeed);
+            updateSpeedcam(speedcam);
           }
         } else {
           camInProgress = false;
           triggerFreeFlow();
-          if (!processNextCam) {
-            updateCamRoad(reset: true);
-          } else {
-            if (nextCamDistanceAsInt <= maxDistanceToFutureCamera) {
-              updateCamRoad(
-                road: '$nextCamDistance\n$nextCamRoad',
-                color: [1, .9, 0, 2],
-                sizeHint: [1.0, 0.4],
-                size: '26sp',
-              );
-            } else {
-              updateCamRoad(reset: true);
-            }
-          }
-          updateMaxSpeed(reset: true);
           itemQueue[camCoordinates]?[1] = 'to_be_stored';
         }
       }
@@ -955,62 +840,23 @@ class SpeedCamWarner {
 
         checkRoadName(linkedList, tree, camCoordinates);
         if (resume?.isResumed() ?? true) {
-          updateSpeedcam(speedcam);
-          updateBarWidget100m(color: 2);
-          updateBarWidget300m(color: 2);
-          updateBarWidget500m();
-          updateBarWidget1000m();
           updateBarWidgetMeters(distance);
-          updateCamText(distance: distance.toInt());
-        }
-        if (itemQueue.containsKey(camCoordinates)) {
-          try {
-            updateCamRoad(road: itemQueue[camCoordinates]?[7]);
-            updateMaxSpeed(maxSpeed: maxSpeed);
-          } catch (_) {
-            updateCamRoad(road: '');
-            updateMaxSpeed(reset: true);
-          }
+          updateCamRoad(road: roadName);
+          updateMaxSpeed(maxSpeed: maxSpeed);
+          updateSpeedcam(speedcam);
         }
       } else {
         if (lastDistance == 500) {
           checkRoadName(linkedList, tree, camCoordinates);
           if (resume?.isResumed() ?? true) {
-            updateSpeedcam(speedcam);
-            updateBarWidget100m(color: 2);
-            updateBarWidget300m(color: 2);
-            updateBarWidget500m();
-            updateBarWidget1000m();
             updateBarWidgetMeters(distance);
-            updateCamText(distance: distance.toInt());
-          }
-          if (itemQueue.containsKey(camCoordinates)) {
-            try {
-              updateCamRoad(road: itemQueue[camCoordinates]?[7]);
-              updateMaxSpeed(maxSpeed: maxSpeed);
-            } catch (_) {
-              updateCamRoad(road: '');
-              updateMaxSpeed(reset: true);
-            }
+            updateCamRoad(road: roadName);
+            updateMaxSpeed(maxSpeed: maxSpeed);
+            updateSpeedcam(speedcam);
           }
         } else {
           camInProgress = false;
           triggerFreeFlow();
-          if (!processNextCam) {
-            updateCamRoad(reset: true);
-          } else {
-            if (nextCamDistanceAsInt <= maxDistanceToFutureCamera) {
-              updateCamRoad(
-                road: '$nextCamDistance\n$nextCamRoad',
-                color: [1, .9, 0, 2],
-                sizeHint: [1.0, 0.4],
-                size: '26sp',
-              );
-            } else {
-              updateCamRoad(reset: true);
-            }
-          }
-          updateMaxSpeed(reset: true);
           itemQueue[camCoordinates]?[1] = 'to_be_stored';
         }
       }
@@ -1035,62 +881,23 @@ class SpeedCamWarner {
 
         checkRoadName(linkedList, tree, camCoordinates);
         if (resume?.isResumed() ?? true) {
-          updateSpeedcam(speedcam);
-          updateBarWidget100m(color: 2);
-          updateBarWidget300m(color: 2);
-          updateBarWidget500m(color: 2);
-          updateBarWidget1000m();
           updateBarWidgetMeters(distance);
-          updateCamText(distance: distance.toInt());
-        }
-        if (itemQueue.containsKey(camCoordinates)) {
-          try {
-            updateCamRoad(road: itemQueue[camCoordinates]?[7]);
-            updateMaxSpeed(maxSpeed: maxSpeed);
-          } catch (_) {
-            updateCamRoad(road: '');
-            updateMaxSpeed(reset: true);
-          }
+          updateCamRoad(road: roadName);
+          updateMaxSpeed(maxSpeed: maxSpeed);
+          updateSpeedcam(speedcam);
         }
       } else {
         if (lastDistance == 1000) {
           checkRoadName(linkedList, tree, camCoordinates);
           if (resume?.isResumed() ?? true) {
-            updateSpeedcam(speedcam);
-            updateBarWidget100m(color: 2);
-            updateBarWidget300m(color: 2);
-            updateBarWidget500m(color: 2);
-            updateBarWidget1000m();
             updateBarWidgetMeters(distance);
-            updateCamText(distance: distance.toInt());
-          }
-          if (itemQueue.containsKey(camCoordinates)) {
-            try {
-              updateCamRoad(road: itemQueue[camCoordinates]?[7]);
-              updateMaxSpeed(maxSpeed: maxSpeed);
-            } catch (_) {
-              updateCamRoad(road: '');
-              updateMaxSpeed(reset: true);
-            }
+            updateCamRoad(road: roadName);
+            updateMaxSpeed(maxSpeed: maxSpeed);
+            updateSpeedcam(speedcam);
           }
         } else {
           camInProgress = false;
           triggerFreeFlow();
-          if (!processNextCam) {
-            updateCamRoad(reset: true);
-          } else {
-            if (nextCamDistanceAsInt <= maxDistanceToFutureCamera) {
-              updateCamRoad(
-                road: '$nextCamDistance\n$nextCamRoad',
-                color: [1, .9, 0, 2],
-                sizeHint: [1.0, 0.4],
-                size: '26sp',
-              );
-            } else {
-              updateCamRoad(reset: true);
-            }
-          }
-          updateMaxSpeed(reset: true);
           itemQueue[camCoordinates]?[1] = 'to_be_stored';
         }
       }
@@ -1102,64 +909,27 @@ class SpeedCamWarner {
         print('$speedcam speed cam ahead with distance ${distance.toInt()} m');
         voicePromptEvents.emit('CAMERA_AHEAD');
         if (resume?.isResumed() ?? true) {
-          updateSpeedcam('CAMERA_AHEAD');
           updateBarWidgetMeters(distance);
-          updateCamText(distance: distance.toInt());
+          updateSpeedcam('CAMERA_AHEAD');
         }
       } else {
         if (lastDistance == 1001) {
           camInProgress = false;
           if (resume?.isResumed() ?? true) {
-            updateSpeedcam('CAMERA_AHEAD');
+            updateCamRoad(road: roadName);
             updateBarWidgetMeters(distance);
-            updateCamText(distance: distance.toInt());
-          }
-          if (itemQueue.containsKey(camCoordinates)) {
-            try {
-              updateCamRoad(road: itemQueue[camCoordinates]?[7]);
-            } catch (_) {
-              updateCamRoad(road: '');
-            }
+            updateSpeedcam('CAMERA_AHEAD');
           }
         } else {
           camInProgress = false;
           triggerFreeFlow();
-          if (!processNextCam) {
-            updateCamRoad(reset: true);
-          } else {
-            if (nextCamDistanceAsInt <= maxDistanceToFutureCamera) {
-              updateCamRoad(
-                road: '$nextCamDistance\n$nextCamRoad',
-                color: [1, .9, 0, 2],
-                sizeHint: [1.0, 0.4],
-                size: '26sp',
-              );
-            } else {
-              updateCamRoad(reset: true);
-            }
-          }
-          updateMaxSpeed(reset: true);
           itemQueue[camCoordinates]?[1] = 'to_be_stored';
         }
       }
       lastDistance = 1001;
     } else {
       if (lastDistance == -1 && distance < maxAbsoluteDistance) {
-        if (!processNextCam) {
-          updateCamRoad(reset: true);
-        } else {
-          if (nextCamDistanceAsInt <= maxDistanceToFutureCamera) {
-            updateCamRoad(
-              road: '$nextCamDistance\n$nextCamRoad',
-              color: [1, .9, 0, 2],
-              sizeHint: [1.0, 0.4],
-              size: '26sp',
-            );
-          } else {
-            updateCamRoad(reset: true);
-          }
-        }
-        updateMaxSpeed(reset: true);
+        triggerFreeFlow();
         camInProgress = false;
         return;
       }
@@ -1168,21 +938,6 @@ class SpeedCamWarner {
       );
       camInProgress = false;
       triggerFreeFlow();
-      if (!processNextCam) {
-        updateCamRoad(reset: true);
-      } else {
-        if (nextCamDistanceAsInt <= maxDistanceToFutureCamera) {
-          updateCamRoad(
-            road: '$nextCamDistance\n$nextCamRoad',
-            color: [1, .9, 0, 2],
-            sizeHint: [1.0, 0.4],
-            size: '26sp',
-          );
-        } else {
-          updateCamRoad(reset: true);
-        }
-      }
-      updateMaxSpeed(reset: true);
       lastDistance = maxAbsoluteDistance;
       itemQueue[camCoordinates]?[1] = 'to_be_stored';
     }
@@ -1241,11 +996,6 @@ class SpeedCamWarner {
     calculator.updateSpeedCam(speedcam);
   }
 
-  void updateBarWidget1000m({int color = 1}) => calculator.updateColor(color);
-  void updateBarWidget500m({int color = 1}) => calculator.updateColor(color);
-  void updateBarWidget300m({int color = 1}) => calculator.updateColor(color);
-  void updateBarWidget100m({int color = 1}) => calculator.updateColor(color);
-
   void updateBarWidgetMeters(dynamic meter) {
     if (meter is num) {
       calculator.updateSpeedCamDistance(meter.toDouble());
@@ -1254,21 +1004,7 @@ class SpeedCamWarner {
     }
   }
 
-  void updateCamText({int distance = 0, bool reset = false}) {
-    if (reset) {
-      calculator.updateCamText(null);
-    } else {
-      calculator.updateCamText('Camera in $distance m');
-    }
-  }
-
-  void updateCamRoad({
-    String? road,
-    bool reset = false,
-    dynamic color,
-    dynamic sizeHint,
-    String? size,
-  }) {
+  void updateCamRoad({String? road, bool reset = false}) {
     if (reset) {
       calculator.updateCameraRoad(null);
     } else {

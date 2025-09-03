@@ -91,7 +91,7 @@
     "max_gps_entries": 50000,
     "gpx_file": "python/gpx/Weekend_Karntner_5SeenTour.gpx",
     "gps_treshold": 40,
-    "gps_inaccuracy_treshold": 5,
+    "gps_inaccuracy_treshold": 15,
     "recording": false
   },
   "osmWrapper": {

@@ -90,6 +90,33 @@ class _MapPageState extends State<MapPage> {
     _mapController.move(_center, _mapController.camera.zoom);
   }
 
+  Widget _buildCameraMarker(SpeedCameraEvent cam) {
+    final name = cam.name;
+
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Image.asset(_iconForCamera(cam), width: 32, height: 32),
+        if (name != null && name.isNotEmpty) // show once resolved
+          Container(
+            margin: const EdgeInsets.only(top: 2),
+            padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+            decoration: BoxDecoration(
+              color: const Color(0xAA000000),
+              borderRadius: BorderRadius.circular(4),
+            ),
+            constraints: const BoxConstraints(maxWidth: 140),
+            child: Text(
+              name,
+              style: const TextStyle(fontSize: 11, color: Color(0xFFFFFFFF)),
+              overflow: TextOverflow.ellipsis,
+              maxLines: 1,
+            ),
+          ),
+      ],
+    );
+  }
+
   void _onCameraEvent(SpeedCameraEvent cam) {
     final exists = _markerData.values.any(
       (c) => c.latitude == cam.latitude && c.longitude == cam.longitude,
@@ -98,8 +125,8 @@ class _MapPageState extends State<MapPage> {
     final marker = Marker(
       point: LatLng(cam.latitude, cam.longitude),
       width: 40,
-      height: 40,
-      child: Image.asset(_iconForCamera(cam)),
+      height: 56,
+      child: _buildCameraMarker(cam),
     );
     setState(() {
       _cameraMarkers.add(marker);

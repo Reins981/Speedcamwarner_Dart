@@ -325,12 +325,6 @@ class POIReader extends Logger {
     calculator.updateInfoPage('POI_CAMERAS:$numCameras');
     _initialDownloadFinished = true;
 
-    if (numCameras > 0) {
-      voicePromptEvents.emit('POI_SUCCESS');
-    } else {
-      voicePromptEvents.emit('POI_FAILED');
-    }
-
     var camId = 200000;
     for (final camera in cameras) {
       try {

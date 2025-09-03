@@ -121,7 +121,7 @@ class LocationManager extends Logger {
               latitude: point.lat ?? 0.0,
               speed: (random.nextInt(26) + 10) * 3.6,
               bearing: (random.nextInt(51) + 200).toDouble(),
-              accuracy: (random.nextInt(24) + 2).toDouble(),
+              accuracy: (random.nextInt(6) + 2).toDouble(),
               direction: '',
               gpsStatus: 1,
             ),

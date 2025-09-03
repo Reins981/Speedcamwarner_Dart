@@ -516,10 +516,8 @@ class RectangleCalculatorThread {
   );
   final ValueNotifier<double> currentSpeedNotifier = ValueNotifier<double>(0.0);
   final ValueNotifier<String?> speedCamNotifier = ValueNotifier<String?>(null);
-  final ValueNotifier<int?> colorNotifier = ValueNotifier<int?>(null);
   final ValueNotifier<double?> speedCamDistanceNotifier =
       ValueNotifier<double?>(null);
-  final ValueNotifier<String?> camTextNotifier = ValueNotifier<String?>(null);
   final ValueNotifier<String?> cameraRoadNotifier = ValueNotifier<String?>(
     null,
   );
@@ -979,9 +977,8 @@ class RectangleCalculatorThread {
         logger.printLogLine(
           'Predictive camera detected at ${predicted.latitude}, ${predicted.longitude}',
         );
-        final roadName =
-            await RectangleCalculatorThread.getRoadNameViaNominatim(
-                latitude, longitude);
+        final roadName = await resolveRoadName(latitude, longitude);
+        predicted.name = roadName;
         // If a camera was predicted ahead, publish it on the camera stream and
         // optionally record it to persistent storage.
         _cameraStreamController.add(predicted);
@@ -1324,6 +1321,15 @@ class RectangleCalculatorThread {
       if (i + batchSize < newCams.length) {
         await Future.delayed(const Duration(milliseconds: 10));
       }
+    }
+  }
+
+  Future<String> resolveRoadName(double latitude, double longitude) async {
+    try {
+      final roadname = await getRoadNearestRoadName(latitude, longitude);
+      return roadname ?? "Unknown";
+    } catch (e) {
+      return "Unknown";
     }
   }
 
@@ -2269,7 +2275,8 @@ class RectangleCalculatorThread {
                 latitude: lat,
                 longitude: lon,
                 distance: true,
-                name: tags['name']?.toString(),
+                name:
+                    tags['name']?.toString() ?? await resolveRoadName(lat, lon),
                 maxspeed: maxspeed,
               );
               _cameraCache.add(cam);
@@ -2286,7 +2293,7 @@ class RectangleCalculatorThread {
               latitude: lat,
               longitude: lon,
               mobile: true,
-              name: tags['name']?.toString(),
+              name: tags['name']?.toString() ?? await resolveRoadName(lat, lon),
               maxspeed: maxspeed,
             );
             _cameraCache.add(cam);
@@ -2303,7 +2310,7 @@ class RectangleCalculatorThread {
               latitude: lat,
               longitude: lon,
               fixed: true,
-              name: tags['name']?.toString(),
+              name: tags['name']?.toString() ?? await resolveRoadName(lat, lon),
               maxspeed: maxspeed,
             );
             _cameraCache.add(cam);
@@ -2318,7 +2325,7 @@ class RectangleCalculatorThread {
               latitude: lat,
               longitude: lon,
               traffic: true,
-              name: tags['name']?.toString(),
+              name: tags['name']?.toString() ?? await resolveRoadName(lat, lon),
               maxspeed: maxspeed,
             );
             _cameraCache.add(cam);
@@ -2998,7 +3005,31 @@ class RectangleCalculatorThread {
         final data = jsonDecode(resp.body) as Map<String, dynamic>;
         return data['display_name']?.toString();
       }
-    } catch (_) {}
+    } catch (_) {
+      return null;
+    }
+    return null;
+  }
+
+  static Future<String?> getRoadNearestRoadName(double lat, double lon) async {
+    final Uri uri = Uri.parse(
+      'https://router.project-osrm.org/nearest/v1/driving/$lon,$lat?number=1',
+    );
+    print('Requesting nearest road name with uri: $uri');
+    try {
+      final resp = await http.get(
+        uri,
+        headers: {'User-Agent': 'speedcamwarner-dart'},
+      );
+      if (resp.statusCode == 200) {
+        final data = jsonDecode(resp.body) as Map<String, dynamic>;
+        print('Received nearest road name: ${data['waypoints'][0]['name']}');
+        return data['waypoints'][0]['name']?.toString();
+      }
+    } catch (e) {
+      print('Error getting nearest road name: $e');
+      return null;
+    }
     return null;
   }
 
@@ -3028,9 +3059,7 @@ class RectangleCalculatorThread {
   String? get infoPage => infoPageNotifier.value;
   String? get maxspeedStatus => maxspeedStatusNotifier.value;
   String? get speedCamWarning => speedCamNotifier.value;
-  int? get color => colorNotifier.value;
   double? get speedCamDistance => speedCamDistanceNotifier.value;
-  String? get camText => camTextNotifier.value;
   String? get cameraRoad => cameraRoadNotifier.value;
 
   void updateMaxspeed(dynamic maxspeed, {List<double>? color}) {
@@ -3072,12 +3101,9 @@ class RectangleCalculatorThread {
   void updateGpsStatus(bool value) => gpsStatusNotifier.value = value;
 
   void updateSpeedCam(String warning) => speedCamNotifier.value = warning;
-  void updateColor(int color) => colorNotifier.value = color;
 
   void updateSpeedCamDistance(double? meter) =>
       speedCamDistanceNotifier.value = meter;
-
-  void updateCamText(String? text) => camTextNotifier.value = text;
 
   void updateCameraRoad(String? road) => cameraRoadNotifier.value = road;
 }

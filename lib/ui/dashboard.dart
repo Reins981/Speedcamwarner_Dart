@@ -142,7 +142,9 @@ class _DashboardPageState extends State<DashboardPage> {
   List<Color> _cameraGradientColors() {
     final d = _speedCamDistance ?? double.infinity;
     List<Color> colors;
-    if (d > 1000 && d <= 1500) {
+    if (d > 1500) {
+      colors = [Colors.greenAccent, Colors.green];
+    } else if (d > 1000 && d <= 1500) {
       colors = [Colors.orangeAccent, Colors.orange];
     } else if (d > 500 && d <= 1000) {
       colors = [Colors.orange, Colors.deepOrange];
@@ -688,9 +690,8 @@ class _DashboardPageState extends State<DashboardPage> {
   }
 
   Widget _buildSpeedHistoryWidget() {
-    final maxSpeed = _speedHistory.isEmpty
-        ? 0.0
-        : _speedHistory.reduce(math.max);
+    final maxSpeed =
+        _speedHistory.isEmpty ? 0.0 : _speedHistory.reduce(math.max);
     final avgSpeed = _speedHistory.isEmpty
         ? 0.0
         : _speedHistory.reduce((a, b) => a + b) / _speedHistory.length;
