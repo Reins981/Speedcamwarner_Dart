@@ -102,7 +102,11 @@ class LocationManager extends Logger {
     }
 
     printLogLine('Listening to live position updates');
-    _subscription = positionStreamLocal.listen(_onPosition);
+    _subscription =
+        positionStreamLocal.timeout(Duration(seconds: 5), onTimeout: (sink) {
+      printLogLine('Position stream timed out after 5 seconds');
+      _notifyGpsOffline();
+    }).listen(_onPosition);
   }
 
   Future<List<VectorData>> _loadGpxSamples(String gpxFile) async {
@@ -142,10 +146,25 @@ class LocationManager extends Logger {
       bearing: position.heading,
       accuracy: position.accuracy,
       direction: '',
-      gpsStatus: 1,
+      gpsStatus: 'ONLINE',
     );
     printLogLine(
         'Received position update: ${position.latitude}, ${position.longitude}, speed ${(position.speed * 3.6).toStringAsFixed(2)} km/h');
+    _controller.add(vector);
+  }
+
+  void _notifyGpsOffline() {
+    printLogLine('GPS is offline');
+    final vector = VectorData(
+      longitude: 0.0,
+      latitude: 0.0,
+      speed: 1.0,
+      bearing: 0.0,
+      accuracy: 0.0,
+      direction: '',
+      gpsStatus: 'OFFLINE',
+    );
+    printLogLine('Received position update: ${vector.gpsStatus}');
     _controller.add(vector);
   }
 

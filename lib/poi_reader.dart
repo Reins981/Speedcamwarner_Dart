@@ -448,7 +448,7 @@ class POIReader extends Logger {
     final pt1 = calculator.longlat2tile(latMin, lonMin, zoom);
     final pt2 = calculator.longlat2tile(latMax, lonMax, zoom);
     poiRect = calculator.calculate_rectangle_border(pt1, pt2);
-    poiRect?.setRectangleIdent(direction!);
+    poiRect?.setRectangleIdent(direction);
     poiRect?.setRectangleString('POIRECT');
 
     final rectangleRadius = calculator.calculate_rectangle_radius(

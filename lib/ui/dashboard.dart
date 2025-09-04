@@ -788,20 +788,20 @@ class _DashboardPageState extends State<DashboardPage> {
     if (cam.traffic) return 'traffic';
     if (cam.distance) return 'distance';
     if (cam.mobile) return 'mobile';
-    if (cam.predictive) return 'CAMERA_AHEAD';
+    if (cam.predictive) return 'mobile';
     return '';
   }
 
   String? _iconForWarning(String? warning) {
     switch (warning) {
       case 'fix':
-        return 'images/fixcamera.png';
+        return 'images/fixcamera_map.png';
       case 'traffic':
-        return 'images/trafficlightcamera.png';
+        return 'images/trafficlightcamera_map.png';
       case 'mobile':
-        return 'images/mobilcamera.png';
+        return 'images/mobilecamera_map.png';
       case 'distance':
-        return 'images/distancecamera.png';
+        return 'images/distancecamera_map.png';
       case 'CAMERA_AHEAD':
         return 'images/camera_ahead.png';
       default:
@@ -811,11 +811,11 @@ class _DashboardPageState extends State<DashboardPage> {
 
   String _iconForCamera(SpeedCameraEvent cam) {
     if (cam.fixed) return 'images/fixcamera_map.png';
-    if (cam.traffic) return 'images/trafficlightcamera_map.jpg';
-    if (cam.distance) return 'images/distancecamera_map.jpg';
-    if (cam.mobile) return 'images/mobilecamera_map.jpg';
-    if (cam.predictive) return 'images/camera_ahead.png';
-    return 'images/distancecamera_map.jpg';
+    if (cam.traffic) return 'images/trafficlightcamera_map.png';
+    if (cam.distance) return 'images/distancecamera_map.png';
+    if (cam.mobile) return 'images/mobilecamera_map.png';
+    if (cam.predictive) return 'images/mobilecamera_map.png';
+    return 'images/distancecamera_map.png';
   }
 }
 
