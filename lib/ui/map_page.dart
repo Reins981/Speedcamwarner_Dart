@@ -172,11 +172,21 @@ class _MapPageState extends State<MapPage> {
   }
 
   double _markerHeightForCamera(SpeedCameraEvent cam) {
-    var count = 0;
-    if (cam.maxspeed != null) count++;
-    if (cam.predictive) count++;
-    if (cam.name != null && cam.name!.isNotEmpty) count++;
-    return 40 + count * 24;
+    var height = 40.0;
+    if (cam.maxspeed != null) height += 28;
+    if (cam.predictive) height += 28;
+    if (cam.name != null && cam.name!.isNotEmpty) height += 28;
+    return height;
+  }
+
+  double _markerWidthForCamera(SpeedCameraEvent cam) {
+    var width = 40.0;
+    if (cam.name != null && cam.name!.isNotEmpty) {
+      width = 160.0;
+    } else if (cam.predictive || cam.maxspeed != null) {
+      width = 100.0;
+    }
+    return width;
   }
 
   void _onCameraEvent(SpeedCameraEvent cam) {
@@ -186,7 +196,7 @@ class _MapPageState extends State<MapPage> {
     if (exists) return;
     final marker = Marker(
       point: LatLng(cam.latitude, cam.longitude),
-      width: 40,
+      width: _markerWidthForCamera(cam),
       height: _markerHeightForCamera(cam),
       child: _buildCameraMarker(cam),
     );
@@ -205,7 +215,7 @@ class _MapPageState extends State<MapPage> {
       if (exists) continue;
       final marker = Marker(
         point: LatLng(cam.latitude, cam.longitude),
-        width: 40,
+        width: _markerWidthForCamera(cam),
         height: _markerHeightForCamera(cam),
         child: _buildCameraMarker(cam),
       );
