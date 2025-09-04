@@ -126,14 +126,6 @@ class _DashboardPageState extends State<DashboardPage> {
       } else {
         _speedCamDistance = _calculator!.speedCamDistanceNotifier.value;
         _cameraRoad = _calculator!.cameraRoadNotifier.value;
-        // When a real camera is active, ignore generic CAMERA_AHEAD updates
-        // so the UI keeps displaying the actual camera instead of toggling
-        // between the two icons.
-        if (_activeCamera != null &&
-            !_activeCamera!.predictive &&
-            _speedCamWarning == 'CAMERA_AHEAD') {
-          _speedCamWarning = _cameraTypeString(_activeCamera!);
-        }
         _speedCamIcon = _iconForWarning(_speedCamWarning);
       }
       _gpsOn = _calculator!.gpsStatusNotifier.value;
