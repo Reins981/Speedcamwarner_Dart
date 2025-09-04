@@ -2852,6 +2852,8 @@ class RectangleCalculatorThread {
           'speedCamWarner.querystring_construction_areas2',
         ) ??
         '';
+    final querystringAmenity =
+        AppConfig.get<String>('speedCamWarner.querystring_amenity') ?? '';
 
     String query;
     String queryTermination = ");out body;";
@@ -2875,6 +2877,10 @@ class RectangleCalculatorThread {
       }
       query = '[out:json][timeout:25];node($nodeId);out body;';
       queryTermination = '';
+    } else if (lookupType == 'hospital' || lookupType == 'fuel') {
+      query = querystringAmenity.replaceAll('*', lookupType!) +
+          bbox +
+          queryTermination;
     } else {
       logger.printLogLine(
         'triggerOsmLookup: Unsupported lookup type $lookupType',
