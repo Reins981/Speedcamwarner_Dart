@@ -190,10 +190,32 @@ class _MapPageState extends State<MapPage> {
   }
 
   void _onCameraEvent(SpeedCameraEvent cam) {
-    final exists = _markerData.values.any(
-      (c) => c.latitude == cam.latitude && c.longitude == cam.longitude,
-    );
-    if (exists) return;
+    MapEntry<Marker, SpeedCameraEvent>? existing;
+    for (final entry in _markerData.entries) {
+      if (entry.value.latitude == cam.latitude &&
+          entry.value.longitude == cam.longitude) {
+        existing = entry;
+        break;
+      }
+    }
+    if (existing != null) {
+      final oldMarker = existing.key;
+      final index = _cameraMarkers.indexOf(oldMarker);
+      final newMarker = Marker(
+        point: LatLng(cam.latitude, cam.longitude),
+        width: _markerWidthForCamera(cam),
+        height: _markerHeightForCamera(cam),
+        child: _buildCameraMarker(cam),
+      );
+      setState(() {
+        if (index != -1) {
+          _cameraMarkers[index] = newMarker;
+        }
+        _markerData.remove(oldMarker);
+        _markerData[newMarker] = cam;
+      });
+      return;
+    }
     final marker = Marker(
       point: LatLng(cam.latitude, cam.longitude),
       width: _markerWidthForCamera(cam),

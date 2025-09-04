@@ -2179,14 +2179,14 @@ class RectangleCalculatorThread {
 
   Future<void> speedCamLookupAhead(GeoRect rect, {http.Client? client}) async {
     logger.printLogLine('speedCamLookupAhead bounds: $rect');
-
     final camFuture =
         triggerOsmLookup(rect, lookupType: 'camera_ahead', client: client);
     final distFuture =
         triggerOsmLookup(rect, lookupType: 'distance_cam', client: client);
 
-    final camRes = await camFuture;
-    final distRes = await distFuture;
+    final results = await Future.wait([camFuture, distFuture]);
+    final camRes = results[0];
+    final distRes = results[1];
 
     logger.printLogLine(
       'speedCamLookupAhead result for camera_ahead success=${camRes.success} elements=${camRes.elements?.length ?? 0}',
@@ -2279,13 +2279,18 @@ class RectangleCalculatorThread {
                 latitude: lat,
                 longitude: lon,
                 distance: true,
-                name:
-                    tags['name']?.toString() ?? await resolveRoadName(lat, lon),
+                name: tags['name']?.toString(),
                 maxspeed: maxspeed,
               );
               _cameraCache.add(cam);
               cams.add(cam);
               distance_cams += 1;
+              if (cam.name == null || cam.name!.isEmpty) {
+                unawaited(resolveRoadName(lat, lon).then((value) {
+                  cam.name = value;
+                  _cameraStreamController.add(cam);
+                }));
+              }
             }
             continue;
           }
@@ -2297,12 +2302,18 @@ class RectangleCalculatorThread {
               latitude: lat,
               longitude: lon,
               mobile: true,
-              name: tags['name']?.toString() ?? await resolveRoadName(lat, lon),
+              name: tags['name']?.toString(),
               maxspeed: maxspeed,
             );
             _cameraCache.add(cam);
             cams.add(cam);
             mobile_cams += 1;
+            if (cam.name == null || cam.name!.isEmpty) {
+              unawaited(resolveRoadName(lat, lon).then((value) {
+                cam.name = value;
+                _cameraStreamController.add(cam);
+              }));
+            }
             continue;
           }
 
@@ -2314,12 +2325,18 @@ class RectangleCalculatorThread {
               latitude: lat,
               longitude: lon,
               fixed: true,
-              name: tags['name']?.toString() ?? await resolveRoadName(lat, lon),
+              name: tags['name']?.toString(),
               maxspeed: maxspeed,
             );
             _cameraCache.add(cam);
             cams.add(cam);
             fix_cams += 1;
+            if (cam.name == null || cam.name!.isEmpty) {
+              unawaited(resolveRoadName(lat, lon).then((value) {
+                cam.name = value;
+                _cameraStreamController.add(cam);
+              }));
+            }
             continue;
           }
 
@@ -2329,12 +2346,18 @@ class RectangleCalculatorThread {
               latitude: lat,
               longitude: lon,
               traffic: true,
-              name: tags['name']?.toString() ?? await resolveRoadName(lat, lon),
+              name: tags['name']?.toString(),
               maxspeed: maxspeed,
             );
             _cameraCache.add(cam);
             cams.add(cam);
             traffic_cams += 1;
+            if (cam.name == null || cam.name!.isEmpty) {
+              unawaited(resolveRoadName(lat, lon).then((value) {
+                cam.name = value;
+                _cameraStreamController.add(cam);
+              }));
+            }
           }
         } catch (e, stack) {
           logger.printLogLine(
