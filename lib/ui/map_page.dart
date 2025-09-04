@@ -475,10 +475,10 @@ class _MapPageState extends State<MapPage> {
 
   String _iconForCamera(SpeedCameraEvent cam) {
     if (cam.fixed) return 'images/fixcamera_map.png';
-    if (cam.traffic) return 'images/trafficlightcamera_map.jpg';
-    if (cam.distance) return 'images/distancecamera_map.jpg';
-    if (cam.mobile) return 'images/mobilecamera_map.jpg';
-    if (cam.predictive) return 'images/camera_ahead.png';
-    return 'images/distancecamera_map.jpg';
+    if (cam.traffic) return 'images/trafficlightcamera_map.pgn';
+    if (cam.distance) return 'images/distancecamera_map.png';
+    if (cam.mobile) return 'images/mobilecamera_map.png';
+    if (cam.predictive) return 'images/mobilecamera_map.png';
+    return 'images/distancecamera_map.png';
   }
 }
