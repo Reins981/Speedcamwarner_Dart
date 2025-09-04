@@ -1949,7 +1949,7 @@ class RectangleCalculatorThread {
       }
 
       // First we have to clean up the old camera cache
-      //cleanup();
+      cleanup();
 
       logger.printLogLine('Executing $msg lookup');
       if (msg == 'Speed Camera lookahead') {
