@@ -26,6 +26,7 @@ import 'package:synchronized/synchronized.dart';
 import 'package:flutter/foundation.dart';
 import 'package:latlong2/latlong.dart';
 import 'package:workspace/deviation_checker.dart';
+import 'package:workspace/speed_cam_warner.dart';
 import 'filtered_road_classes.dart';
 import 'most_probable_way.dart';
 import 'rect.dart' show Rect;
@@ -609,9 +610,6 @@ class RectangleCalculatorThread {
   int maxNumberExtrapolatedRects = 6;
   Map<String, dynamic> maxspeedCountries = {};
   Map<String, dynamic> roadClassesToSpeedConfig = {};
-
-  /// Flag indicating that a camera related operation is currently running.
-  bool camInProgress = false;
 
   /// Cached CCP coordinates and tiles used by [processLookaheadItems] when
   /// ``previousCcp`` is true.
@@ -1773,7 +1771,7 @@ class RectangleCalculatorThread {
 
   /// Perform a nominative road name lookup and update UI state accordingly.
   Future<void> processLookAheadInterrupts() async {
-    final roadName = await RectangleCalculatorThread.getRoadNameViaNominatim(
+    final roadName = await RectangleCalculatorThread.getRoadNearestRoadName(
         latitude, longitude);
     if (roadName != null) {
       if (!roadName.startsWith('ERROR:')) {
@@ -1787,7 +1785,7 @@ class RectangleCalculatorThread {
     }
     final online = await internetAvailable();
     updateOnlineStatus(online);
-    if (!camInProgress && online) {
+    if (!SpeedCamWarner.camInProgress && online) {
       updateMaxspeed('');
       lastMaxSpeed = '';
     } else {
@@ -3026,7 +3024,6 @@ class RectangleCalculatorThread {
     final Uri uri = Uri.parse(
       'https://router.project-osrm.org/nearest/v1/driving/$lon,$lat?number=1',
     );
-    print('Requesting nearest road name with uri: $uri');
     try {
       final resp = await http.get(
         uri,
