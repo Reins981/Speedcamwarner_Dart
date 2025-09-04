@@ -577,7 +577,7 @@ class RectangleCalculatorThread {
 
   /// Minimum interval between network lookups to avoid excessive
   /// requests for speed cameras only.
-  double dosAttackPreventionIntervalDownloads = 5.0;
+  double dosAttackPreventionIntervalDownloads = 1.0;
 
   /// Minimum interval between construction area lookups. This is kept separate
   /// from [dosAttackPreventionIntervalDownloads] to reduce the frequency of
@@ -1327,9 +1327,9 @@ class RectangleCalculatorThread {
           }),
         );
       }
-      if (i + batchSize < newCams.length) {
-        await Future.delayed(const Duration(milliseconds: 10));
-      }
+      // if (i + batchSize < newCams.length) {
+      //   await Future.delayed(const Duration(milliseconds: 1));
+      // }
     }
   }
 
@@ -1378,9 +1378,9 @@ class RectangleCalculatorThread {
       for (final area in batch) {
         _constructionStreamController.add(area);
       }
-      if (i + batchSize < newAreas.length) {
-        await Future.delayed(const Duration(milliseconds: 10));
-      }
+      // if (i + batchSize < newAreas.length) {
+      //   await Future.delayed(const Duration(milliseconds: 10));
+      // }
     }
   }
 
@@ -1916,9 +1916,11 @@ class RectangleCalculatorThread {
             calculateNewRect = false;
             continue;
           }
+          logger.printLogLine('Need to calculate new $rectType rectangle!!!');
           calculateNewRect = true;
         }
       } else {
+        logger.printLogLine('No existing $rectType rectangle found!!!');
         calculateNewRect = false;
       }
 
@@ -1947,7 +1949,7 @@ class RectangleCalculatorThread {
       }
 
       // First we have to clean up the old camera cache
-      cleanup();
+      //cleanup();
 
       logger.printLogLine('Executing $msg lookup');
       if (msg == 'Speed Camera lookahead') {

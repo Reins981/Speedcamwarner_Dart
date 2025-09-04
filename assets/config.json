@@ -6,7 +6,7 @@
     "max_download_time": 20,
     "osm_timeout": 20,
     "osm_timeout_motorway": 30,
-    "dos_attack_prevention_interval_downloads": 5,
+    "dos_attack_prevention_interval_downloads": 1,
     "speed_cam_look_ahead_distance_max": 300,
     "construction_area_lookup_interval": 20,
     "construction_area_lookahead_distance_max": 10,
