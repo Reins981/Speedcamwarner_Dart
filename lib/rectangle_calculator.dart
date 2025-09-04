@@ -482,6 +482,7 @@ class RectangleCalculatorThread {
   final Map<String, dynamic> _directionCache = {};
   final Map<String, dynamic> _bearingCache = {};
   final Map<String, String> _combinedTags = {};
+  final List<SpeedCameraEvent> predictedCameras = [];
 
   final ThreadPool _threadPool = ThreadPool();
   final DateTime _applicationStartTime = DateTime.now();
@@ -836,7 +837,7 @@ class RectangleCalculatorThread {
 
   /// Remove any cached state allowing the calculator to start fresh.
   void deleteOldInstances() {
-    cleanupMapContent();
+    cleanup();
     _configs.clear();
   }
 
@@ -932,11 +933,9 @@ class RectangleCalculatorThread {
       if (status == 'OFFLINE') {
         await processOffline();
         updateGpsStatus(false);
-        updateOnlineStatus(false);
         return;
-      } else if (status != 'CALCULATE') {
+      } else if (status == 'WEAK') {
         updateGpsStatus(false);
-        updateOnlineStatus(false);
         return;
       }
     }
@@ -973,7 +972,7 @@ class RectangleCalculatorThread {
         longitude,
         latitude,
       );
-      if (predicted != null) {
+      if (predicted != null && !predictedCameraAlreadyAdded(predicted)) {
         logger.printLogLine(
           'Predictive camera detected at ${predicted.latitude}, ${predicted.longitude}',
         );
@@ -1002,12 +1001,13 @@ class RectangleCalculatorThread {
           }),
         );
         await uploadCameraToDriveMethod(
-          roadName ?? "Unknown",
+          roadName,
           predicted.latitude,
           predicted.longitude,
           camType: "AI Camera",
         );
         await setPredictiveCamFlag(false);
+        predictedCameras.add(predicted);
       }
     }
 
@@ -1276,6 +1276,17 @@ class RectangleCalculatorThread {
   /// be restarted later.
   void stop() {
     _running = false;
+    cleanup();
+  }
+
+  bool predictedCameraAlreadyAdded(SpeedCameraEvent cam) {
+    for (final existing in predictedCameras) {
+      if (existing.latitude == cam.latitude &&
+          existing.longitude == cam.longitude) {
+        return true;
+      }
+    }
+    return false;
   }
 
   /// Replace the current list of known speed cameras and emit them in batches
@@ -1373,13 +1384,6 @@ class RectangleCalculatorThread {
         await Future.delayed(const Duration(milliseconds: 10));
       }
     }
-  }
-
-  /// Reset transient state and clear construction areas.
-  void cleanup() {
-    lastRect = null;
-    lastGeoRect = null;
-    constructionAreas = [];
   }
 
   /// Track whether a camera upload is currently running.
@@ -1945,7 +1949,7 @@ class RectangleCalculatorThread {
       }
 
       // First we have to clean up the old camera cache
-      cleanupMapContent();
+      cleanup();
 
       logger.printLogLine('Executing $msg lookup');
       if (msg == 'Speed Camera lookahead') {
@@ -2509,13 +2513,14 @@ class RectangleCalculatorThread {
     return null;
   }
 
-  void cleanupMapContent() {
+  void cleanup() {
     _cameraCache.clear();
     _cameraCacheKeys.clear();
     _tileCache.clear();
     _speedCache.clear();
     _directionCache.clear();
     _bearingCache.clear();
+    constructionAreas = [];
     clearCombinedTags(_combinedTags);
   }
 

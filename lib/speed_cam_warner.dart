@@ -728,15 +728,6 @@ class SpeedCamWarner {
     int nextCamDistanceAsInt = 0,
     bool processNextCam = false,
   }) {
-    // Predictive cameras are sometimes reported in parallel with an already
-    // active camera.  In that case we do not want to override the current
-    // warning with a generic "CAMERA_AHEAD" update as this results in the UI
-    // flickering between two icons.  Skip predictive updates while a real
-    // camera is being processed.
-    if (predictive && camInProgress) {
-      return;
-    }
-
     if (distance >= 0 && distance <= 100) {
       camInProgress = true;
       if (lastDistance == -1 || lastDistance > 100) {
