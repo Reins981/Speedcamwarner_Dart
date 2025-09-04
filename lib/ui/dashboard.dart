@@ -799,7 +799,7 @@ class _DashboardPageState extends State<DashboardPage> {
       case 'traffic':
         return 'images/trafficlightcamera_map.png';
       case 'mobile':
-        return 'images/mobilcamera_map.png';
+        return 'images/mobilecamera_map.png';
       case 'distance':
         return 'images/distancecamera_map.png';
       case 'CAMERA_AHEAD':
@@ -811,11 +811,11 @@ class _DashboardPageState extends State<DashboardPage> {
 
   String _iconForCamera(SpeedCameraEvent cam) {
     if (cam.fixed) return 'images/fixcamera_map.png';
-    if (cam.traffic) return 'images/trafficlightcamera_map.jpg';
-    if (cam.distance) return 'images/distancecamera_map.jpg';
-    if (cam.mobile) return 'images/mobilecamera_map.jpg';
+    if (cam.traffic) return 'images/trafficlightcamera_map.png';
+    if (cam.distance) return 'images/distancecamera_map.png';
+    if (cam.mobile) return 'images/mobilecamera_map.png';
     if (cam.predictive) return 'images/mobilecamera_map.png';
-    return 'images/distancecamera_map.jpg';
+    return 'images/distancecamera_map.png';
   }
 }
 
