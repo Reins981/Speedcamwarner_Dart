@@ -92,29 +92,101 @@ class _MapPageState extends State<MapPage> {
 
   Widget _buildCameraMarker(SpeedCameraEvent cam) {
     final name = cam.name;
+    final labels = <Widget>[];
+
+    if (cam.maxspeed != null) {
+      labels.add(
+        Container(
+          margin: const EdgeInsets.only(top: 2),
+          padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+          decoration: BoxDecoration(
+            color: Colors.redAccent,
+            borderRadius: BorderRadius.circular(4),
+          ),
+          child: Text(
+            '${cam.maxspeed} km/h',
+            style: const TextStyle(fontSize: 11, color: Colors.white),
+          ),
+        ),
+      );
+    }
+
+    if (cam.predictive) {
+      labels.add(
+        Container(
+          margin: const EdgeInsets.only(top: 2),
+          padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+          decoration: BoxDecoration(
+            color: Colors.orange.shade700,
+            borderRadius: BorderRadius.circular(4),
+          ),
+          child: const Text(
+            'Predictive',
+            style: TextStyle(fontSize: 11, color: Colors.white),
+          ),
+        ),
+      );
+    }
+
+    if (name != null && name.isNotEmpty) {
+      labels.add(
+        Container(
+          margin: const EdgeInsets.only(top: 2),
+          padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+          decoration: BoxDecoration(
+            color: const Color(0xAA000000),
+            borderRadius: BorderRadius.circular(4),
+          ),
+          constraints: const BoxConstraints(maxWidth: 140),
+          child: Text(
+            name,
+            style: const TextStyle(fontSize: 11, color: Color(0xFFFFFFFF)),
+            overflow: TextOverflow.ellipsis,
+            maxLines: 1,
+          ),
+        ),
+      );
+    }
 
     return Column(
       mainAxisSize: MainAxisSize.min,
       children: [
-        Image.asset(_iconForCamera(cam), width: 32, height: 32),
-        if (name != null && name.isNotEmpty) // show once resolved
-          Container(
-            margin: const EdgeInsets.only(top: 2),
-            padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-            decoration: BoxDecoration(
-              color: const Color(0xAA000000),
-              borderRadius: BorderRadius.circular(4),
-            ),
-            constraints: const BoxConstraints(maxWidth: 140),
-            child: Text(
-              name,
-              style: const TextStyle(fontSize: 11, color: Color(0xFFFFFFFF)),
-              overflow: TextOverflow.ellipsis,
-              maxLines: 1,
-            ),
+        Container(
+          padding: const EdgeInsets.all(4),
+          decoration: BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.circular(8),
+            boxShadow: const [
+              BoxShadow(
+                color: Colors.black26,
+                blurRadius: 4,
+                offset: Offset(0, 2),
+              ),
+            ],
           ),
+          child: Image.asset(_iconForCamera(cam), width: 32, height: 32),
+        ),
+        ...labels,
       ],
     );
+  }
+
+  double _markerHeightForCamera(SpeedCameraEvent cam) {
+    var height = 40.0;
+    if (cam.maxspeed != null) height += 28;
+    if (cam.predictive) height += 28;
+    if (cam.name != null && cam.name!.isNotEmpty) height += 28;
+    return height;
+  }
+
+  double _markerWidthForCamera(SpeedCameraEvent cam) {
+    var width = 40.0;
+    if (cam.name != null && cam.name!.isNotEmpty) {
+      width = 160.0;
+    } else if (cam.predictive || cam.maxspeed != null) {
+      width = 100.0;
+    }
+    return width;
   }
 
   void _onCameraEvent(SpeedCameraEvent cam) {
@@ -124,8 +196,8 @@ class _MapPageState extends State<MapPage> {
     if (exists) return;
     final marker = Marker(
       point: LatLng(cam.latitude, cam.longitude),
-      width: 40,
-      height: 56,
+      width: _markerWidthForCamera(cam),
+      height: _markerHeightForCamera(cam),
       child: _buildCameraMarker(cam),
     );
     setState(() {
@@ -143,9 +215,9 @@ class _MapPageState extends State<MapPage> {
       if (exists) continue;
       final marker = Marker(
         point: LatLng(cam.latitude, cam.longitude),
-        width: 40,
-        height: 40,
-        child: Image.asset(_iconForCamera(cam)),
+        width: _markerWidthForCamera(cam),
+        height: _markerHeightForCamera(cam),
+        child: _buildCameraMarker(cam),
       );
       newMarkers.add(marker);
       _markerData[marker] = cam;
