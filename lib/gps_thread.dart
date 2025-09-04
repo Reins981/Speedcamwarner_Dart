@@ -166,7 +166,8 @@ class GpsThread extends Logger {
         speed: vector.speed,
         bearing: vector.bearing,
         direction: direction ?? '',
-        gpsStatus: vector.gpsStatus,
+        gpsStatus:
+            vector.accuracy > accuracyThreshold ? 'WEAK' : vector.gpsStatus,
         accuracy: vector.accuracy,
       );
 
@@ -198,7 +199,7 @@ class GpsThread extends Logger {
 
     if (voicePromptEvents != null) {
       String signal;
-      if (vector.gpsStatus != 1) {
+      if (vector.gpsStatus != 'ONLINE') {
         signal = 'GPS_OFF';
       } else if (vector.accuracy > accuracyThreshold) {
         signal = 'GPS_LOW';
