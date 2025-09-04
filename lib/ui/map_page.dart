@@ -171,6 +171,14 @@ class _MapPageState extends State<MapPage> {
     );
   }
 
+  double _markerHeightForCamera(SpeedCameraEvent cam) {
+    var count = 0;
+    if (cam.maxspeed != null) count++;
+    if (cam.predictive) count++;
+    if (cam.name != null && cam.name!.isNotEmpty) count++;
+    return 40 + count * 24;
+  }
+
   void _onCameraEvent(SpeedCameraEvent cam) {
     final exists = _markerData.values.any(
       (c) => c.latitude == cam.latitude && c.longitude == cam.longitude,
@@ -179,7 +187,7 @@ class _MapPageState extends State<MapPage> {
     final marker = Marker(
       point: LatLng(cam.latitude, cam.longitude),
       width: 40,
-      height: 56,
+      height: _markerHeightForCamera(cam),
       child: _buildCameraMarker(cam),
     );
     setState(() {
@@ -198,7 +206,7 @@ class _MapPageState extends State<MapPage> {
       final marker = Marker(
         point: LatLng(cam.latitude, cam.longitude),
         width: 40,
-        height: 56,
+        height: _markerHeightForCamera(cam),
         child: _buildCameraMarker(cam),
       );
       newMarkers.add(marker);
