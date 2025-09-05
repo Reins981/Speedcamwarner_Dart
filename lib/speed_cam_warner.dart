@@ -8,6 +8,8 @@ import 'config.dart';
 import 'logger.dart';
 import 'package:latlong2/latlong.dart';
 import 'ui/map_page.dart';
+import 'notification_service.dart';
+import 'package:flutter/services.dart';
 
 /// Ported from `SpeedCamWarnerThread.py`.
 ///
@@ -119,6 +121,12 @@ class SpeedCamWarner {
     _sub = calculator.speedCamEvents.listen(process);
   }
 
+  Future<void> _alertCamera() async {
+    SystemSound.play(SystemSoundType.alert);
+    voicePromptEvents.emit('CAMERA_ALERT');
+    await NotificationService.showCameraAlert();
+  }
+
   Future<void> stop() async {
     await _sub?.cancel();
     if (_positionListener != null) {
@@ -214,6 +222,7 @@ class SpeedCamWarner {
           predictive,
         ];
         insertedSpeedcams.add([item['fix_cam'][1], item['fix_cam'][2]]);
+        await _alertCamera();
       }
     }
 
@@ -275,6 +284,7 @@ class SpeedCamWarner {
           predictive,
         ];
         insertedSpeedcams.add([item['traffic_cam'][1], item['traffic_cam'][2]]);
+        await _alertCamera();
       }
     }
 
@@ -339,6 +349,7 @@ class SpeedCamWarner {
           item['distance_cam'][1],
           item['distance_cam'][2],
         ]);
+        await _alertCamera();
       }
     }
 
@@ -400,6 +411,7 @@ class SpeedCamWarner {
           predictive,
         ];
         insertedSpeedcams.add([item['mobile_cam'][1], item['mobile_cam'][2]]);
+        await _alertCamera();
       }
     }
 
