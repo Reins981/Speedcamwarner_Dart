@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:geolocator/geolocator.dart';
+import 'package:file_picker/file_picker.dart';
 
 import '../app_controller.dart';
 
@@ -33,8 +34,15 @@ class ActionsPage extends StatelessWidget {
             }),
             const SizedBox(height: 16),
             _buildButton(context, 'Start (GPX)', () async {
-              await controller.start(gpxFile: 'gpx/nordspange_tr2.gpx');
-              onFinished();
+              final result = await FilePicker.platform.pickFiles(
+                type: FileType.custom,
+                allowedExtensions: ['gpx'],
+              );
+              final path = result?.files.single.path;
+              if (path != null) {
+                await controller.start(gpxFile: path);
+                onFinished();
+              }
             }),
             const SizedBox(height: 16),
             _buildButton(context, 'Stop', () async {
