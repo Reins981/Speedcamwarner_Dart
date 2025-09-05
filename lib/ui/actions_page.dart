@@ -1,8 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:geolocator/geolocator.dart';
-import 'package:file_picker/file_picker.dart';
-
+import 'package:file_selector/file_selector.dart';
 import '../app_controller.dart';
 
 /// Simple page providing Start, Stop and Exit controls.
@@ -34,11 +33,13 @@ class ActionsPage extends StatelessWidget {
             }),
             const SizedBox(height: 16),
             _buildButton(context, 'Start (GPX)', () async {
-              final result = await FilePicker.platform.pickFiles(
-                type: FileType.custom,
-                allowedExtensions: ['gpx'],
+              final typeGroup = XTypeGroup(
+                label: 'GPX',
+                extensions: ['gpx'],
               );
-              final path = result?.files.single.path;
+              final file =
+                  await openFile(acceptedTypeGroups: [typeGroup]);
+              final path = file?.path;
               if (path != null) {
                 await controller.start(gpxFile: path);
                 onFinished();
