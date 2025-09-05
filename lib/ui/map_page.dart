@@ -22,7 +22,7 @@ class MapPage extends StatefulWidget {
   }
 
   final RectangleCalculatorThread calculator;
-  final Stream<List<List<double>>> poiStream;
+  final Stream<List<List<dynamic>>> poiStream;
   final Future<void> Function(String type) onPoiLookup;
   const MapPage({
     super.key,
@@ -48,7 +48,7 @@ class _MapPageState extends State<MapPage> {
   StreamSubscription<SpeedCameraEvent>? _camSub;
   StreamSubscription<GeoRect?>? _rectSub;
   StreamSubscription<GeoRect?>? _constructionSub;
-  StreamSubscription<List<List<double>>>? _poiSub;
+  StreamSubscription<List<List<dynamic>>>? _poiSub;
   List<Polygon> _rectPolygons = [];
   List<Polygon> _constructionPolygons = [];
   GeoRect? _lastRect;
@@ -468,7 +468,7 @@ class _MapPageState extends State<MapPage> {
     );
   }
 
-  void _onPois(List<List<double>> pois) {
+  void _onPois(List<List<dynamic>> pois) {
     final markers = <Marker>[];
     final seen = <String>{};
     for (final poi in pois) {

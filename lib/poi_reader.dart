@@ -232,7 +232,7 @@ class POIReader extends Logger {
           mobile: cameraType == 'mobile_cam',
           name: name ?? '',
         ),
-      ]),
+      ], mapUpdate: true),
     );
   }
 

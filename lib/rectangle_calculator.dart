@@ -1291,10 +1291,8 @@ class RectangleCalculatorThread {
   /// to avoid blocking the UI. Duplicate cameras are discarded based on their
   /// coordinates.  Each camera is forwarded to the legacy speed cam warner
   /// queue so the original thread can react to newly discovered cameras.
-  Future<void> updateSpeedCams(
-    List<SpeedCameraEvent> speedCams, {
-    int batchSize = 10,
-  }) async {
+  Future<void> updateSpeedCams(List<SpeedCameraEvent> speedCams,
+      {int batchSize = 10, bool mapUpdate = false}) async {
     final cams = removeDuplicateCameras(speedCams);
     final newCams = <SpeedCameraEvent>[];
     for (final cam in cams) {
@@ -1308,7 +1306,9 @@ class RectangleCalculatorThread {
       final batch = newCams.sublist(i, math.min(i + batchSize, newCams.length));
       logger.printLogLine('Emitting camera batch of ${batch.length} items');
       for (final cam in batch) {
-        _cameraStreamController.add(cam);
+        if (mapUpdate) {
+          _cameraStreamController.add(cam);
+        }
         logger.printLogLine('Emitting camera event: $cam');
         _speedCamEventController.add(
           Timestamped<Map<String, dynamic>>({
@@ -2291,8 +2291,8 @@ class RectangleCalculatorThread {
                   _cameraStreamController.add(cam);
                 }));
               }
+              continue;
             }
-            continue;
           }
 
           final camTypeTag = tags['camera:type']?.toString();

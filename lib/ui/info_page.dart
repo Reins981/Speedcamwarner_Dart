@@ -38,12 +38,6 @@ class InfoPage extends StatelessWidget {
                 ),
               ),
             ),
-            const SizedBox(height: 16),
-            ValueListenableBuilder<int>(
-              valueListenable: calculator.constructionAreaCountNotifier,
-              builder: (context, count, _) =>
-                  Text('Construction areas found: $count'),
-            ),
           ],
         ),
       ),

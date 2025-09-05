@@ -147,11 +147,11 @@ class AppController {
   final GpsProducer gpsProducer = GpsProducer();
 
   /// Stream distributing POI lookup results to listeners such as the map.
-  final StreamController<List<List<double>>> _poiController =
-      StreamController<List<List<double>>>.broadcast();
+  final StreamController<List<List<dynamic>>> _poiController =
+      StreamController<List<List<dynamic>>>.broadcast();
 
   /// Public stream of POI coordinate lists.
-  Stream<List<List<double>>> get poiStream => _poiController.stream;
+  Stream<List<List<dynamic>>> get poiStream => _poiController.stream;
 
   // Interrupt queue for handling real-time interruptions.
   final InterruptQueue<String>? interruptQueue = InterruptQueue<String>();
@@ -354,12 +354,48 @@ class AppController {
 
     final result = await calculator.triggerOsmLookup(area, lookupType: type);
     if (result.success && result.elements != null) {
-      final pois = <List<double>>[];
+      final pois = <List<dynamic>>[];
       for (final el in result.elements!) {
         final latPoi = (el['lat'] as num?)?.toDouble();
         final lonPoi = (el['lon'] as num?)?.toDouble();
         if (latPoi != null && lonPoi != null) {
-          pois.add([latPoi, lonPoi]);
+          String amenity = '';
+          String address = '';
+          String postCode = '';
+          String street = '';
+          String name = '';
+          String phone = '';
+          if (el['tags'] != null) {
+            final tags = el['tags'] as Map;
+            if (tags['amenity'] != null) {
+              amenity = tags['amenity'].toString();
+            }
+            if (tags['addr:city'] != null) {
+              address = tags['addr:city'].toString();
+            }
+            if (tags['addr:postcode'] != null) {
+              postCode = tags['addr:postcode'].toString();
+            }
+            if (tags['addr:street'] != null) {
+              street = tags['addr:street'].toString();
+            }
+            if (tags['name'] != null) {
+              name = tags['name'].toString();
+            }
+            if (tags['phone'] != null) {
+              phone = tags['phone'].toString();
+            }
+          }
+          pois.add([
+            latPoi,
+            lonPoi,
+            amenity,
+            address,
+            postCode,
+            street,
+            name,
+            phone
+          ]);
         }
       }
       _poiController.add(pois);
