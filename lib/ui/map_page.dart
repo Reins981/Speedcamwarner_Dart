@@ -10,6 +10,17 @@ import '../rectangle_calculator.dart';
 /// Dedicated map page that visualises the current position and allows the
 /// user to add temporary police camera markers and perform POI lookups.
 class MapPage extends StatefulWidget {
+  /// Provides access to the current [_MapPageState] so non-UI code can invoke
+  /// methods on the active map page.  This is primarily used by the
+  /// [SpeedCamWarner] to remove obsolete markers.
+  static _MapPageState? _currentState;
+
+  /// Remove a camera marker from the map at the given [lon]/[lat]
+  /// coordinates.  If no map page is currently active this call is ignored.
+  static void removeCameraMarker(double lon, double lat) {
+    _currentState?._removeCameraMarker(lon, lat);
+  }
+
   final RectangleCalculatorThread calculator;
   final Stream<List<List<double>>> poiStream;
   final Future<void> Function(String type) onPoiLookup;
@@ -52,6 +63,7 @@ class _MapPageState extends State<MapPage> {
   @override
   void initState() {
     super.initState();
+    MapPage._currentState = this;
     _center = widget.calculator.positionNotifier.value;
     _gpsMarker = Marker(
       point: _center,
@@ -250,6 +262,25 @@ class _MapPageState extends State<MapPage> {
     });
   }
 
+  /// Remove a camera marker matching the provided [lon] and [lat]
+  /// coordinates.  If no such marker exists the method is a no-op.
+  void _removeCameraMarker(double lon, double lat) {
+    Marker? markerToRemove;
+    for (final entry in _markerData.entries) {
+      final cam = entry.value;
+      if (cam.longitude == lon && cam.latitude == lat) {
+        markerToRemove = entry.key;
+        break;
+      }
+    }
+    if (markerToRemove != null) {
+      setState(() {
+        _cameraMarkers.remove(markerToRemove);
+        _markerData.remove(markerToRemove);
+      });
+    }
+  }
+
   void _onConstructionArea(GeoRect? area) {
     if (area != null) {
       _addConstructionAreas([area]);
@@ -341,6 +372,7 @@ class _MapPageState extends State<MapPage> {
     _rectSub?.cancel();
     _constructionSub?.cancel();
     _poiSub?.cancel();
+    MapPage._currentState = null;
     super.dispose();
   }
 

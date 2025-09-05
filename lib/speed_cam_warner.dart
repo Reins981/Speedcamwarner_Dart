@@ -7,6 +7,7 @@ import 'voice_prompt_events.dart';
 import 'config.dart';
 import 'logger.dart';
 import 'package:latlong2/latlong.dart';
+import 'ui/map_page.dart';
 
 /// Ported from `SpeedCamWarnerThread.py`.
 ///
@@ -21,7 +22,7 @@ class SpeedCamWarner {
 
   final dynamic resume;
   final VoicePromptEvents voicePromptEvents;
-  final dynamic osmWrapper;
+  final dynamic osmWrapper; // ignore: unused_field
   final RectangleCalculatorThread calculator;
 
   // runtime state --------------------------------------------------------
@@ -1143,7 +1144,7 @@ class SpeedCamWarner {
             'Deleting obsolete camera: $cam (camera is outside current camera rectangle with radius ${calculateCameraRectangleRadius()} km)',
           );
           deleteObsoleteCamera(cam, camAttributes);
-          osmWrapper?.remove_marker_from_map(cam[0], cam[1]);
+          MapPage.removeCameraMarker(cam[0], cam[1]);
         } else {
           if (camAttributes[2][0] == 'IGNORE' ||
               camAttributes[2][1] == 'IGNORE') {
@@ -1156,7 +1157,7 @@ class SpeedCamWarner {
                 'Deleting obsolete camera: $cam (max distance $maxAbsoluteDistance m < current distance ${distance.abs()} m)',
               );
               deleteObsoleteCamera(cam, camAttributes);
-              osmWrapper?.remove_marker_from_map(cam[0], cam[1]);
+              MapPage.removeCameraMarker(cam[0], cam[1]);
             } else {
               if (camAttributes[6] > maxStorageTime) {
                 if (camAttributes[11] == false) {
@@ -1164,7 +1165,7 @@ class SpeedCamWarner {
                     'Deleting obsolete camera: $cam because of storage time (max: $maxStorageTime seconds, current: ${camAttributes[6]})',
                   );
                   deleteObsoleteCamera(cam, camAttributes);
-                  osmWrapper?.remove_marker_from_map(cam[0], cam[1]);
+                  MapPage.removeCameraMarker(cam[0], cam[1]);
                 } else {
                   print('Camera $cam is new. Ignore deletion');
                 }
@@ -1182,7 +1183,7 @@ class SpeedCamWarner {
                 'Deleting obsolete camera: $cam (max distance $maxAbsoluteDistance m < current distance ${distance.abs()} m)',
               );
               deleteObsoleteCamera(cam, camAttributes);
-              osmWrapper?.remove_marker_from_map(cam[0], cam[1]);
+              MapPage.removeCameraMarker(cam[0], cam[1]);
             } else {
               if (distance < 0 &&
                   camAttributes[5] == -1 &&
@@ -1192,7 +1193,7 @@ class SpeedCamWarner {
                     'Deleting obsolete camera: $cam because of storage time (max: $maxStorageTime seconds, current: ${camAttributes[6]})',
                   );
                   deleteObsoleteCamera(cam, camAttributes);
-                  osmWrapper?.remove_marker_from_map(cam[0], cam[1]);
+                  MapPage.removeCameraMarker(cam[0], cam[1]);
                 } else {
                   print('Camera $cam is new. Ignore deletion');
                 }
