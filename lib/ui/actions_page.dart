@@ -1,7 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'dart:io';
+
 import 'package:geolocator/geolocator.dart';
 import 'package:file_selector/file_selector.dart';
+import 'package:path_provider/path_provider.dart';
 import '../app_controller.dart';
 
 /// Simple page providing Start, Stop and Exit controls.
@@ -39,9 +42,12 @@ class ActionsPage extends StatelessWidget {
               );
               final file =
                   await openFile(acceptedTypeGroups: [typeGroup]);
-              final path = file?.path;
-              if (path != null) {
-                await controller.start(gpxFile: path);
+              if (file != null) {
+                final tempDir = await getTemporaryDirectory();
+                final tempFile =
+                    File('${tempDir.path}/${file.name}');
+                await tempFile.writeAsBytes(await file.readAsBytes());
+                await controller.start(gpxFile: tempFile.path);
                 onFinished();
               }
             }),
