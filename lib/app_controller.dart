@@ -341,10 +341,10 @@ class AppController {
       pts[1],
       pts[3],
     );
-    final lonMin = poly[0].x;
-    final latMin = poly[0].y;
-    final lonMax = poly[2].x;
-    final latMax = poly[2].y;
+    final lonMin = math.min(poly[0].x, poly[2].x);
+    final lonMax = math.max(poly[0].x, poly[2].x);
+    final latMin = math.min(poly[0].y, poly[2].y);
+    final latMax = math.max(poly[0].y, poly[2].y);
     final area = GeoRect(
       minLat: latMin,
       minLon: lonMin,
