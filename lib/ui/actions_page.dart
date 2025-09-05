@@ -5,7 +5,6 @@ import 'dart:io';
 import 'package:geolocator/geolocator.dart';
 import 'package:file_selector/file_selector.dart';
 import 'package:path_provider/path_provider.dart';
-
 import '../app_controller.dart';
 
 /// Simple page providing Start, Stop and Exit controls.
