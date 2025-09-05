@@ -342,6 +342,7 @@ class VoicePromptThread {
       'GPS_OFF': 'GPS is off',
       'GPS_LOW': 'Low GPS signal',
       'GPS_ON': 'GPS is back online',
+      'CAMERA_ALERT': 'Speed camera ahead',
       'SPEEDCAM_BACKUP': 'Speed camera backup',
       'SPEEDCAM_REINSERT': 'Reinsert speed camera data',
       'FIX_100': 'Fixed camera 100 meters ahead',

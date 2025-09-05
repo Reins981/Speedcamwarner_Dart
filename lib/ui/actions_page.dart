@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:file_selector/file_selector.dart';
-
 import '../app_controller.dart';
 
 /// Simple page providing Start, Stop and Exit controls.
