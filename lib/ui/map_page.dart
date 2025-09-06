@@ -40,7 +40,6 @@ class _MapPageState extends State<MapPage> {
   Marker? _gpsMarker;
   final List<Marker> _cameraMarkers = [];
   final List<Marker> _poiMarkers = [];
-  final Map<Marker, List<dynamic>> _poiData = {};
   final Map<Marker, SpeedCameraEvent> _markerData = {};
   final List<Marker> _constructionMarkers = [];
   final Map<Marker, GeoRect> _constructionData = {};
@@ -200,60 +199,6 @@ class _MapPageState extends State<MapPage> {
       width = 100.0;
     }
     return width;
-  }
-
-  Widget _buildInfoRow(String label, String value) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 2),
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(
-            '$label: ',
-            style: const TextStyle(fontWeight: FontWeight.bold),
-          ),
-          Expanded(
-            child: Text(
-              value,
-              softWrap: true,
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildPoiPopup(List<dynamic> poi) {
-    final amenity = poi[2] as String? ?? '';
-    final address = poi[3] as String? ?? '';
-    final postCode = poi[4] as String? ?? '';
-    final street = poi[5] as String? ?? '';
-    final name = poi[6] as String? ?? '';
-    final phone = poi[7] as String? ?? '';
-    return Card(
-      child: SizedBox(
-        width: 200,
-        child: Padding(
-          padding: const EdgeInsets.all(8.0),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              if (name.isNotEmpty)
-                Text(
-                  name,
-                  style: const TextStyle(fontWeight: FontWeight.bold),
-                ),
-              if (amenity.isNotEmpty) _buildInfoRow('Amenity', amenity),
-              if (address.isNotEmpty) _buildInfoRow('City', address),
-              if (street.isNotEmpty) _buildInfoRow('Street', street),
-              if (postCode.isNotEmpty) _buildInfoRow('Postcode', postCode),
-              if (phone.isNotEmpty) _buildInfoRow('Phone', phone),
-            ],
-          ),
-        ),
-      ),
-    );
   }
 
   void _onCameraEvent(SpeedCameraEvent cam) {
@@ -489,10 +434,6 @@ class _MapPageState extends State<MapPage> {
                       ),
                     );
                   }
-                  final poi = _poiData[marker];
-                  if (poi != null) {
-                    return _buildPoiPopup(poi);
-                  }
                   if (_constructionData.containsKey(marker)) {
                     return const Card(
                       child: Padding(
@@ -529,28 +470,24 @@ class _MapPageState extends State<MapPage> {
 
   void _onPois(List<List<dynamic>> pois) {
     final markers = <Marker>[];
-    final data = <Marker, List<dynamic>>{};
     final seen = <String>{};
     for (final poi in pois) {
       final key = '${poi[0]},${poi[1]}';
       if (seen.add(key)) {
-        final marker = Marker(
-          point: LatLng(poi[0], poi[1]),
-          width: 40,
-          height: 40,
-          child: Image.asset('images/poi_marker.png'),
+        markers.add(
+          Marker(
+            point: LatLng(poi[0], poi[1]),
+            width: 40,
+            height: 40,
+            child: Image.asset('images/poi_marker.png'),
+          ),
         );
-        markers.add(marker);
-        data[marker] = poi;
       }
     }
     setState(() {
       _poiMarkers
         ..clear()
         ..addAll(markers);
-      _poiData
-        ..clear()
-        ..addAll(data);
     });
   }
 
