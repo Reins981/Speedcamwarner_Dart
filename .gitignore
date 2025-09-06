@@ -44,5 +44,7 @@ app.*.map.json
 /android/app/release
 
 # secrets
+assets/service_account/*
+service_account/*
 secrets.json
 python/service_account/osmwarner*.json
