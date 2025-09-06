@@ -57,7 +57,6 @@ dependencies:
   synchronized: ^3.4.0
   file_selector: ^1.0.2
   flutter_local_notifications: ^17.1.2
-  flutter_background_service: ^5.0.6
 
 dev_dependencies:
   flutter_test:

@@ -3,8 +3,6 @@ import 'dart:async';
 import 'app_controller.dart';
 import 'config.dart';
 import 'ui/home.dart';
-import 'background_service.dart';
-import 'notification_service.dart';
 
 /// Entry point of the SpeedCamWarner application.
 ///
@@ -14,8 +12,6 @@ import 'notification_service.dart';
 /// [AppController].
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
-  await BackgroundService.initialize();
-  await NotificationService.initialize();
   await AppConfig.load();
   runApp(SpeedCamWarnerApp());
 }
