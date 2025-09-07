@@ -3082,22 +3082,30 @@ class RectangleCalculatorThread {
   }
 
   static Future<String?> getRoadNearestRoadName(double lat, double lon) async {
-    final Uri uri = Uri.parse(
-      'https://router.project-osrm.org/nearest/v1/driving/$lon,$lat?number=1',
+    final uri = Uri.https(
+      'router.project-osrm.org',
+      '/nearest/v1/driving/$lon,$lat',
+      {'number': '1'},
     );
     try {
-      final resp = await http.get(
-        uri,
-        headers: {'User-Agent': 'speedcamwarner-dart'},
-      );
+      final resp = await http
+          .get(
+            uri,
+            headers: {'User-Agent': 'speedcamwarner-dart'},
+          )
+          .timeout(const Duration(seconds: 5));
       if (resp.statusCode == 200) {
         final data = jsonDecode(resp.body) as Map<String, dynamic>;
         print('Received nearest road name: ${data['waypoints'][0]['name']}');
         return data['waypoints'][0]['name']?.toString();
       }
+    } on SocketException {
+      // Fallback to Nominatim if OSRM is unreachable
+      return await getRoadNameViaNominatim(lat, lon);
+    } on TimeoutException {
+      return await getRoadNameViaNominatim(lat, lon);
     } catch (e) {
       print('Error getting nearest road name: $e');
-      return null;
     }
     return null;
   }
