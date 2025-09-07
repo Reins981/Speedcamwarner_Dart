@@ -738,6 +738,13 @@ class SpeedCamWarner {
     int nextCamDistanceAsInt = 0,
     bool processNextCam = false,
   }) {
+    if (resume?.isResumed() ?? true) {
+      updateNextCam(
+        process: processNextCam,
+        road: processNextCam ? nextCamRoad : null,
+        distance: processNextCam ? nextCamDistanceAsInt : null,
+      );
+    }
     if (distance >= 0 && distance <= 100) {
       camInProgress = true;
       if (lastDistance == -1 || lastDistance > 100) {
@@ -1028,6 +1035,18 @@ class SpeedCamWarner {
     } else {
       calculator.updateMaxspeed(maxSpeed);
     }
+  }
+
+  void updateNextCam({
+    required bool process,
+    String? road,
+    int? distance,
+  }) {
+    calculator.updateNextCamInfo(
+      process: process,
+      road: road,
+      distance: distance,
+    );
   }
 
   LatLng? get lastPosition => _lastPosition;
