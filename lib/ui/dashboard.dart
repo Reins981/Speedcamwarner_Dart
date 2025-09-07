@@ -163,12 +163,6 @@ class _DashboardPageState extends State<DashboardPage> {
   }
 
   void _onCamera(SpeedCameraEvent cam) {
-    // Predictive cameras can arrive while a real camera is active.  Ignore
-    // those updates to prevent the dashboard from alternating between the
-    // predictive and real camera icons.
-    if (_activeCamera != null && !_activeCamera!.predictive && cam.predictive) {
-      return;
-    }
     setState(() {
       _activeCamera = cam;
       _speedCamWarning = _cameraTypeString(cam);

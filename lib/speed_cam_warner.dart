@@ -8,7 +8,6 @@ import 'config.dart';
 import 'logger.dart';
 import 'package:latlong2/latlong.dart';
 import 'ui/map_page.dart';
-import 'package:flutter/services.dart';
 
 /// Ported from `SpeedCamWarnerThread.py`.
 ///
@@ -145,19 +144,29 @@ class SpeedCamWarner {
     }
     var item = envelope.data;
 
+    if (item.containsKey('update_cam_name')) {
+      String name = item['name'];
+      List<double> camCoords = item['cam_coords'];
+      logger.printLogLine('Received update_cam_name $name for $camCoords');
+      if (itemQueue.containsKey(camCoords)) {
+        itemQueue[camCoords]![7] = name;
+      }
+      return;
+    }
+
     ccpBearing = item['bearing'];
     var stableCcp = item['stable_ccp'] ?? 'UNSTABLE';
     adaptMaxStorageTime(stableCcp);
 
     if (item['ccp'][0] == 'EXIT' || item['ccp'][1] == 'EXIT') {
-      print('Speedcamwarner thread got a termination item');
+      logger.printLogLine('Speedcamwarner thread got a termination item');
       return;
     }
 
     if (item['ccp'][0] == 'IGNORE' || item['ccp'][1] == 'IGNORE') {
-      print('Ignore CCP update');
+      logger.printLogLine('Ignore CCP update');
     } else {
-      print('Received new CCP update');
+      logger.printLogLine('Received new CCP update');
       longitude = item['ccp'][0];
       latitude = item['ccp'][1];
     }
@@ -166,19 +175,18 @@ class SpeedCamWarner {
     if (item['fix_cam'][0] == true) {
       var enforcement = item['fix_cam'][3];
       if (!enforcement) {
-        print(
+        logger.printLogLine(
           'Fix Cam with ${item['fix_cam'][1]} ${item['fix_cam'][2]} is not an enforcement camera. Skipping..',
         );
         return null;
       }
 
       if (isAlreadyAdded([item['fix_cam'][1], item['fix_cam'][2]])) {
-        print(
+        logger.printLogLine(
           'Cam with ${item['fix_cam'][1]} ${item['fix_cam'][2]} already added. Skip processing..',
         );
         return null;
       } else {
-        print('Add new fix cam (${item['fix_cam'][1]}, ${item['fix_cam'][2]})');
         logger.printLogLine(
           'Add new fix cam (${item['fix_cam'][1]}, ${item['fix_cam'][2]})',
         );

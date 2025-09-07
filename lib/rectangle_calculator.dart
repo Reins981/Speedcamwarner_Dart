@@ -166,18 +166,19 @@ class SpeedCameraEvent {
   final bool predictive;
   String? name;
   final int? maxspeed;
+  final String? direction;
 
-  SpeedCameraEvent({
-    required this.latitude,
-    required this.longitude,
-    this.fixed = false,
-    this.traffic = false,
-    this.distance = false,
-    this.mobile = false,
-    this.predictive = false,
-    this.name,
-    this.maxspeed,
-  });
+  SpeedCameraEvent(
+      {required this.latitude,
+      required this.longitude,
+      this.fixed = false,
+      this.traffic = false,
+      this.distance = false,
+      this.mobile = false,
+      this.predictive = false,
+      this.name,
+      this.maxspeed,
+      this.direction});
 
   @override
   String toString() {
@@ -1323,7 +1324,7 @@ class RectangleCalculatorThread {
             'list_tree': [null, null],
             'name': cam.name,
             'maxspeed': cam.maxspeed,
-            'direction': '',
+            'direction': cam.direction,
           }),
         );
       }
@@ -2263,6 +2264,7 @@ class RectangleCalculatorThread {
           // casting directly to ``num``.  Use ``resolveMaxSpeed`` to safely parse the
           // numeric portion instead.
           final maxspeed = resolveMaxSpeed(tags);
+          final direction = tags['direction'] ?? '-';
           if (lat == null || lon == null) {
             logger.printLogLine(
               'Skipping speed camera element without coordinates: ${element['id']}',
@@ -2276,12 +2278,12 @@ class RectangleCalculatorThread {
             if (role == 'device') {
               logger.printLogLine('Adding device speed camera: $tags');
               final cam = SpeedCameraEvent(
-                latitude: lat,
-                longitude: lon,
-                distance: true,
-                name: tags['name']?.toString(),
-                maxspeed: maxspeed,
-              );
+                  latitude: lat,
+                  longitude: lon,
+                  distance: true,
+                  name: tags['name']?.toString(),
+                  maxspeed: maxspeed,
+                  direction: direction);
               _cameraCache.add(cam);
               cams.add(cam);
               distance_cams += 1;
@@ -2289,6 +2291,13 @@ class RectangleCalculatorThread {
                 unawaited(resolveRoadName(lat, lon).then((value) {
                   cam.name = value;
                   _cameraStreamController.add(cam);
+                  _speedCamEventController.add(
+                    Timestamped<Map<String, dynamic>>({
+                      'update_cam_name': true,
+                      'name': cam.name,
+                      'cam_coords': [cam.longitude, cam.latitude],
+                    }),
+                  );
                 }));
               }
               continue;
@@ -2299,12 +2308,12 @@ class RectangleCalculatorThread {
           if (camTypeTag == 'mobile' || tags['mobile'] == 'yes') {
             logger.printLogLine('Adding mobile speed camera: $tags');
             final cam = SpeedCameraEvent(
-              latitude: lat,
-              longitude: lon,
-              mobile: true,
-              name: tags['name']?.toString(),
-              maxspeed: maxspeed,
-            );
+                latitude: lat,
+                longitude: lon,
+                mobile: true,
+                name: tags['name']?.toString(),
+                maxspeed: maxspeed,
+                direction: direction);
             _cameraCache.add(cam);
             cams.add(cam);
             mobile_cams += 1;
@@ -2312,6 +2321,13 @@ class RectangleCalculatorThread {
               unawaited(resolveRoadName(lat, lon).then((value) {
                 cam.name = value;
                 _cameraStreamController.add(cam);
+                _speedCamEventController.add(
+                  Timestamped<Map<String, dynamic>>({
+                    'update_cam_name': true,
+                    'name': cam.name,
+                    'cam_coords': [cam.longitude, cam.latitude],
+                  }),
+                );
               }));
             }
             continue;
@@ -2322,12 +2338,12 @@ class RectangleCalculatorThread {
           if (highwayVal == 'speed_camera' && speedCamVal == null) {
             logger.printLogLine('Adding fixed speed camera: $tags');
             final cam = SpeedCameraEvent(
-              latitude: lat,
-              longitude: lon,
-              fixed: true,
-              name: tags['name']?.toString(),
-              maxspeed: maxspeed,
-            );
+                latitude: lat,
+                longitude: lon,
+                fixed: true,
+                name: tags['name']?.toString(),
+                maxspeed: maxspeed,
+                direction: direction);
             _cameraCache.add(cam);
             cams.add(cam);
             fix_cams += 1;
@@ -2335,6 +2351,13 @@ class RectangleCalculatorThread {
               unawaited(resolveRoadName(lat, lon).then((value) {
                 cam.name = value;
                 _cameraStreamController.add(cam);
+                _speedCamEventController.add(
+                  Timestamped<Map<String, dynamic>>({
+                    'update_cam_name': true,
+                    'name': cam.name,
+                    'cam_coords': [cam.longitude, cam.latitude],
+                  }),
+                );
               }));
             }
             continue;
@@ -2343,12 +2366,12 @@ class RectangleCalculatorThread {
           if (speedCamVal == 'traffic_signals') {
             logger.printLogLine('Adding traffic speed camera: $tags');
             final cam = SpeedCameraEvent(
-              latitude: lat,
-              longitude: lon,
-              traffic: true,
-              name: tags['name']?.toString(),
-              maxspeed: maxspeed,
-            );
+                latitude: lat,
+                longitude: lon,
+                traffic: true,
+                name: tags['name']?.toString(),
+                maxspeed: maxspeed,
+                direction: direction);
             _cameraCache.add(cam);
             cams.add(cam);
             traffic_cams += 1;
@@ -2356,6 +2379,13 @@ class RectangleCalculatorThread {
               unawaited(resolveRoadName(lat, lon).then((value) {
                 cam.name = value;
                 _cameraStreamController.add(cam);
+                _speedCamEventController.add(
+                  Timestamped<Map<String, dynamic>>({
+                    'update_cam_name': true,
+                    'name': cam.name,
+                    'cam_coords': [cam.longitude, cam.latitude],
+                  }),
+                );
               }));
             }
           }
