@@ -470,11 +470,14 @@ class SpeedCamWarner {
         'Initial Distance to speed cam (${cam[0]}, ${cam[1]}, ${camAttributes[0]}): $distance meters , last distance: ${camAttributes[5]}, storage_time: ${camAttributes[6]} seconds, predictive: ${camAttributes[13]}, road name: $roadName',
       );
 
-      if (distance < 0 || camAttributes[1] == true) {
+      if (distance < 0 ||
+          camAttributes[1] == true ||
+          distance >= maxAbsoluteDistance) {
         camsToDelete.add(cam);
         removeCachedCamera(cam);
-        triggerFreeFlow();
         updateCalculatorCams(camAttributes);
+        MapPage.removeCameraMarker(cam[0], cam[1]);
+        triggerFreeFlow();
       } else {
         if (startTimes.containsKey(cam) && itemQueue.containsKey(cam)) {
           final queue = itemQueue[cam];
@@ -949,7 +952,7 @@ class SpeedCamWarner {
       camInProgress = false;
       triggerFreeFlow();
       lastDistance = maxAbsoluteDistance;
-      itemQueue[camCoordinates]?[1] = 'to_be_stored';
+      itemQueue[camCoordinates]?[1] = true;
     }
 
     // finally update attributes

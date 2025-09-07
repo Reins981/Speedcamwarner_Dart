@@ -89,7 +89,7 @@ class GeoRect {
   /// Maximum distance (in degrees) used by [pointsCloseToBorderLatLon] when
   /// checking if a lat/lon pair lies close to the rectangle boundary.
   final double maxCloseToBorderLatLon = 0.001; // ~111 m
-  final double maxCloseToBorderLatLonLookAhead = 0.0007; // ~77 m
+  final double maxCloseToBorderLatLonLookAhead = 0.008; // ~888 m
 
   LatLon topLeftLatLon() => LatLon(lat: maxLat, lon: minLon);
   LatLon topRightLatLon() => LatLon(lat: maxLat, lon: maxLon);
