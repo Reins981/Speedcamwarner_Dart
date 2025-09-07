@@ -206,6 +206,7 @@ class _MapPageState extends State<MapPage> {
     if (cam.maxspeed != null) height += 28;
     if (cam.predictive) height += 28;
     if (cam.name != null && cam.name!.isNotEmpty) height += 28;
+    if (cam.direction != null && cam.direction!.isNotEmpty) height += 28;
     return height;
   }
 
@@ -213,7 +214,9 @@ class _MapPageState extends State<MapPage> {
     var width = 40.0;
     if (cam.name != null && cam.name!.isNotEmpty) {
       width = 160.0;
-    } else if (cam.predictive || cam.maxspeed != null) {
+    } else if (cam.predictive ||
+        cam.maxspeed != null ||
+        (cam.direction != null && cam.direction!.isNotEmpty)) {
       width = 100.0;
     }
     return width;
