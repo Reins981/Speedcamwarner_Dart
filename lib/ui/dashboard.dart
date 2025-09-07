@@ -44,6 +44,9 @@ class _DashboardPageState extends State<DashboardPage> {
   String? _speedCamIcon;
   double? _speedCamDistance;
   String? _cameraRoad;
+  String? _nextCamRoad;
+  int? _nextCamDistance;
+  bool _processNextCam = false;
   int? _maxSpeed;
   bool _gpsOn = false;
   bool _online = false;
@@ -78,6 +81,9 @@ class _DashboardPageState extends State<DashboardPage> {
         _speedCamDistance = _calculator!.speedCamDistanceNotifier.value;
         _cameraRoad = _calculator!.cameraRoadNotifier.value;
       }
+      _nextCamRoad = _calculator!.nextCamRoadNotifier.value;
+      _nextCamDistance = _calculator!.nextCamDistanceNotifier.value;
+      _processNextCam = _calculator!.processNextCamNotifier.value;
       _maxSpeed = _calculator!.maxspeedNotifier.value;
       _overspeedDiff = (_maxSpeed != null && _speed > _maxSpeed!)
           ? (_speed - _maxSpeed!).round()
@@ -88,6 +94,9 @@ class _DashboardPageState extends State<DashboardPage> {
       _calculator!.speedCamNotifier.addListener(_updateFromCalculator);
       _calculator!.speedCamDistanceNotifier.addListener(_updateFromCalculator);
       _calculator!.cameraRoadNotifier.addListener(_updateFromCalculator);
+      _calculator!.nextCamRoadNotifier.addListener(_updateFromCalculator);
+      _calculator!.nextCamDistanceNotifier.addListener(_updateFromCalculator);
+      _calculator!.processNextCamNotifier.addListener(_updateFromCalculator);
       _calculator!.maxspeedNotifier.addListener(_updateFromCalculator);
       _calculator!.gpsStatusNotifier.addListener(_updateFromCalculator);
       _calculator!.onlineStatusNotifier.addListener(_updateFromCalculator);
@@ -128,6 +137,9 @@ class _DashboardPageState extends State<DashboardPage> {
         _cameraRoad = _calculator!.cameraRoadNotifier.value;
         _speedCamIcon = _iconForWarning(_speedCamWarning);
       }
+      _nextCamRoad = _calculator!.nextCamRoadNotifier.value;
+      _nextCamDistance = _calculator!.nextCamDistanceNotifier.value;
+      _processNextCam = _calculator!.processNextCamNotifier.value;
       _gpsOn = _calculator!.gpsStatusNotifier.value;
       _online = _calculator!.onlineStatusNotifier.value;
       _speedHistory.add(_speed);
@@ -277,6 +289,9 @@ class _DashboardPageState extends State<DashboardPage> {
         _updateFromCalculator,
       );
       _calculator!.cameraRoadNotifier.removeListener(_updateFromCalculator);
+      _calculator!.nextCamRoadNotifier.removeListener(_updateFromCalculator);
+      _calculator!.nextCamDistanceNotifier.removeListener(_updateFromCalculator);
+      _calculator!.processNextCamNotifier.removeListener(_updateFromCalculator);
       _calculator!.maxspeedNotifier.removeListener(_updateFromCalculator);
       _calculator!.gpsStatusNotifier.removeListener(_updateFromCalculator);
       _calculator!.onlineStatusNotifier.removeListener(_updateFromCalculator);
@@ -333,6 +348,13 @@ class _DashboardPageState extends State<DashboardPage> {
               left: 0,
               right: 0,
               child: _buildCameraInfo(),
+            ),
+          if (_processNextCam)
+            Positioned(
+              top: hasCameraInfo ? 120 : 16,
+              left: 0,
+              right: 0,
+              child: _buildNextCameraInfo(),
             ),
         ],
       ),
@@ -431,6 +453,38 @@ class _DashboardPageState extends State<DashboardPage> {
                     style: const TextStyle(color: Colors.white70, fontSize: 12),
                   ),
               ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildNextCameraInfo() {
+    if (!_processNextCam || _nextCamRoad == null || _nextCamDistance == null) {
+      return const SizedBox.shrink();
+    }
+    return Container(
+      width: double.infinity,
+      margin: const EdgeInsets.symmetric(horizontal: 16),
+      decoration: BoxDecoration(
+        color: Colors.blueGrey.withOpacity(0.7),
+        borderRadius: BorderRadius.circular(12),
+        boxShadow: const [
+          BoxShadow(color: Colors.black26, blurRadius: 8, offset: Offset(0, 4)),
+        ],
+      ),
+      padding: const EdgeInsets.all(16),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          const Icon(Icons.camera_alt, color: Colors.white),
+          const SizedBox(width: 8),
+          Expanded(
+            child: Text(
+              'Next: $_nextCamRoad (${_nextCamDistance!} m)',
+              style: const TextStyle(color: Colors.white, fontSize: 16),
+              overflow: TextOverflow.ellipsis,
             ),
           ),
         ],
