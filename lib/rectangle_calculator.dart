@@ -524,6 +524,12 @@ class RectangleCalculatorThread {
   final ValueNotifier<String?> cameraRoadNotifier = ValueNotifier<String?>(
     null,
   );
+  final ValueNotifier<String?> nextCamRoadNotifier =
+      ValueNotifier<String?>(null);
+  final ValueNotifier<int?> nextCamDistanceNotifier =
+      ValueNotifier<int?>(null);
+  final ValueNotifier<bool> processNextCamNotifier =
+      ValueNotifier<bool>(false);
   final ValueNotifier<LatLng> positionNotifier = ValueNotifier<LatLng>(
     const LatLng(0, 0),
   );
@@ -3169,4 +3175,19 @@ class RectangleCalculatorThread {
       speedCamDistanceNotifier.value = meter;
 
   void updateCameraRoad(String? road) => cameraRoadNotifier.value = road;
+
+  void updateNextCamInfo({
+    required bool process,
+    String? road,
+    int? distance,
+  }) {
+    processNextCamNotifier.value = process;
+    if (process) {
+      nextCamRoadNotifier.value = road;
+      nextCamDistanceNotifier.value = distance;
+    } else {
+      nextCamRoadNotifier.value = null;
+      nextCamDistanceNotifier.value = null;
+    }
+  }
 }
