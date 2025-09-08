@@ -8,6 +8,7 @@ import 'dart:math' as math;
 
 import '../app_controller.dart';
 import '../rectangle_calculator.dart';
+import '../config.dart';
 import 'overspeed_indicator.dart';
 
 /// A simple dashboard showing current speed, road name and speed camera
@@ -174,7 +175,44 @@ class _DashboardPageState extends State<DashboardPage> {
     _activeCamera = null;
   }
 
+  double _degToRad(double deg) => deg * (math.pi / 180.0);
+
+  double _distanceBetween(
+    double lat1,
+    double lon1,
+    double lat2,
+    double lon2,
+  ) {
+    const earthRadius = 6371000.0; // metres
+    final dLat = _degToRad(lat2 - lat1);
+    final dLon = _degToRad(lon2 - lon1);
+    final a = math.sin(dLat / 2) * math.sin(dLat / 2) +
+        math.cos(_degToRad(lat1)) *
+            math.cos(_degToRad(lat2)) *
+            math.sin(dLon / 2) *
+            math.sin(dLon / 2);
+    final c = 2 * math.atan2(math.sqrt(a), math.sqrt(1 - a));
+    return earthRadius * c;
+  }
+
+  bool _withinDisplayDistance(SpeedCameraEvent cam) {
+    if (_calculator == null) return false;
+    final pos = _calculator!.positionNotifier.value;
+    final distance = _distanceBetween(
+      pos.latitude,
+      pos.longitude,
+      cam.latitude,
+      cam.longitude,
+    );
+    final maxDistance =
+        (AppConfig.get<num>('speedCamWarner.max_distance_to_future_camera') ??
+                5000)
+            .toDouble();
+    return distance <= maxDistance;
+  }
+
   void _onCamera(SpeedCameraEvent cam) {
+    if (!_withinDisplayDistance(cam)) return;
     setState(() {
       _activeCamera = cam;
       _speedCamWarning = _cameraTypeString(cam);
