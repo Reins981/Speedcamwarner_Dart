@@ -1154,8 +1154,9 @@ class SpeedCamWarner {
   }
 
   bool cameraInsideCameraRectangle(dynamic cam) {
-    var xtile = calculator.longlat2tile(cam[1], cam[0], calculator.zoom)[0];
-    var ytile = calculator.longlat2tile(cam[1], cam[0], calculator.zoom)[1];
+    final key = parseCamKey(cam);
+    var xtile = calculator.longlat2tile(key[1], key[0], calculator.zoom)[0];
+    var ytile = calculator.longlat2tile(key[1], key[0], calculator.zoom)[1];
     var rectangle = calculator.rectSpeedCamLookahead;
     if (rectangle == null) return true;
     return rectangle.pointInRect(xtile, ytile);
