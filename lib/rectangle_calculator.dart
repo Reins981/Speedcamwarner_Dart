@@ -1054,7 +1054,12 @@ class RectangleCalculatorThread {
   double _computeLookAheadDistance(double speedKmH, double maxDistanceKm) {
     const double base = 30.0;
     final dynamicDistance = base + math.pow(speedKmH / 30.0, 3).toDouble();
-    return dynamicDistance.clamp(base, maxDistanceKm);
+    logger.printLogLine(
+      'Computed look-ahead distance: $dynamicDistance km (speed: $speedKmH km/h, max: $maxDistanceKm km)',
+    );
+    return (maxDistanceKm >= base)
+        ? dynamicDistance.clamp(base, maxDistanceKm).toDouble()
+        : base;
   }
 
   /// Given a centre point and a lookahead distance in kilometres, compute a
