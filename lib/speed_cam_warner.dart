@@ -154,7 +154,7 @@ class SpeedCamWarner {
     if (item.containsKey('update_cam_name')) {
       String name = item['name'];
       final coords = (item['cam_coords'] as List).cast<double>();
-      final updateKey = camKey(coords[0], coords[1]);
+      final updateKey = camKey(coords[1], coords[0]);
       logger.printLogLine('Received update_cam_name $name for $updateKey');
       if (itemQueue.containsKey(updateKey)) {
         itemQueue[updateKey]![7] = name;
