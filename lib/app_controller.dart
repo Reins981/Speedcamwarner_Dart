@@ -11,6 +11,7 @@ import 'gps_producer.dart';
 import 'speed_cam_warner.dart';
 import 'voice_prompt_thread.dart';
 import 'overspeed_checker.dart';
+import 'overspeed_beeper.dart';
 import 'config.dart';
 import 'thread_base.dart';
 import 'dialogflow_client.dart';
@@ -27,6 +28,7 @@ class AppController {
       : voicePromptEvents = VoicePromptEvents(),
         locationManager = LocationManager() {
     overspeedChecker = OverspeedChecker();
+    overspeedBeeper = OverspeedBeeper(checker: overspeedChecker);
 
     // Start the deviation checker by default so it can be paused during AR
     // sessions and restarted afterwards.
@@ -124,6 +126,9 @@ class AppController {
 
   /// Publishes the current overspeed difference to the UI.
   late final OverspeedChecker overspeedChecker;
+
+  /// Plays a warning tone when overspeed is detected.
+  late final OverspeedBeeper overspeedBeeper;
 
   /// Calculates deviation of the current course based on recent bearings.
   late deviation.DeviationCheckerThread deviationChecker;
@@ -228,6 +233,7 @@ class AppController {
     await calculator.dispose();
     poiReader.stopTimer();
     await voiceThread.stop();
+    await overspeedBeeper.dispose();
     stopDeviationCheckerThread();
     await _poiController.close();
   }
