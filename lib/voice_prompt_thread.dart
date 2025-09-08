@@ -157,7 +157,7 @@ class VoicePromptThread {
           sound = 'mobile_100.wav';
           break;
         case 'MOBILE_PREDICTIVE_100':
-          sound = null;
+          sound = 'mobile_100.wav';
           break;
         case 'DISTANCE_100':
           sound = 'distance_100.wav';
@@ -172,7 +172,7 @@ class VoicePromptThread {
           sound = 'mobile_300.wav';
           break;
         case 'MOBILE_PREDICTIVE_300':
-          sound = null;
+          sound = 'mobile_300.wav';
           break;
         case 'DISTANCE_300':
           sound = 'distance_300.wav';
@@ -187,7 +187,7 @@ class VoicePromptThread {
           sound = 'mobile_500.wav';
           break;
         case 'MOBILE_PREDICTIVE_500':
-          sound = null;
+          sound = 'mobile_500.wav';
           break;
         case 'DISTANCE_500':
           sound = 'distance_500.wav';
@@ -202,7 +202,7 @@ class VoicePromptThread {
           sound = 'mobile_1000.wav';
           break;
         case 'MOBILE_PREDICTIVE_1000':
-          sound = null;
+          sound = 'mobile_1000.wav';
           break;
         case 'DISTANCE_1000':
           sound = 'distance_1000.wav';
