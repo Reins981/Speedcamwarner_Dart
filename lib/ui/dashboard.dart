@@ -164,7 +164,7 @@ class _DashboardPageState extends State<DashboardPage> {
     } else {
       colors = [Colors.red, Colors.red.shade900];
     }
-    return colors.map((c) => c.withOpacity(0.5)).toList();
+    return colors.map((c) => c.withOpacity(0.4)).toList();
   }
 
   void _clearCameraInfo() {
@@ -509,7 +509,7 @@ class _DashboardPageState extends State<DashboardPage> {
       width: double.infinity,
       margin: const EdgeInsets.symmetric(horizontal: 16),
       decoration: BoxDecoration(
-        color: Colors.blueGrey.withOpacity(0.7),
+        color: Colors.blueGrey.withOpacity(0.4),
         borderRadius: BorderRadius.circular(12),
         boxShadow: const [
           BoxShadow(color: Colors.black26, blurRadius: 8, offset: Offset(0, 4)),
