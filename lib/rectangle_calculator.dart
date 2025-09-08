@@ -2304,6 +2304,7 @@ class RectangleCalculatorThread {
               _cameraCache.add(cam);
               cams.add(cam);
               distance_cams += 1;
+              _cameraStreamController.add(cam);
               if (cam.name == null || cam.name!.isEmpty) {
                 unawaited(resolveRoadName(lat, lon).then((value) {
                   cam.name = value;
@@ -2334,6 +2335,7 @@ class RectangleCalculatorThread {
             _cameraCache.add(cam);
             cams.add(cam);
             mobile_cams += 1;
+            _cameraStreamController.add(cam);
             if (cam.name == null || cam.name!.isEmpty) {
               unawaited(resolveRoadName(lat, lon).then((value) {
                 cam.name = value;
@@ -2364,6 +2366,7 @@ class RectangleCalculatorThread {
             _cameraCache.add(cam);
             cams.add(cam);
             fix_cams += 1;
+            _cameraStreamController.add(cam);
             if (cam.name == null || cam.name!.isEmpty) {
               unawaited(resolveRoadName(lat, lon).then((value) {
                 cam.name = value;
@@ -2392,6 +2395,7 @@ class RectangleCalculatorThread {
             _cameraCache.add(cam);
             cams.add(cam);
             traffic_cams += 1;
+            _cameraStreamController.add(cam);
             if (cam.name == null || cam.name!.isEmpty) {
               unawaited(resolveRoadName(lat, lon).then((value) {
                 cam.name = value;
@@ -3103,7 +3107,7 @@ class RectangleCalculatorThread {
       final resp = await http.get(
         uri,
         headers: {'User-Agent': 'speedcamwarner-dart'},
-      ).timeout(const Duration(seconds: 3));
+      ).timeout(const Duration(seconds: 1));
       if (resp.statusCode == 200) {
         final data = jsonDecode(resp.body) as Map<String, dynamic>;
         print('Received nearest road name: ${data['waypoints'][0]['name']}');

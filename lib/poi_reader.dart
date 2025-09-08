@@ -17,10 +17,11 @@ import 'voice_prompt_events.dart';
 class UserCamera {
   final int id;
   final String? name;
+  final String? roadName;
   final double lon;
   final double lat;
 
-  const UserCamera(this.id, this.name, this.lon, this.lat);
+  const UserCamera(this.id, this.name, this.roadName, this.lon, this.lat);
 }
 
 /// Port of the legacy Python ``POIReader`` implementation from ``SQL.py``.
@@ -212,7 +213,7 @@ class POIReader extends Logger {
 
   /// Send camera information to the speed‑camera queue for further processing.
   void _propagateCamera(
-    String? name,
+    String? roadName,
     double longitude,
     double latitude,
     String cameraType,
@@ -230,7 +231,7 @@ class POIReader extends Logger {
           traffic: cameraType == 'traffic_cam',
           distance: cameraType == 'distance_cam',
           mobile: cameraType == 'mobile_cam',
-          name: name ?? '',
+          name: roadName ?? '',
         ),
       ], mapUpdate: true),
     );
@@ -329,12 +330,14 @@ class POIReader extends Logger {
     for (final camera in cameras) {
       try {
         final name = camera['name'];
+        final roadName = camera['road_name'];
         final lat = camera['coordinates'][0]['latitude'];
         final lon = camera['coordinates'][0]['longitude'];
 
         final userCam = UserCamera(
           camId,
           name,
+          roadName,
           (lon as num).toDouble(),
           (lat as num).toDouble(),
         );
@@ -349,7 +352,8 @@ class POIReader extends Logger {
           name: userCam.name,
         );
         _updateOsmWrapper();
-        _propagateCamera(userCam.name, userCam.lon, userCam.lat, 'mobile_cam');
+        _propagateCamera(
+            userCam.roadName, userCam.lon, userCam.lat, 'mobile_cam');
         camId += 1;
       } catch (_) {
         printLogLine(
