@@ -138,6 +138,11 @@ class SpeedCamWarner {
   String camKey(double lat, double lon) =>
       '${lat.toStringAsFixed(6)},${lon.toStringAsFixed(6)}';
 
+  List<double> parseCamKey(String key) {
+    final parts = key.split(',');
+    return [double.parse(parts[1]), double.parse(parts[0])];
+  }
+
   void process(Timestamped<Map<String, dynamic>> envelope) async {
     logger.printLogLine('Processing speedcam event');
     if (DateTime.now().difference(envelope.timestamp) > _staleThreshold) {
@@ -184,7 +189,9 @@ class SpeedCamWarner {
         return null;
       }
 
-      if (isAlreadyAdded([item['fix_cam'][1], item['fix_cam'][2]])) {
+      final insertKey =
+          camKey(item['fix_cam'][2], item['fix_cam'][1]); // new stable object
+      if (isAlreadyAdded(insertKey)) {
         logger.printLogLine(
           'Cam with ${item['fix_cam'][1]} ${item['fix_cam'][2]} already added. Skip processing..',
         );
@@ -193,8 +200,6 @@ class SpeedCamWarner {
         logger.printLogLine(
           'Add new fix cam (${item['fix_cam'][1]}, ${item['fix_cam'][2]})',
         );
-        final insertKey =
-            camKey(item['fix_cam'][2], item['fix_cam'][1]); // new stable object
         ccpNodeCoordinates = [
           double.tryParse(item['ccp_node'][0].toString()),
           double.tryParse(item['ccp_node'][1].toString())
@@ -240,7 +245,8 @@ class SpeedCamWarner {
         return null;
       }
 
-      if (isAlreadyAdded([item['traffic_cam'][1], item['traffic_cam'][2]])) {
+      final insertKey = camKey(item['traffic_cam'][2], item['traffic_cam'][1]);
+      if (isAlreadyAdded(insertKey)) {
         print(
           'Cam with ${item['traffic_cam'][1]} ${item['traffic_cam'][2]} already added. Skip processing..',
         );
@@ -252,7 +258,7 @@ class SpeedCamWarner {
         logger.printLogLine(
           'Add new traffic cam (${item['traffic_cam'][1]}, ${item['traffic_cam'][2]})',
         );
-        final insertKey = camKey(item['fix_cam'][2], item['fix_cam'][1]);
+
         ccpNodeCoordinates = [
           double.tryParse(item['ccp_node'][0].toString()),
           double.tryParse(item['ccp_node'][1].toString())
@@ -298,7 +304,9 @@ class SpeedCamWarner {
         return null;
       }
 
-      if (isAlreadyAdded([item['distance_cam'][1], item['distance_cam'][2]])) {
+      final insertKey =
+          camKey(item['distance_cam'][2], item['distance_cam'][1]);
+      if (isAlreadyAdded(insertKey)) {
         print(
           'Cam with ${item['distance_cam'][1]} ${item['distance_cam'][2]} already added. Skip processing..',
         );
@@ -310,7 +318,7 @@ class SpeedCamWarner {
         logger.printLogLine(
           'Add new distance cam (${item['distance_cam'][1]}, ${item['distance_cam'][2]})',
         );
-        final insertKey = camKey(item['fix_cam'][2], item['fix_cam'][1]);
+
         ccpNodeCoordinates = [
           double.tryParse(item['ccp_node'][0].toString()),
           double.tryParse(item['ccp_node'][1].toString())
@@ -356,7 +364,8 @@ class SpeedCamWarner {
         return null;
       }
 
-      if (isAlreadyAdded([item['mobile_cam'][1], item['mobile_cam'][2]])) {
+      final insertKey = camKey(item['mobile_cam'][2], item['mobile_cam'][1]);
+      if (isAlreadyAdded(insertKey)) {
         print(
           'Cam with ${item['mobile_cam'][1]} ${item['mobile_cam'][2]} already added. Skip processing..',
         );
@@ -368,7 +377,7 @@ class SpeedCamWarner {
         logger.printLogLine(
           'Add new mobile cam (${item['mobile_cam'][1]}, ${item['mobile_cam'][2]})',
         );
-        final insertKey = camKey(item['fix_cam'][2], item['fix_cam'][1]);
+
         ccpNodeCoordinates = [
           double.tryParse(item['ccp_node'][0].toString()),
           double.tryParse(item['ccp_node'][1].toString())
@@ -412,7 +421,8 @@ class SpeedCamWarner {
     for (var entry in itemQueueBackup.entries.toList()) {
       var cam = entry.key;
       var camAttributes = entry.value;
-      var currentDistance = checkDistanceBetweenTwoPoints(cam, [
+      final key = parseCamKey(cam);
+      var currentDistance = checkDistanceBetweenTwoPoints(key, [
         longitude,
         latitude,
       ]);
@@ -443,7 +453,8 @@ class SpeedCamWarner {
     for (var entry in itemQueue.entries.toList()) {
       var cam = entry.key;
       var camAttributes = entry.value;
-      var distance = checkDistanceBetweenTwoPoints(cam, [longitude, latitude]);
+      final key = parseCamKey(cam);
+      var distance = checkDistanceBetweenTwoPoints(key, [longitude, latitude]);
       camAttributes.add(distance);
     }
 
@@ -459,16 +470,19 @@ class SpeedCamWarner {
       var distance = camAttributes.last;
       var roadName = itemQueue[cam]?[7] ?? '';
       print(
-        'Initial Distance to speed cam (${cam[0]}, ${cam[1]}, ${camAttributes[0]}): $distance meters , last distance: ${camAttributes[5]}, storage_time: ${camAttributes[6]} seconds, predictive: ${camAttributes[13]}, road name: $roadName',
+        'Initial Distance to speed cam ($cam, ${camAttributes[0]}): $distance meters , last distance: ${camAttributes[5]}, storage_time: ${camAttributes[6]} seconds, predictive: ${camAttributes[13]}, road name: $roadName',
       );
 
       if (distance < 0 ||
           camAttributes[1] == true ||
           distance >= maxAbsoluteDistance) {
+        print(
+            "Deleting camera $cam with distance $distance it's too far away or already passed!");
         camsToDelete.add(cam);
         removeCachedCamera(cam);
         updateCalculatorCams(camAttributes);
-        MapPage.removeCameraMarker(cam[0], cam[1]);
+        final camera = parseCamKey(cam);
+        MapPage.removeCameraMarker(camera[0], camera[1]);
         triggerFreeFlow();
       } else {
         if (startTimes.containsKey(cam) && itemQueue.containsKey(cam)) {
@@ -532,8 +546,9 @@ class SpeedCamWarner {
         // time the camera was inserted.  For future cameras this value can
         // remain ``0.0`` which is misleading when presented to the user.  Always
         // recompute the current distance to keep the information accurate.
+        final key = parseCamKey(nextCam);
         final nextDistance =
-            checkDistanceBetweenTwoPoints(nextCam, [longitude, latitude]);
+            checkDistanceBetweenTwoPoints(key, [longitude, latitude]);
         nextCamDistance = '$nextDistance';
         nextCamDistanceAsInt = int.tryParse(nextCamDistance.split('.')[0]) ?? 0;
         // Update the cached distance so subsequent lookups have a sensible
@@ -573,9 +588,10 @@ class SpeedCamWarner {
     // the meantime.  Recomputing here keeps the warning logic in sync with the
     // current location before triggering any UI or voice updates.
     if (attributes[1] == false) {
-      distance = checkDistanceBetweenTwoPoints(cam, [longitude, latitude]);
+      final key = parseCamKey(cam);
+      distance = checkDistanceBetweenTwoPoints(key, [longitude, latitude]);
       print(
-        ' Followup Distance to current speed cam (${cam[0]}, ${cam[1]}, $speedcamType, $camRoadName): '
+        ' Followup Distance to current speed cam ($cam, $speedcamType, $camRoadName): '
         '${distance.toDouble()} meters , last distance: $lastDistance, '
         'storage_time: ${attributes[6]} seconds, predictive: $predictive',
       );
@@ -583,7 +599,7 @@ class SpeedCamWarner {
         try {
           print(
             ' -> Future speed cam in queue is: coords: '
-            '(${nextCam[0]}, ${nextCam[1]}), road name: $nextCamRoad, distance: $nextCamDistance',
+            '($nextCam), road name: $nextCamRoad, distance: $nextCamDistance',
           );
         } catch (_) {
           print(' -> Future speed cam information unavailable');
@@ -652,7 +668,7 @@ class SpeedCamWarner {
       camInProgress = false;
       triggerFreeFlow();
       print(
-        'Leaving Speed Camera with coordinates: (${cam[0]} ${cam[1]}), road name: $camRoadName because of Angle mismatch',
+        'Leaving Speed Camera with coordinates: ($cam), road name: $camRoadName because of Angle mismatch',
       );
       if (angleMismatchVoice) {
         voicePromptEvents.emit('ANGLE_MISMATCH');
@@ -700,7 +716,7 @@ class SpeedCamWarner {
     } catch (_) {}
   }
 
-  bool isAlreadyAdded(dynamic camCoordinates) {
+  bool isAlreadyAdded(String camCoordinates) {
     final exists = insertedSpeedcams.contains(camCoordinates);
     if (exists) {
       logger.printLogLine('Duplicate camera ignored: $camCoordinates');
@@ -1167,11 +1183,13 @@ class SpeedCamWarner {
             'Deleting obsolete camera: $cam (camera is outside current camera rectangle with radius ${calculateCameraRectangleRadius()} km)',
           );
           deleteObsoleteCamera(cam, camAttributes);
-          MapPage.removeCameraMarker(cam[0], cam[1]);
+          final camera = parseCamKey(cam);
+          MapPage.removeCameraMarker(camera[0], camera[1]);
         } else {
           if (camAttributes[2][0] == 'IGNORE' ||
               camAttributes[2][1] == 'IGNORE') {
-            var distance = checkDistanceBetweenTwoPoints(cam, [
+            final key = parseCamKey(cam);
+            var distance = checkDistanceBetweenTwoPoints(key, [
               longitude,
               latitude,
             ]);
@@ -1180,7 +1198,8 @@ class SpeedCamWarner {
                 'Deleting obsolete camera: $cam (max distance $maxAbsoluteDistance m < current distance ${distance.abs()} m)',
               );
               deleteObsoleteCamera(cam, camAttributes);
-              MapPage.removeCameraMarker(cam[0], cam[1]);
+              final camera = parseCamKey(cam);
+              MapPage.removeCameraMarker(camera[0], camera[1]);
             } else {
               if (camAttributes[6] > maxStorageTime) {
                 if (camAttributes[11] == false) {
@@ -1188,15 +1207,17 @@ class SpeedCamWarner {
                     'Deleting obsolete camera: $cam because of storage time (max: $maxStorageTime seconds, current: ${camAttributes[6]})',
                   );
                   deleteObsoleteCamera(cam, camAttributes);
-                  MapPage.removeCameraMarker(cam[0], cam[1]);
+                  final camera = parseCamKey(cam);
+                  MapPage.removeCameraMarker(camera[0], camera[1]);
                 } else {
                   print('Camera $cam is new. Ignore deletion');
                 }
               }
             }
           } else {
+            final key = parseCamKey(cam);
             var distance =
-                checkDistanceBetweenTwoPoints(cam, camAttributes[2]) -
+                checkDistanceBetweenTwoPoints(key, camAttributes[2]) -
                     checkDistanceBetweenTwoPoints([
                       longitude,
                       latitude,
@@ -1206,7 +1227,8 @@ class SpeedCamWarner {
                 'Deleting obsolete camera: $cam (max distance $maxAbsoluteDistance m < current distance ${distance.abs()} m)',
               );
               deleteObsoleteCamera(cam, camAttributes);
-              MapPage.removeCameraMarker(cam[0], cam[1]);
+              final camera = parseCamKey(cam);
+              MapPage.removeCameraMarker(camera[0], camera[1]);
             } else {
               if (distance < 0 &&
                   camAttributes[5] == -1 &&
@@ -1216,7 +1238,8 @@ class SpeedCamWarner {
                     'Deleting obsolete camera: $cam because of storage time (max: $maxStorageTime seconds, current: ${camAttributes[6]})',
                   );
                   deleteObsoleteCamera(cam, camAttributes);
-                  MapPage.removeCameraMarker(cam[0], cam[1]);
+                  final camera = parseCamKey(cam);
+                  MapPage.removeCameraMarker(camera[0], camera[1]);
                 } else {
                   print('Camera $cam is new. Ignore deletion');
                 }
