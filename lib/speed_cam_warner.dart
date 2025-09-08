@@ -480,7 +480,7 @@ class SpeedCamWarner {
             "Deleting camera $cam with distance $distance it's too far away or already passed!");
         camsToDelete.add(cam);
         removeCachedCamera(cam);
-        updateCalculatorCams(camAttributes);
+        //updateCalculatorCams(camAttributes);
         final camera = parseCamKey(cam);
         MapPage.removeCameraMarker(camera[0], camera[1]);
         triggerFreeFlow();
@@ -1257,7 +1257,7 @@ class SpeedCamWarner {
       itemQueue.remove(cam);
       startTimes.remove(cam);
       removeCachedCamera(cam);
-      updateCalculatorCams(camAttributes);
+      //updateCalculatorCams(camAttributes);
       if (itemQueueBackup.containsKey(cam)) {
         itemQueueBackup.remove(cam);
       }
