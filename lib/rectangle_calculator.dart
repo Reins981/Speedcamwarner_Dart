@@ -1059,7 +1059,7 @@ class RectangleCalculatorThread {
     );
     return (maxDistanceKm >= base)
         ? dynamicDistance.clamp(base, maxDistanceKm).toDouble()
-        : base;
+        : maxDistanceKm;
   }
 
   /// Given a centre point and a lookahead distance in kilometres, compute a
