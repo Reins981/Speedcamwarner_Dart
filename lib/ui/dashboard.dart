@@ -328,7 +328,8 @@ class _DashboardPageState extends State<DashboardPage> {
       );
       _calculator!.cameraRoadNotifier.removeListener(_updateFromCalculator);
       _calculator!.nextCamRoadNotifier.removeListener(_updateFromCalculator);
-      _calculator!.nextCamDistanceNotifier.removeListener(_updateFromCalculator);
+      _calculator!.nextCamDistanceNotifier
+          .removeListener(_updateFromCalculator);
       _calculator!.processNextCamNotifier.removeListener(_updateFromCalculator);
       _calculator!.maxspeedNotifier.removeListener(_updateFromCalculator);
       _calculator!.gpsStatusNotifier.removeListener(_updateFromCalculator);
@@ -722,7 +723,7 @@ class _DashboardPageState extends State<DashboardPage> {
                   ],
                 ),
               ),
-              if (_overspeedDiff != null)
+              if (_overspeedDiff != null && _overspeedDiff! > 0)
                 Align(
                   alignment: Alignment.bottomCenter,
                   child: Padding(
