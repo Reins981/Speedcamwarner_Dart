@@ -409,6 +409,7 @@ class RectangleCalculatorThread {
   final Lock _speedCamLock = Lock();
   final Lock _constructionLock = Lock();
   final Lock _predictiveCamLock = Lock();
+  final Lock _roadNameLock = Lock();
 
   Future<void> setSpeedCamFlag(bool value) async {
     await _speedCamLock.synchronized(() async {
@@ -1349,12 +1350,14 @@ class RectangleCalculatorThread {
   }
 
   Future<String> resolveRoadName(double latitude, double longitude) async {
-    try {
-      final roadname = await getRoadNearestRoadName(latitude, longitude);
-      return roadname ?? "Unknown";
-    } catch (e) {
-      return "Unknown";
-    }
+    return await _roadNameLock.synchronized(() async {
+      try {
+        return await getRoadNearestRoadName(latitude, longitude) ?? "Unknown";
+      } catch (e) {
+        logger.printLogLine('Error resolving road name: $e');
+        return "Unknown";
+      }
+    });
   }
 
   /// Cache used to avoid adding duplicate construction areas.
