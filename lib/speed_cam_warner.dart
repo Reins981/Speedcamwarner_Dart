@@ -27,7 +27,6 @@ class SpeedCamWarner {
 
   // runtime state --------------------------------------------------------
   List<double?> ccpNodeCoordinates = [null, null];
-  List<double> camKey = [];
   double? ccpBearing;
   Map<dynamic, List<dynamic>> itemQueue = {};
   Map<dynamic, List<dynamic>> itemQueueBackup = {};
@@ -136,6 +135,9 @@ class SpeedCamWarner {
     _lastPosition = LatLng(vector.latitude, vector.longitude);
   }
 
+  String camKey(double lat, double lon) =>
+      '${lat.toStringAsFixed(6)},${lon.toStringAsFixed(6)}';
+
   void process(Timestamped<Map<String, dynamic>> envelope) async {
     logger.printLogLine('Processing speedcam event');
     if (DateTime.now().difference(envelope.timestamp) > _staleThreshold) {
@@ -146,10 +148,11 @@ class SpeedCamWarner {
 
     if (item.containsKey('update_cam_name')) {
       String name = item['name'];
-      List<double> camCoords = item['cam_coords'];
-      logger.printLogLine('Received update_cam_name $name for $camCoords');
-      if (itemQueue.containsKey(camCoords)) {
-        itemQueue[camCoords]![7] = name;
+      final coords = (item['cam_coords'] as List).cast<double>();
+      final updateKey = camKey(coords[0], coords[1]);
+      logger.printLogLine('Received update_cam_name $name for $updateKey');
+      if (itemQueue.containsKey(updateKey)) {
+        itemQueue[updateKey]![7] = name;
       }
       return;
     }
@@ -190,7 +193,8 @@ class SpeedCamWarner {
         logger.printLogLine(
           'Add new fix cam (${item['fix_cam'][1]}, ${item['fix_cam'][2]})',
         );
-        camKey = [item['fix_cam'][1], item['fix_cam'][2]]; // new stable object
+        final insertKey =
+            camKey(item['fix_cam'][2], item['fix_cam'][1]); // new stable object
         ccpNodeCoordinates = [
           double.tryParse(item['ccp_node'][0].toString()),
           double.tryParse(item['ccp_node'][1].toString())
@@ -205,8 +209,8 @@ class SpeedCamWarner {
         var previousLife = 'was_none';
         var predictive = false;
         var camDirection = convertCamDirection(item['direction']);
-        startTimes[camKey] = startTime;
-        itemQueue[camKey] = [
+        startTimes[insertKey] = startTime;
+        itemQueue[insertKey] = [
           'fix',
           false,
           ccpNodeCoordinates,
@@ -222,7 +226,7 @@ class SpeedCamWarner {
           previousLife,
           predictive,
         ];
-        insertedSpeedcams.add([item['fix_cam'][1], item['fix_cam'][2]]);
+        insertedSpeedcams.add(insertKey);
       }
     }
 
@@ -248,10 +252,7 @@ class SpeedCamWarner {
         logger.printLogLine(
           'Add new traffic cam (${item['traffic_cam'][1]}, ${item['traffic_cam'][2]})',
         );
-        camKey = [
-          item['traffic_cam'][1],
-          item['traffic_cam'][2]
-        ]; // new stable object
+        final insertKey = camKey(item['fix_cam'][2], item['fix_cam'][1]);
         ccpNodeCoordinates = [
           double.tryParse(item['ccp_node'][0].toString()),
           double.tryParse(item['ccp_node'][1].toString())
@@ -266,8 +267,8 @@ class SpeedCamWarner {
         var previousLife = 'was_none';
         var predictive = false;
         var camDirection = convertCamDirection(item['direction']);
-        startTimes[camKey] = startTime;
-        itemQueue[camKey] = [
+        startTimes[insertKey] = startTime;
+        itemQueue[insertKey] = [
           'traffic',
           false,
           ccpNodeCoordinates,
@@ -283,7 +284,7 @@ class SpeedCamWarner {
           previousLife,
           predictive,
         ];
-        insertedSpeedcams.add([item['traffic_cam'][1], item['traffic_cam'][2]]);
+        insertedSpeedcams.add(insertKey);
       }
     }
 
@@ -309,10 +310,7 @@ class SpeedCamWarner {
         logger.printLogLine(
           'Add new distance cam (${item['distance_cam'][1]}, ${item['distance_cam'][2]})',
         );
-        camKey = [
-          item['distance_cam'][1],
-          item['distance_cam'][2]
-        ]; // new stable object
+        final insertKey = camKey(item['fix_cam'][2], item['fix_cam'][1]);
         ccpNodeCoordinates = [
           double.tryParse(item['ccp_node'][0].toString()),
           double.tryParse(item['ccp_node'][1].toString())
@@ -327,8 +325,8 @@ class SpeedCamWarner {
         var previousLife = 'was_none';
         var predictive = false;
         var camDirection = convertCamDirection(item['direction']);
-        startTimes[camKey] = startTime;
-        itemQueue[camKey] = [
+        startTimes[insertKey] = startTime;
+        itemQueue[insertKey] = [
           'distance',
           false,
           ccpNodeCoordinates,
@@ -344,10 +342,7 @@ class SpeedCamWarner {
           previousLife,
           predictive,
         ];
-        insertedSpeedcams.add([
-          item['distance_cam'][1],
-          item['distance_cam'][2],
-        ]);
+        insertedSpeedcams.add(insertKey);
       }
     }
 
@@ -373,10 +368,7 @@ class SpeedCamWarner {
         logger.printLogLine(
           'Add new mobile cam (${item['mobile_cam'][1]}, ${item['mobile_cam'][2]})',
         );
-        camKey = [
-          item['mobile_cam'][1],
-          item['mobile_cam'][2]
-        ]; // new stable object
+        final insertKey = camKey(item['fix_cam'][2], item['fix_cam'][1]);
         ccpNodeCoordinates = [
           double.tryParse(item['ccp_node'][0].toString()),
           double.tryParse(item['ccp_node'][1].toString())
@@ -391,8 +383,8 @@ class SpeedCamWarner {
         var newCam = true;
         var previousLife = 'was_none';
         var camDirection = convertCamDirection(item['direction']);
-        startTimes[camKey] = startTime;
-        itemQueue[camKey] = [
+        startTimes[insertKey] = startTime;
+        itemQueue[insertKey] = [
           'mobile',
           false,
           ccpNodeCoordinates,
@@ -408,7 +400,7 @@ class SpeedCamWarner {
           previousLife,
           predictive,
         ];
-        insertedSpeedcams.add([item['mobile_cam'][1], item['mobile_cam'][2]]);
+        insertedSpeedcams.add(insertKey);
       }
     }
 
@@ -1254,17 +1246,18 @@ class SpeedCamWarner {
     if (calculator != null && calculator is RectangleCalculatorThread) {
       if (camAttributes[0] == 'fix' && calculator.fix_cams > 0) {
         calculator.fix_cams -= 1;
+        calculator.updateFixCamCount(calculator.fix_cams);
       } else if (camAttributes[0] == 'traffic' && calculator.traffic_cams > 0) {
         calculator.traffic_cams -= 1;
+        calculator.updateTrafficCamCount(calculator.traffic_cams);
       } else if (camAttributes[0] == 'distance' &&
           calculator.distance_cams > 0) {
         calculator.distance_cams -= 1;
+        calculator.updateDistanceCamCount(calculator.distance_cams);
       } else if (camAttributes[0] == 'mobile' && calculator.mobile_cams > 0) {
         calculator.mobile_cams -= 1;
+        calculator.updateMobileCamCount(calculator.mobile_cams);
       }
-      calculator.updateInfoPage(
-        'SPEED_CAMERAS:${calculator.fix_cams},${calculator.traffic_cams},${calculator.distance_cams},${calculator.mobile_cams}',
-      );
     }
   }
 

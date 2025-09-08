@@ -512,6 +512,11 @@ class RectangleCalculatorThread {
 
   /// Tracks the number of POIs returned by the last lookup.
   final ValueNotifier<int> poiCountNotifier = ValueNotifier<int>(0);
+  final ValueNotifier<int> fixCamCounterNotifier = ValueNotifier<int>(0);
+  final ValueNotifier<int> trafficCamCounterNotifier = ValueNotifier<int>(0);
+  final ValueNotifier<int> distanceCamCounterNotifier = ValueNotifier<int>(0);
+  final ValueNotifier<int> mobileCamCounterNotifier = ValueNotifier<int>(0);
+  final ValueNotifier<int> predictiveCamCounterNotifier = ValueNotifier<int>(0);
   final ValueNotifier<bool> onlineStatusNotifier = ValueNotifier<bool>(false);
   final ValueNotifier<bool> gpsStatusNotifier = ValueNotifier<bool>(false);
   final ValueNotifier<String?> maxspeedStatusNotifier = ValueNotifier<String?>(
@@ -526,10 +531,8 @@ class RectangleCalculatorThread {
   );
   final ValueNotifier<String?> nextCamRoadNotifier =
       ValueNotifier<String?>(null);
-  final ValueNotifier<int?> nextCamDistanceNotifier =
-      ValueNotifier<int?>(null);
-  final ValueNotifier<bool> processNextCamNotifier =
-      ValueNotifier<bool>(false);
+  final ValueNotifier<int?> nextCamDistanceNotifier = ValueNotifier<int?>(null);
+  final ValueNotifier<bool> processNextCamNotifier = ValueNotifier<bool>(false);
   final ValueNotifier<LatLng> positionNotifier = ValueNotifier<LatLng>(
     const LatLng(0, 0),
   );
@@ -2581,6 +2584,7 @@ class RectangleCalculatorThread {
     _bearingCache.clear();
     constructionAreas = [];
     clearCombinedTags(_combinedTags);
+    updateNextCamInfo(process: false);
   }
 
   List<SpeedCameraEvent> removeDuplicateCameras(List<SpeedCameraEvent> cams) {
@@ -3088,12 +3092,10 @@ class RectangleCalculatorThread {
       {'number': '1'},
     );
     try {
-      final resp = await http
-          .get(
-            uri,
-            headers: {'User-Agent': 'speedcamwarner-dart'},
-          )
-          .timeout(const Duration(seconds: 5));
+      final resp = await http.get(
+        uri,
+        headers: {'User-Agent': 'speedcamwarner-dart'},
+      ).timeout(const Duration(seconds: 5));
       if (resp.statusCode == 200) {
         final data = jsonDecode(resp.body) as Map<String, dynamic>;
         print('Received nearest road name: ${data['waypoints'][0]['name']}');
@@ -3174,6 +3176,13 @@ class RectangleCalculatorThread {
   void updateCamRadius(double value) => camRadiusNotifier.value = value;
   void updateInfoPage(String value) => infoPageNotifier.value = value;
   void updatePoiCount(int value) => poiCountNotifier.value = value;
+  void updateFixCamCount(int value) => fixCamCounterNotifier.value = value;
+  void updateTrafficCamCount(int value) =>
+      trafficCamCounterNotifier.value = value;
+  void updateDistanceCamCount(int value) =>
+      distanceCamCounterNotifier.value = value;
+  void updateMobileCamCount(int value) =>
+      mobileCamCounterNotifier.value = value;
   void updateOnlineStatus(bool value) => onlineStatusNotifier.value = value;
   void updateGpsStatus(bool value) => gpsStatusNotifier.value = value;
 
