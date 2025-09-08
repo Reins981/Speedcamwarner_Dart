@@ -380,19 +380,21 @@ class _DashboardPageState extends State<DashboardPage> {
               ],
             ),
           ),
-          if (hasCameraInfo)
-            Positioned(
-              top: 16,
-              left: 0,
-              right: 0,
-              child: _buildCameraInfo(),
-            ),
-          if (_processNextCam)
-            Positioned(
-              top: hasCameraInfo ? 120 : 16,
-              left: 0,
-              right: 0,
-              child: _buildNextCameraInfo(),
+          if (hasCameraInfo || _processNextCam)
+            Align(
+              alignment: Alignment.topCenter,
+              child: Padding(
+                padding: const EdgeInsets.only(top: 16),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    if (hasCameraInfo) _buildCameraInfo(),
+                    if (hasCameraInfo && _processNextCam)
+                      const SizedBox(height: 8),
+                    if (_processNextCam) _buildNextCameraInfo(),
+                  ],
+                ),
+              ),
             ),
         ],
       ),
