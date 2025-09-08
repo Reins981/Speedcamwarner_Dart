@@ -1052,9 +1052,9 @@ class RectangleCalculatorThread {
   /// baseline of three kilometres ensures a reasonable search radius even at
   /// low speeds.
   double _computeLookAheadDistance(double speedKmH, double maxDistanceKm) {
-    const double base = 3.0;
-    final double dynamicDistance = base + speedKmH * (2 / 60); // ~2 min ahead
-    return math.min(math.max(dynamicDistance, base), maxDistanceKm);
+    const double base = 50.0;
+    final dynamicDistance = base + math.pow(speedKmH / 30.0, 3).toDouble();
+    return dynamicDistance.clamp(base, maxDistanceKm);
   }
 
   /// Given a centre point and a lookahead distance in kilometres, compute a
