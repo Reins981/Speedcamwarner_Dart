@@ -3095,7 +3095,7 @@ class RectangleCalculatorThread {
       final resp = await http.get(
         uri,
         headers: {'User-Agent': 'speedcamwarner-dart'},
-      ).timeout(const Duration(seconds: 5));
+      ).timeout(const Duration(seconds: 3));
       if (resp.statusCode == 200) {
         final data = jsonDecode(resp.body) as Map<String, dynamic>;
         print('Received nearest road name: ${data['waypoints'][0]['name']}');
