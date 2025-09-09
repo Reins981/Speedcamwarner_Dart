@@ -2,6 +2,7 @@ import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
 import 'package:sqlite3/sqlite3.dart' as sqlite;
+import 'package:workspace/speed_cam_warner.dart';
 
 import 'logger.dart';
 import 'rect.dart';
@@ -73,6 +74,7 @@ class POIReader extends Logger {
   late int initTimeFromCloud;
   late int uTimeFromDb;
   late int poiDistance;
+  double maxAbsoluteDistance = 300000; // meters
 
   POIReader(
     this.gpsProducer,
@@ -96,6 +98,10 @@ class POIReader extends Logger {
     // POIs from database update time in seconds (one shot after x seconds)
     uTimeFromDb = (AppConfig.get<num>('sql.u_time_from_db') ?? 30).toInt();
     poiDistance = (AppConfig.get<num>('main.poi_distance') ?? 50).toInt();
+    maxAbsoluteDistance =
+        (AppConfig.get<num>('speedCamWarner.max_absolute_distance') ??
+                maxAbsoluteDistance)
+            .toDouble();
     calculator.rectangle_periphery_poi_reader = poiDistance.toDouble();
   }
 
@@ -221,6 +227,20 @@ class POIReader extends Logger {
     printLogLine(
       'Propagating $cameraType camera (${longitude.toStringAsFixed(5)}, ${latitude.toStringAsFixed(5)})',
     );
+
+    double ccpLat = calculator.latitude;
+    double ccpLon = calculator.longitude;
+    List<double> ccpPair = [ccpLat, ccpLon];
+    var distance = SpeedCamWarner.checkDistanceBetweenTwoPoints(
+        ccpPair, [longitude, latitude]);
+
+    if (distance > maxAbsoluteDistance) {
+      printLogLine(
+        '$cameraType camera is too far away from current position (${distance.toStringAsFixed(0)} m), ignoring it',
+        logLevel: 'WARNING',
+      );
+      return;
+    }
 
     unawaited(
       calculator.updateSpeedCams([
