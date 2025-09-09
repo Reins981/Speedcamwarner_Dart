@@ -228,20 +228,21 @@ class POIReader extends Logger {
       'Propagating $cameraType camera (${longitude.toStringAsFixed(5)}, ${latitude.toStringAsFixed(5)})',
     );
 
-    double ccpLat = calculator.latitude;
-    double ccpLon = calculator.longitude;
-    List<double> ccpPair = [ccpLat, ccpLon];
+    // dynamic lastPosition = calculator.positionNotifier.value;
+    // List<double> ccpPair = [lastPosition.latitude, lastPosition.longitude];
 
-    var distance = SpeedCamWarner.checkDistanceBetweenTwoPoints(
-        ccpPair, [longitude, latitude]);
+    // var distance = SpeedCamWarner.checkDistanceBetweenTwoPoints(
+    //     ccpPair, [longitude, latitude]);
+    // print(ccpPair);
+    // print("Distance to camera: $distance meters!!!!!!!!!!!!!!!!!!!!!");
 
-    if (distance > maxAbsoluteDistance) {
-      printLogLine(
-        '$cameraType camera is too far away from current position (${distance.toStringAsFixed(0)} m), ignoring it',
-        logLevel: 'WARNING',
-      );
-      return;
-    }
+    // if (distance > maxAbsoluteDistance) {
+    //   printLogLine(
+    //     '$cameraType camera is too far away from current position (${distance.toStringAsFixed(0)} m), ignoring it',
+    //     logLevel: 'WARNING',
+    //   );
+    //   return;
+    // }
 
     unawaited(
       calculator.updateSpeedCams([
