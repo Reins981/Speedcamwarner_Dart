@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'dart:async';
+import 'package:flutter_background/flutter_background.dart';
 import 'app_controller.dart';
 import 'config.dart';
 import 'ui/home.dart';
@@ -12,6 +13,19 @@ import 'ui/home.dart';
 /// [AppController].
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
+  const androidConfig = FlutterBackgroundAndroidConfig(
+    notificationTitle: 'SpeedCamWarner',
+    notificationText: 'Background service running',
+    notificationImportance: AndroidNotificationImportance.low,
+    enableWifiLock: true,
+  );
+  try {
+    await FlutterBackground.initialize(androidConfig: androidConfig);
+    await FlutterBackground.enableBackgroundExecution();
+  } catch (e) {
+    // ignore: avoid_print
+    print('Background initialisation failed: $e');
+  }
   await AppConfig.load();
   runApp(SpeedCamWarnerApp());
 }
