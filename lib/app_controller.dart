@@ -67,13 +67,6 @@ class AppController {
     );
     unawaited(osmThread.run());
 
-    poiReader = POIReader(
-      gpsProducer,
-      calculator,
-      mapQueue,
-      voicePromptEvents,
-      null,
-    );
     camWarner = SpeedCamWarner(
       resume: _AlwaysResume(),
       voicePromptEvents: voicePromptEvents,
@@ -81,6 +74,15 @@ class AppController {
       calculator: calculator,
     );
     unawaited(camWarner.run());
+
+    poiReader = POIReader(
+      camWarner,
+      gpsProducer,
+      calculator,
+      mapQueue,
+      voicePromptEvents,
+      null,
+    );
 
     final dialogflow = () async {
       try {
