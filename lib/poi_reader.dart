@@ -35,6 +35,7 @@ class UserCamera {
 /// (SQLite access, Google Drive interaction) remains to be implemented in
 /// dedicated modules.
 class POIReader extends Logger {
+  final SpeedCamWarner camWarner;
   final GpsProducer gpsProducer;
   final RectangleCalculatorThread calculator;
   final MapQueue<dynamic> mapQueue;
@@ -77,6 +78,7 @@ class POIReader extends Logger {
   double maxAbsoluteDistance = 300000; // meters
 
   POIReader(
+    this.camWarner,
     this.gpsProducer,
     this.calculator,
     this.mapQueue,
@@ -231,8 +233,8 @@ class POIReader extends Logger {
     double ccpLat = calculator.latitude;
     double ccpLon = calculator.longitude;
     List<double> ccpPair = [ccpLat, ccpLon];
-    var distance = SpeedCamWarner.checkDistanceBetweenTwoPoints(
-        ccpPair, [longitude, latitude]);
+    var distance =
+        camWarner.checkDistanceBetweenTwoPoints(ccpPair, [longitude, latitude]);
 
     if (distance > maxAbsoluteDistance) {
       printLogLine(
