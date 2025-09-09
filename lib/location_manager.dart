@@ -103,7 +103,7 @@ class LocationManager extends Logger {
 
     printLogLine('Listening to live position updates');
     _subscription =
-        positionStreamLocal.timeout(Duration(seconds: 5), onTimeout: (sink) {
+        positionStreamLocal.timeout(Duration(seconds: 8), onTimeout: (sink) {
       printLogLine('Position stream timed out after 5 seconds');
       _notifyGpsOffline();
     }).listen(_onPosition);
