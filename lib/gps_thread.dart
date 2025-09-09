@@ -173,29 +173,27 @@ class GpsThread extends Logger {
 
       _controller.add(enriched);
       overspeedChecker?.updateSpeed(enriched.speed.toInt());
-      if (vector.gpsStatus == 'ONLINE') {
-        _speedCamEventController?.add(
-          Timestamped<Map<String, dynamic>>({
-            'bearing': enriched.bearing,
-            'stable_ccp': null,
-            'ccp': [enriched.longitude, enriched.latitude],
-            'fix_cam': [false, 0.0, 0.0, false],
-            'traffic_cam': [false, 0.0, 0.0, false],
-            'distance_cam': [false, 0.0, 0.0, false],
-            'mobile_cam': [false, 0.0, 0.0, false],
-            'ccp_node': [null, null],
-            'list_tree': [null, null],
-          }),
-        );
-        _produceBearingSet(enriched.bearing);
-        if (recording) {
-          _routeData.add(Wpt(
-            lat: enriched.latitude,
-            lon: enriched.longitude,
-            time: DateTime.now(),
-            extensions: {'speed': enriched.speed},
-          ));
-        }
+      _speedCamEventController?.add(
+        Timestamped<Map<String, dynamic>>({
+          'bearing': enriched.bearing,
+          'stable_ccp': null,
+          'ccp': [enriched.longitude, enriched.latitude],
+          'fix_cam': [false, 0.0, 0.0, false],
+          'traffic_cam': [false, 0.0, 0.0, false],
+          'distance_cam': [false, 0.0, 0.0, false],
+          'mobile_cam': [false, 0.0, 0.0, false],
+          'ccp_node': [null, null],
+          'list_tree': [null, null],
+        }),
+      );
+      _produceBearingSet(enriched.bearing);
+      if (recording) {
+        _routeData.add(Wpt(
+          lat: enriched.latitude,
+          lon: enriched.longitude,
+          time: DateTime.now(),
+          extensions: {'speed': enriched.speed},
+        ));
       }
     }
 

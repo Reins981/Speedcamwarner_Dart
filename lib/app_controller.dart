@@ -67,6 +67,13 @@ class AppController {
     );
     unawaited(osmThread.run());
 
+    poiReader = POIReader(
+      gpsProducer,
+      calculator,
+      mapQueue,
+      voicePromptEvents,
+      null,
+    );
     camWarner = SpeedCamWarner(
       resume: _AlwaysResume(),
       voicePromptEvents: voicePromptEvents,
@@ -74,15 +81,6 @@ class AppController {
       calculator: calculator,
     );
     unawaited(camWarner.run());
-
-    poiReader = POIReader(
-      camWarner,
-      gpsProducer,
-      calculator,
-      mapQueue,
-      voicePromptEvents,
-      null,
-    );
 
     final dialogflow = () async {
       try {
@@ -246,7 +244,8 @@ class AppController {
     while (_routeMonitoring) {
       await Future.delayed(const Duration(seconds: 2));
       final coords = gpsProducer.get_lon_lat();
-      final distance = camWarner.checkDistanceBetweenTwoPoints(poi, coords);
+      final distance =
+          SpeedCamWarner.checkDistanceBetweenTwoPoints(poi, coords);
       if (distance <= 50) {
         voicePromptEvents.emit('POI_REACHED');
         _routeMonitoring = false;

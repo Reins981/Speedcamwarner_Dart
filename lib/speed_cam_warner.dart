@@ -422,7 +422,7 @@ class SpeedCamWarner {
       var cam = entry.key;
       var camAttributes = entry.value;
       final key = parseCamKey(cam);
-      var currentDistance = checkDistanceBetweenTwoPoints(key, [
+      var currentDistance = SpeedCamWarner.checkDistanceBetweenTwoPoints(key, [
         longitude,
         latitude,
       ]);
@@ -454,7 +454,8 @@ class SpeedCamWarner {
       var cam = entry.key;
       var camAttributes = entry.value;
       final key = parseCamKey(cam);
-      var distance = checkDistanceBetweenTwoPoints(key, [longitude, latitude]);
+      var distance = SpeedCamWarner.checkDistanceBetweenTwoPoints(
+          key, [longitude, latitude]);
       camAttributes.add(distance);
     }
 
@@ -473,9 +474,7 @@ class SpeedCamWarner {
         'Initial Distance to speed cam ($cam, ${camAttributes[0]}): $distance meters , last distance: ${camAttributes[5]}, storage_time: ${camAttributes[6]} seconds, predictive: ${camAttributes[13]}, road name: $roadName',
       );
 
-      if (distance < 0 ||
-          camAttributes[1] == true ||
-          distance >= maxAbsoluteDistance) {
+      if (distance < 0) {
         print(
             "Deleting camera $cam with distance $distance it's too far away or already passed!");
         camsToDelete.add(cam);
@@ -547,8 +546,8 @@ class SpeedCamWarner {
         // remain ``0.0`` which is misleading when presented to the user.  Always
         // recompute the current distance to keep the information accurate.
         final key = parseCamKey(nextCam);
-        final nextDistance =
-            checkDistanceBetweenTwoPoints(key, [longitude, latitude]);
+        final nextDistance = SpeedCamWarner.checkDistanceBetweenTwoPoints(
+            key, [longitude, latitude]);
         nextCamDistance = '$nextDistance';
         nextCamDistanceAsInt = int.tryParse(nextCamDistance.split('.')[0]) ?? 0;
         // Update the cached distance so subsequent lookups have a sensible
@@ -589,7 +588,8 @@ class SpeedCamWarner {
     // current location before triggering any UI or voice updates.
     if (attributes[1] == false) {
       final key = parseCamKey(cam);
-      distance = checkDistanceBetweenTwoPoints(key, [longitude, latitude]);
+      distance = SpeedCamWarner.checkDistanceBetweenTwoPoints(
+          key, [longitude, latitude]);
       print(
         ' Followup Distance to current speed cam ($cam, $speedcamType, $camRoadName): '
         '${distance.toDouble()} meters , last distance: $lastDistance, '
@@ -967,7 +967,7 @@ class SpeedCamWarner {
       camInProgress = false;
       triggerFreeFlow();
       lastDistance = maxAbsoluteDistance;
-      itemQueue[camCoordinates]?[1] = true;
+      itemQueue[camCoordinates]?[1] = 'to_be_stored';
     }
 
     // finally update attributes
@@ -1078,7 +1078,7 @@ class SpeedCamWarner {
     return (d * 1000).toInt().toDouble();
   }
 
-  double checkDistanceBetweenTwoPoints(dynamic pt1, dynamic pt2) {
+  static double checkDistanceBetweenTwoPoints(dynamic pt1, dynamic pt2) {
     var R = 6373.0; // km
     try {
       var lat1 = _degToRad(double.parse(pt1[1].toString()));
@@ -1190,7 +1190,7 @@ class SpeedCamWarner {
           if (camAttributes[2][0] == 'IGNORE' ||
               camAttributes[2][1] == 'IGNORE') {
             final key = parseCamKey(cam);
-            var distance = checkDistanceBetweenTwoPoints(key, [
+            var distance = SpeedCamWarner.checkDistanceBetweenTwoPoints(key, [
               longitude,
               latitude,
             ]);
@@ -1217,12 +1217,12 @@ class SpeedCamWarner {
             }
           } else {
             final key = parseCamKey(cam);
-            var distance =
-                checkDistanceBetweenTwoPoints(key, camAttributes[2]) -
-                    checkDistanceBetweenTwoPoints([
-                      longitude,
-                      latitude,
-                    ], camAttributes[2]);
+            var distance = SpeedCamWarner.checkDistanceBetweenTwoPoints(
+                    key, camAttributes[2]) -
+                SpeedCamWarner.checkDistanceBetweenTwoPoints([
+                  longitude,
+                  latitude,
+                ], camAttributes[2]);
             if (distance < 0 && distance.abs() >= maxAbsoluteDistance) {
               print(
                 'Deleting obsolete camera: $cam (max distance $maxAbsoluteDistance m < current distance ${distance.abs()} m)',
@@ -1334,5 +1334,5 @@ class SpeedCamWarner {
     return null;
   }
 
-  double _degToRad(double deg) => deg * (pi / 180.0);
+  static double _degToRad(double deg) => deg * (pi / 180.0);
 }
