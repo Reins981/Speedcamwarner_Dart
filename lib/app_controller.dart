@@ -55,7 +55,6 @@ class AppController {
 
     // Forward bearing sets to the deviation checker.
     gps.bearingSets.listen((data) {
-      averageAngleQueue.produce(data);
       deviationChecker.addAverageAngleData(data);
     });
 
@@ -132,10 +131,6 @@ class AppController {
 
   /// Calculates deviation of the current course based on recent bearings.
   late deviation.DeviationCheckerThread deviationChecker;
-
-  /// Shared queue holding the last bearings for the deviation checker.
-  final AverageAngleQueue<List<double>> averageAngleQueue =
-      AverageAngleQueue<List<double>>();
 
   /// Coordinates thread termination for the deviation checker.
   deviation.ThreadCondition? _deviationCond;
@@ -219,7 +214,6 @@ class AppController {
     stopRouteMonitoring();
     await osmThread.stop();
     deviationChecker.terminate();
-    averageAngleQueue.clearAverageAngleData();
     _running = false;
   }
 
@@ -311,7 +305,6 @@ class AppController {
     deviationChecker.addAverageAngleData('TERMINATE');
     _deviationRunning = false;
     deviationChecker.terminate();
-    averageAngleQueue.clearAverageAngleData();
   }
 
   /// Trigger a POI lookup around the current position for the given [type].

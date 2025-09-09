@@ -3089,9 +3089,7 @@ class RectangleCalculatorThread {
       );
       if (resp.statusCode == 200) {
         final data = jsonDecode(resp.body) as Map<String, dynamic>;
-        final parts = data['display_name'].split(',');
-        final roadName = parts.length > 1 ? parts[1].trim() : parts[0];
-        return roadName;
+        return data['display_name']?.toString();
       }
     } catch (_) {
       return null;
