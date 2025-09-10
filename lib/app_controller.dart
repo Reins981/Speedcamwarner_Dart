@@ -311,14 +311,14 @@ class AppController {
   /// Trigger a POI lookup around the current position for the given [type].
   Future<void> lookupPois(String type) async {
     final coords = gpsProducer.get_lon_lat();
-    final lon = coords[0];
-    final lat = coords[1];
-    if ((lon == 0 && lat == 0) || lon.isNaN || lat.isNaN) {
+    final double? lon = coords[0];
+    final double? lat = coords[1];
+    if (lon == null && lat == null) {
       voicePromptEvents.emit('POI_FAILED');
       return;
     }
 
-    final tiles = calculator.longlat2tile(lat, lon, calculator.zoom);
+    final tiles = calculator.longlat2tile(lat!, lon!, calculator.zoom);
     final xtile = tiles[0];
     final ytile = tiles[1];
 

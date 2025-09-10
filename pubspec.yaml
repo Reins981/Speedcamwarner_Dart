@@ -90,6 +90,14 @@ flutter:
     - assets/service_account/cameras.json
     - python/ai/
 
+flutter_launcher_icons:
+  android: true
+  ios: true
+  web: true
+  macos: true
+  windows: true
+  image_path: assets/app_icon.png
+
 
   # To add assets to your application, add an assets section, like this:
   # assets:

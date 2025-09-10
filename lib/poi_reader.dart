@@ -219,30 +219,24 @@ class POIReader extends Logger {
 
   /// Send camera information to the speed‑camera queue for further processing.
   void _propagateCamera(
-    String? roadName,
-    double longitude,
-    double latitude,
-    String cameraType,
-  ) {
+      String? roadName, double longitude, double latitude, String cameraType,
+      {List<double>? ccpPair}) {
     printLogLine(
       'Propagating $cameraType camera (${longitude.toStringAsFixed(5)}, ${latitude.toStringAsFixed(5)})',
     );
 
-    // dynamic lastPosition = calculator.positionNotifier.value;
-    // List<double> ccpPair = [lastPosition.latitude, lastPosition.longitude];
+    if (ccpPair != null) {
+      var distance = SpeedCamWarner.checkDistanceBetweenTwoPoints(
+          ccpPair, [longitude, latitude]);
 
-    // var distance = SpeedCamWarner.checkDistanceBetweenTwoPoints(
-    //     ccpPair, [longitude, latitude]);
-    // print(ccpPair);
-    // print("Distance to camera: $distance meters!!!!!!!!!!!!!!!!!!!!!");
-
-    // if (distance > maxAbsoluteDistance) {
-    //   printLogLine(
-    //     '$cameraType camera is too far away from current position (${distance.toStringAsFixed(0)} m), ignoring it',
-    //     logLevel: 'WARNING',
-    //   );
-    //   return;
-    // }
+      if (distance > maxAbsoluteDistance) {
+        printLogLine(
+          '$cameraType camera is too far away from current position (${distance.toStringAsFixed(0)} m), ignoring it',
+          logLevel: 'WARNING',
+        );
+        return;
+      }
+    }
 
     unawaited(
       calculator.updateSpeedCams([
@@ -322,6 +316,18 @@ class POIReader extends Logger {
   /// Parse and process user cameras from the downloaded JSON file.
   void _processPoisFromCloud() {
     printLogLine("Processing POI's from cloud..");
+
+    String? direction = gpsProducer.get_direction();
+    var lonLat = gpsProducer.get_lon_lat();
+    double longitude = lonLat[0];
+    double latitude = lonLat[1];
+    List<double> ccpPair = [latitude, longitude];
+
+    if (direction == '-' || direction == null) {
+      printLogLine(' Waiting for valid direction once');
+      return;
+    }
+
     final file = File(ServiceAccount.fileName);
     if (!file.existsSync()) {
       printLogLine(
@@ -375,7 +381,8 @@ class POIReader extends Logger {
         );
         _updateOsmWrapper();
         _propagateCamera(
-            userCam.roadName, userCam.lon, userCam.lat, 'mobile_cam');
+            userCam.roadName, userCam.lon, userCam.lat, 'mobile_cam',
+            ccpPair: ccpPair);
         camId += 1;
       } catch (_) {
         printLogLine(

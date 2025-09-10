@@ -558,7 +558,9 @@ class _MapPageState extends State<MapPage> {
           point: LatLng(poi[0], poi[1]),
           width: 40,
           height: 40,
-          child: Image.asset('images/poi_marker.png'),
+          child: (poi[2] == 'fuel')
+              ? Image.asset('images/ppoi_fuel.png')
+              : Image.asset('images/poi_hospital.png'),
         );
         markers.add(marker);
         data[marker] = poi;
