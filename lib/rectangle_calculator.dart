@@ -42,6 +42,7 @@ import 'package:http/http.dart' as http;
 import 'logger.dart';
 import 'service_account.dart';
 import 'config.dart';
+import 'speed_cam_predictor.dart';
 
 /// Data class representing a single GPS/vector sample.  It contains the
 /// current longitude/latitude, current speed (in km/h), a bearing angle
@@ -621,6 +622,9 @@ class RectangleCalculatorThread {
   Map<String, dynamic> maxspeedCountries = {};
   Map<String, dynamic> roadClassesToSpeedConfig = {};
 
+  /// Utility that encapsulates the predictive speed camera logic.
+  late final SpeedCamPredictor predictor;
+
   /// Cached CCP coordinates and tiles used by [processLookaheadItems] when
   /// ``previousCcp`` is true.
   double longitudeCached = 0.0;
@@ -709,7 +713,9 @@ class RectangleCalculatorThread {
         mostProbableWay = MostProbableWay();
 
   Future<void> init() async {
-    _predictiveModel = await PredictiveModel.load();
+    // _predictiveModel = await PredictiveModel.load();
+    predictor = SpeedCamPredictor();
+    await predictor.init();
     _loadConfigs();
   }
 
@@ -918,9 +924,9 @@ class RectangleCalculatorThread {
       unawaited(Future(() async {
         try {
           if (_predictionsLoaded == false) {
-            _predictionsLoaded = true;
-            logger.printLogLine('Loading predictive model');
+            logger.printLogLine('Loading config and SpeedCamPredictor');
             await init();
+            _predictionsLoaded = true;
           }
           await _processVector(vector);
         } catch (e, stack) {
@@ -985,8 +991,11 @@ class RectangleCalculatorThread {
       // Example: classify into morning/afternoon/evening
       String timeOfDay = _formatTimeOfDay(hour);
 
-      final List<double> predicted = await predictFromServer(
-          latitude, longitude, timeOfDay, _formatDayOfWeek(weekday));
+      final List<double> predicted = await predictor.predict(
+          latitude: latitude,
+          longitude: longitude,
+          timeOfDay: timeOfDay,
+          dayOfWeek: _formatDayOfWeek(weekday));
       if (predicted.isNotEmpty && !predictedCameraAlreadyAdded(predicted)) {
         logger.printLogLine(
           'Predictive camera detected at ${predicted[0]}, ${predicted[1]}',
@@ -2204,22 +2213,6 @@ class RectangleCalculatorThread {
         }
       }
     }
-  }
-
-  Future<List<double>> predictFromServer(
-      double lat, double lon, String tod, String dow) async {
-    final resp = await http.post(
-      Uri.parse('http://127.0.0.1:8000/predict'),
-      headers: {'Content-Type': 'application/json'},
-      body: jsonEncode({
-        'latitude': lat,
-        'longitude': lon,
-        'time_of_day': tod,
-        'day_of_week': dow,
-      }),
-    );
-    final json = jsonDecode(resp.body);
-    return (json['pred'] as List).map((e) => (e as num).toDouble()).toList();
   }
 
   Future<void> speedCamLookupAhead(GeoRect rect, {http.Client? client}) async {
