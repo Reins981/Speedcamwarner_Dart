@@ -983,11 +983,12 @@ class RectangleCalculatorThread {
         logger.printLogLine(
           'Predictive camera detected at ${predicted[0]}, ${predicted[1]}',
         );
-        final roadName = await resolveRoadName(latitude, longitude);
+
+        ///final roadName = await resolveRoadName(latitude, longitude);
         SpeedCameraEvent predictedCam = SpeedCameraEvent(
           latitude: predicted[0],
           longitude: predicted[1],
-          name: roadName,
+          name: "---",
           predictive: true,
         );
         // If a camera was predicted ahead, publish it on the camera stream and
@@ -1011,7 +1012,7 @@ class RectangleCalculatorThread {
             ],
             'ccp_node': ['IGNORE', 'IGNORE'],
             'list_tree': [null, null],
-            'name': roadName,
+            'name': "---",
             'maxspeed': null,
             'direction': '',
             'predictive': true,
