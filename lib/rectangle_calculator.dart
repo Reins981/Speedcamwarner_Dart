@@ -964,68 +964,76 @@ class RectangleCalculatorThread {
       logger.printLogLine('Predictor not initialized yet');
     } else {
       logger.printLogLine('Triggering predictive camera lookup');
-      final now = DateTime.now();
-      final weekday = now.weekday;
-      // Time of day (hour, minute, etc.)
-      final hour = now.hour; // 0–23
-      // Example: classify into morning/afternoon/evening
-      String timeOfDay = _formatTimeOfDay(hour);
 
-      final List<double>? predicted = await predictor!.predict(
-          latitude: latitude,
-          longitude: longitude,
-          timeOfDay: timeOfDay,
-          dayOfWeek: _formatDayOfWeek(weekday));
+      unawaited(() async {
+        try {
+          final now = DateTime.now();
+          final weekday = now.weekday;
+          final hour = now.hour; // 0–23
+          final timeOfDay = _formatTimeOfDay(hour);
 
-      if (predicted != null &&
-          predicted.isNotEmpty &&
-          !predictedCameraAlreadyAdded(predicted)) {
-        logger.printLogLine(
-          'Predictive camera detected at ${predicted[0]}, ${predicted[1]}',
-        );
+          final predicted = await predictor!.predict(
+            latitude: latitude,
+            longitude: longitude,
+            timeOfDay: timeOfDay,
+            dayOfWeek: _formatDayOfWeek(weekday),
+          );
 
-        ///final roadName = await resolveRoadName(latitude, longitude);
-        SpeedCameraEvent predictedCam = SpeedCameraEvent(
-          latitude: predicted[0],
-          longitude: predicted[1],
-          name: "---",
-          predictive: true,
-        );
-        // If a camera was predicted ahead, publish it on the camera stream and
-        // optionally record it to persistent storage.
-        _cameraStreamController.add(predictedCam);
+          if (predicted != null &&
+              predicted.isNotEmpty &&
+              !predictedCameraAlreadyAdded(predicted)) {
+            logger.printLogLine(
+              'Predictive camera detected at ${predicted[0]}, ${predicted[1]}',
+            );
 
-        logger.printLogLine('Emitting camera event: $predicted');
-        _speedCamEventController.add(
-          Timestamped<Map<String, dynamic>>({
-            'bearing': 0.0,
-            'stable_ccp': ccpStable,
-            'ccp': ['IGNORE', 'IGNORE'],
-            'fix_cam': [false, 0.0, 0.0, true],
-            'traffic_cam': [false, 0.0, 0.0, true],
-            'distance_cam': [false, 0.0, 0.0, true],
-            'mobile_cam': [
-              true,
-              predictedCam.longitude,
+            String aiRoadName = await resolveRoadName(latitude, longitude);
+            final predictedCam = SpeedCameraEvent(
+              latitude: predicted[0],
+              longitude: predicted[1],
+              name: aiRoadName,
+              predictive: true,
+            );
+
+            _cameraStreamController.add(predictedCam);
+
+            logger.printLogLine('Emitting camera event: $predicted');
+            _speedCamEventController.add(
+              Timestamped<Map<String, dynamic>>({
+                'bearing': 0.0,
+                'stable_ccp': ccpStable,
+                'ccp': ['IGNORE', 'IGNORE'],
+                'fix_cam': [false, 0.0, 0.0, true],
+                'traffic_cam': [false, 0.0, 0.0, true],
+                'distance_cam': [false, 0.0, 0.0, true],
+                'mobile_cam': [
+                  true,
+                  predictedCam.longitude,
+                  predictedCam.latitude,
+                  true
+                ],
+                'ccp_node': ['IGNORE', 'IGNORE'],
+                'list_tree': [null, null],
+                'name': "---",
+                'maxspeed': null,
+                'direction': '',
+                'predictive': true,
+              }),
+            );
+
+            await uploadCameraToDriveMethod(
+              aiRoadName,
               predictedCam.latitude,
-              true
-            ],
-            'ccp_node': ['IGNORE', 'IGNORE'],
-            'list_tree': [null, null],
-            'name': "---",
-            'maxspeed': null,
-            'direction': '',
-            'predictive': true,
-          }),
-        );
-        await uploadCameraToDriveMethod(
-          roadName,
-          predictedCam.latitude,
-          predictedCam.longitude,
-          camType: "AI Camera",
-        );
-        predictedCameras.add(predictedCam);
-      }
+              predictedCam.longitude,
+              camType: "AI Camera",
+            );
+
+            predictedCameras.add(predictedCam);
+          }
+        } catch (e, st) {
+          logger.printLogLine("Predictive lookup failed: $e");
+          logger.printLogLine(st.toString());
+        }
+      }());
     }
 
     if (camerasLookAheadMode) {
