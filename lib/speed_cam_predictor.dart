@@ -64,9 +64,15 @@ class SpeedCamPredictor {
 
     // Assume model outputs a single 1x2 (lat, lon) or similar
     final out = outputs.first as OrtValueTensor;
-    final result = out.value as Float32List;
+    final value = out.value;
 
-    // If your model returns [lat, lon] as one row:
-    return result.toList();
+    if (value is List && value.isNotEmpty && value.first is List) {
+      // [[lat, lon]] → take first row
+      final inner = value.first as List;
+      final result = inner.map((e) => (e as num).toDouble()).toList();
+      // result is [lat, lon]
+      return result;
+    }
+    return [];
   }
 }
