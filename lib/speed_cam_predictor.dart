@@ -1,5 +1,6 @@
 import 'dart:convert';
 import 'dart:typed_data';
+import 'dart:isolate';
 import 'package:flutter/services.dart' show rootBundle;
 import 'package:onnxruntime/onnxruntime.dart';
 
@@ -7,13 +8,19 @@ class SpeedCamPredictor {
   late OrtSession _session;
   List<String>? _featureNames;
 
+  bool get isReady => _featureNames != null;
+
+  Future<OrtSession> _createSession(Uint8List modelBytes) {
+    return Isolate.run(() {
+      final options = OrtSessionOptions();
+      return OrtSession.fromBuffer(modelBytes, options);
+    });
+  }
+
   Future<void> init() async {
     // Load ONNX
     final modelBytes = await rootBundle.load('assets/model.onnx');
-    final options = OrtSessionOptions();
-    options.setIntraOpNumThreads(1);
-    _session = OrtSession.fromBuffer(modelBytes.buffer.asUint8List(),
-        options); // Add 'CUDAExecutionProvider' if you have GPU support
+    _session = await _createSession(modelBytes.buffer.asUint8List());
 
     // Load feature names (exact order expected by the model)
     final featJson = await rootBundle.loadString('assets/feature_names.json');
@@ -27,7 +34,7 @@ class SpeedCamPredictor {
     required String timeOfDay,
     required String dayOfWeek, // e.g. "Mon","Tue","Wed",...
   }) async {
-    if (_featureNames == null) {
+    if (!isReady) {
       print('Model not initialized yet!');
       return null;
     }
