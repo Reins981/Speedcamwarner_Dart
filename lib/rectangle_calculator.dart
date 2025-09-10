@@ -986,7 +986,8 @@ class RectangleCalculatorThread {
               'Predictive camera detected at ${predicted[0]}, ${predicted[1]}',
             );
 
-            String aiRoadName = await resolveRoadName(latitude, longitude);
+            String aiRoadName =
+                await resolveRoadName(predicted[0], predicted[1]);
             final predictedCam = SpeedCameraEvent(
               latitude: predicted[0],
               longitude: predicted[1],
