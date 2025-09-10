@@ -1,31 +1,5 @@
 {
     "cameras": [
-        {
-            "name": "AI Camera",
-            "coordinates": [
-                {
-                    "latitude": 40.52343889400008,
-                    "longitude": -4.071440871000005
-                }
-            ]
-        },
-        {
-            "name": "AI Camera",
-            "coordinates": [
-                {
-                    "latitude": 46.88259419102448,
-                    "longitude": 13.510804436380386
-                }
-            ]
-        },
-        {
-            "name": "AI Camera",
-            "coordinates": [
-                {
-                    "latitude": 48.107696294742844,
-                    "longitude": 11.20812661479189
-                }
-            ]
-        }
+       
     ]
 }
