@@ -1317,9 +1317,11 @@ class RectangleCalculatorThread {
     cleanup();
   }
 
-  bool predictedCameraAlreadyAdded(List<double> cam) {
+  bool predictedCameraAlreadyAdded(List<double> cam, {double eps = 1e-6}) {
     for (final existing in predictedCameras) {
-      if (existing.latitude == cam[0] && existing.longitude == cam[1]) {
+      final latDiff = (existing.latitude - cam[0]).abs();
+      final lonDiff = (existing.longitude - cam[1]).abs();
+      if (latDiff < eps && lonDiff < eps) {
         return true;
       }
     }
