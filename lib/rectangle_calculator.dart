@@ -383,9 +383,6 @@ class RectangleCalculatorThread {
   bool _running = true;
   bool get isRunning => _running;
 
-  bool _predictionsLoaded = false;
-  bool get predictionsLoaded => _predictionsLoaded;
-
   /// Whether a camera lookup is in progress.
   bool _camLookupInProgress = false;
   bool get camLookupInProgress => _camLookupInProgress;
@@ -419,12 +416,6 @@ class RectangleCalculatorThread {
   Future<void> setConstructionFlag(bool value) async {
     await _constructionLock.synchronized(() async {
       constructionLookupInProgress = value;
-    });
-  }
-
-  Future<void> setPredictiveCamFlag(bool value) async {
-    await _predictiveCamLock.synchronized(() async {
-      predictiveSpeedLookupInProgress = value;
     });
   }
 
@@ -714,9 +705,6 @@ class RectangleCalculatorThread {
   Future<void> init() async {
     // Load configs immediately
     _loadConfigs();
-    predictor ??= SpeedCamPredictor();
-    // Defer model init until after first frame
-    unawaited(predictor!.init());
   }
 
   /// Update run‑time configuration values.  The map [configs] is merged into an
@@ -923,11 +911,8 @@ class RectangleCalculatorThread {
       // Process each vector on a separate task to avoid delaying the stream.
       unawaited(Future(() async {
         try {
-          if (_predictionsLoaded == false) {
-            logger.printLogLine('Loading config and SpeedCamPredictor');
-            await init();
-            _predictionsLoaded = true;
-          }
+          logger.printLogLine('Loading config');
+          await init();
           await _processVector(vector);
         } catch (e, stack) {
           // Catch and log unexpected exceptions; avoid killing the stream.
@@ -981,12 +966,12 @@ class RectangleCalculatorThread {
     // coordinates and time.  This call is asynchronous to permit future
     // integration with remote services.
     if (!predictiveSpeedLookupInProgress) {
+      predictiveSpeedLookupInProgress = true;
       if (predictor == null) {
         logger.printLogLine('Predictor not initialized yet');
       } else {
         logger.printLogLine('Predictor initialized');
         logger.printLogLine('Triggering predictive camera lookup');
-        await setPredictiveCamFlag(true);
         final now = DateTime.now();
         final weekday = now.weekday;
 
@@ -1047,12 +1032,10 @@ class RectangleCalculatorThread {
             predictedCam.longitude,
             camType: "AI Camera",
           );
-          await setPredictiveCamFlag(false);
           predictedCameras.add(predictedCam);
-        } else {
-          await setPredictiveCamFlag(false);
         }
       }
+      predictiveSpeedLookupInProgress = false;
     }
 
     if (camerasLookAheadMode) {

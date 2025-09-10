@@ -17,6 +17,7 @@ import 'thread_base.dart';
 import 'dialogflow_client.dart';
 import 'osm_wrapper.dart';
 import 'osm_thread.dart';
+import 'speed_cam_predictor.dart';
 import 'deviation_checker.dart' as deviation;
 
 /// Central place that wires up background modules and manages their
@@ -196,6 +197,8 @@ class AppController {
       positionStream: positionStream,
     );
     gps.start(source: locationManager.stream);
+    calculator.predictor ??= SpeedCamPredictor();
+    calculator.predictor!.init();
     calculator.run();
     deviationChecker.start();
     _running = true;
