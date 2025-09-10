@@ -58,6 +58,7 @@ dependencies:
   file_selector: ^1.0.2
   flutter_background: ^1.3.0+1
   flutter_local_notifications: ^17.1.2
+  onnxruntime: ^1.4.1
 
 dev_dependencies:
   flutter_test:
@@ -89,6 +90,8 @@ flutter:
     - assets/service_account/osmwarner-01bcd4dc2dd3.json
     - assets/service_account/cameras.json
     - python/ai/
+    - assets/model.onnx
+    - assets/feature_names.json
 
 flutter_launcher_icons:
   android: true
