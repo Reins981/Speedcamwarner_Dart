@@ -5,7 +5,7 @@ import 'package:onnxruntime/onnxruntime.dart';
 
 class SpeedCamPredictor {
   late OrtSession _session;
-  late List<String> _featureNames;
+  List<String>? _featureNames;
 
   Future<void> init() async {
     // Load ONNX
@@ -21,12 +21,17 @@ class SpeedCamPredictor {
   }
 
   /// timeOfDay can be "morning"/"evening" or "HH:mm" (we’ll map >18 to evening)
-  Future<List<double>> predict({
+  Future<List<double>?>? predict({
     required double latitude,
     required double longitude,
     required String timeOfDay,
     required String dayOfWeek, // e.g. "Mon","Tue","Wed",...
   }) async {
+    if (_featureNames == null) {
+      print('Model not initialized yet!');
+      return null;
+    }
+
     // Normalize timeOfDay like your Python code
     final t = timeOfDay.contains(':')
         ? (int.tryParse(timeOfDay.split(':').first) ?? 0) > 18
@@ -37,7 +42,7 @@ class SpeedCamPredictor {
     // Build feature vector with the **same dummy columns** as training
     // Start with all zeros, then set the active ones
     final Map<String, double> row = {
-      for (final f in _featureNames) f: 0.0,
+      for (final f in _featureNames!) f: 0.0,
     };
 
     // Numeric features
@@ -53,11 +58,11 @@ class SpeedCamPredictor {
     if (row.containsKey(dowKey)) row[dowKey] = 1.0;
 
     final inputVectorDouble =
-        _featureNames.map((f) => (row[f] ?? 0).toDouble()).toList();
+        _featureNames!.map((f) => (row[f] ?? 0).toDouble()).toList();
 
     // Shape: [1, N]
     final input = OrtValueTensor.createTensorWithDataList(
-        Float32List.fromList(inputVectorDouble), [1, _featureNames.length]);
+        Float32List.fromList(inputVectorDouble), [1, _featureNames!.length]);
 
     final outputs = _session.run(OrtRunOptions(),
         {'input': input}); // 'input' matches the initial_types name

@@ -43,6 +43,7 @@ import 'logger.dart';
 import 'service_account.dart';
 import 'config.dart';
 import 'speed_cam_predictor.dart';
+import 'package:flutter/widgets.dart';
 
 /// Data class representing a single GPS/vector sample.  It contains the
 /// current longitude/latitude, current speed (in km/h), a bearing angle
@@ -713,10 +714,14 @@ class RectangleCalculatorThread {
         mostProbableWay = MostProbableWay();
 
   Future<void> init() async {
-    // _predictiveModel = await PredictiveModel.load();
-    predictor = SpeedCamPredictor();
-    await predictor.init();
+    // Load configs immediately
     _loadConfigs();
+
+    // Defer model init until after first frame
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      predictor = SpeedCamPredictor();
+      predictor.init(); // don’t await — runs in background
+    });
   }
 
   /// Update run‑time configuration values.  The map [configs] is merged into an
@@ -992,12 +997,14 @@ class RectangleCalculatorThread {
       // Example: classify into morning/afternoon/evening
       String timeOfDay = _formatTimeOfDay(hour);
 
-      final List<double> predicted = await predictor.predict(
+      final List<double>? predicted = await predictor.predict(
           latitude: latitude,
           longitude: longitude,
           timeOfDay: timeOfDay,
           dayOfWeek: _formatDayOfWeek(weekday));
-      if (predicted.isNotEmpty && !predictedCameraAlreadyAdded(predicted)) {
+      if (predicted != null &&
+          predicted.isNotEmpty &&
+          !predictedCameraAlreadyAdded(predicted)) {
         logger.printLogLine(
           'Predictive camera detected at ${predicted[0]}, ${predicted[1]}',
         );
