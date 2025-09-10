@@ -321,7 +321,7 @@ class POIReader extends Logger {
     var lonLat = gpsProducer.get_lon_lat();
     double longitude = lonLat[0];
     double latitude = lonLat[1];
-    List<double> ccpPair = [latitude, longitude];
+    List<double> ccpPair = [longitude, latitude];
 
     if (direction == '-' || direction == null) {
       printLogLine(' Waiting for valid direction once');
