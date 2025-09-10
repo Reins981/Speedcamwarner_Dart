@@ -21,7 +21,6 @@ import 'dart:io';
 import 'dart:math' as math;
 import 'package:synchronized/synchronized.dart';
 import 'package:http/http.dart' as http;
-
 import 'package:flutter/foundation.dart';
 import 'package:latlong2/latlong.dart';
 import 'package:workspace/deviation_checker.dart';
@@ -38,7 +37,6 @@ import 'linked_list_generator.dart';
 import 'tree_generator.dart';
 import 'voice_prompt_events.dart';
 import 'thread_base.dart';
-import 'package:http/http.dart' as http;
 import 'logger.dart';
 import 'service_account.dart';
 import 'config.dart';
@@ -718,10 +716,7 @@ class RectangleCalculatorThread {
     _loadConfigs();
 
     // Defer model init until after first frame
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      predictor = SpeedCamPredictor();
-      predictor!.init(); // don’t await — runs in background
-    });
+    unawaited(predictor!.init());
   }
 
   /// Update run‑time configuration values.  The map [configs] is merged into an
