@@ -623,7 +623,7 @@ class RectangleCalculatorThread {
   Map<String, dynamic> roadClassesToSpeedConfig = {};
 
   /// Utility that encapsulates the predictive speed camera logic.
-  late final SpeedCamPredictor predictor;
+  late SpeedCamPredictor predictor;
 
   /// Cached CCP coordinates and tiles used by [processLookaheadItems] when
   /// ``previousCcp`` is true.
