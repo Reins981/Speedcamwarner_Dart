@@ -714,7 +714,7 @@ class RectangleCalculatorThread {
   Future<void> init() async {
     // Load configs immediately
     _loadConfigs();
-
+    predictor ??= SpeedCamPredictor();
     // Defer model init until after first frame
     unawaited(predictor!.init());
   }
