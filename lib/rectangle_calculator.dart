@@ -981,6 +981,7 @@ class RectangleCalculatorThread {
     // coordinates and time.  This call is asynchronous to permit future
     // integration with remote services.
     if (!predictiveSpeedLookupInProgress) {
+      logger.printLogLine('Triggering predictive camera lookup');
       await setPredictiveCamFlag(true);
       final now = DateTime.now();
       final weekday = now.weekday;
@@ -1042,6 +1043,8 @@ class RectangleCalculatorThread {
         );
         await setPredictiveCamFlag(false);
         predictedCameras.add(predictedCam);
+      } else {
+        await setPredictiveCamFlag(false);
       }
     }
 
