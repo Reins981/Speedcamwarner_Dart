@@ -475,8 +475,7 @@ class SpeedCamWarner {
       );
 
       if (distance < 0) {
-        print(
-            "Deleting camera $cam with distance $distance it's too far away or already passed!");
+        print("Deleting camera $cam with distance $distance!");
         camsToDelete.add(cam);
         removeCachedCamera(cam);
         updateCalculatorCams(camAttributes);

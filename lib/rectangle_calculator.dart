@@ -19,9 +19,8 @@ import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
 import 'dart:math' as math;
-import 'dart:math' show Point;
-import 'package:path/path.dart' as p;
 import 'package:synchronized/synchronized.dart';
+import 'package:http/http.dart' as http;
 
 import 'package:flutter/foundation.dart';
 import 'package:latlong2/latlong.dart';
@@ -977,19 +976,31 @@ class RectangleCalculatorThread {
     // integration with remote services.
     if (!predictiveSpeedLookupInProgress) {
       await setPredictiveCamFlag(true);
-      final SpeedCameraEvent? predicted = await processPredictiveCameras(
-        longitude,
-        latitude,
-      );
-      if (predicted != null && !predictedCameraAlreadyAdded(predicted)) {
+      final now = DateTime.now();
+      final weekday = now.weekday;
+
+      // Time of day (hour, minute, etc.)
+      final hour = now.hour; // 0–23
+
+      // Example: classify into morning/afternoon/evening
+      String timeOfDay = _formatTimeOfDay(hour);
+
+      final List<double> predicted = await predictFromServer(
+          latitude, longitude, timeOfDay, _formatDayOfWeek(weekday));
+      if (predicted.isNotEmpty && !predictedCameraAlreadyAdded(predicted)) {
         logger.printLogLine(
-          'Predictive camera detected at ${predicted.latitude}, ${predicted.longitude}',
+          'Predictive camera detected at ${predicted[0]}, ${predicted[1]}',
         );
         final roadName = await resolveRoadName(latitude, longitude);
-        predicted.name = roadName;
+        SpeedCameraEvent predictedCam = SpeedCameraEvent(
+          latitude: predicted[0],
+          longitude: predicted[1],
+          name: roadName,
+          predictive: true,
+        );
         // If a camera was predicted ahead, publish it on the camera stream and
         // optionally record it to persistent storage.
-        _cameraStreamController.add(predicted);
+        _cameraStreamController.add(predictedCam);
 
         logger.printLogLine('Emitting camera event: $predicted');
         _speedCamEventController.add(
@@ -1000,7 +1011,12 @@ class RectangleCalculatorThread {
             'fix_cam': [false, 0.0, 0.0, true],
             'traffic_cam': [false, 0.0, 0.0, true],
             'distance_cam': [false, 0.0, 0.0, true],
-            'mobile_cam': [true, predicted.longitude, predicted.latitude, true],
+            'mobile_cam': [
+              true,
+              predictedCam.longitude,
+              predictedCam.latitude,
+              true
+            ],
             'ccp_node': ['IGNORE', 'IGNORE'],
             'list_tree': [null, null],
             'name': roadName,
@@ -1011,12 +1027,12 @@ class RectangleCalculatorThread {
         );
         await uploadCameraToDriveMethod(
           roadName,
-          predicted.latitude,
-          predicted.longitude,
+          predictedCam.latitude,
+          predictedCam.longitude,
           camType: "AI Camera",
         );
         await setPredictiveCamFlag(false);
-        predictedCameras.add(predicted);
+        predictedCameras.add(predictedCam);
       }
     }
 
@@ -1251,27 +1267,35 @@ class RectangleCalculatorThread {
     camRadiusNotifier.value = radius;
   }
 
-  /// Format a [DateTime] into HH:MM format.  This helper mirrors the
-  /// ``strftime("%H:%M")`` call in the Python code.
-  String _formatTimeOfDay(DateTime dt) {
-    String twoDigits(int n) => n.toString().padLeft(2, '0');
-    return '${twoDigits(dt.hour)}:${twoDigits(dt.minute)}';
-  }
-
   /// Format a [DateTime] into a weekday string.  This helper mirrors the
   /// ``strftime("%A")`` call in the Python code.  Dart’s [DateTime]
   /// enumerates weekdays from 1 (Monday) to 7 (Sunday).
-  String _formatDayOfWeek(DateTime dt) {
-    const List<String> names = [
-      'Monday',
-      'Tuesday',
-      'Wednesday',
-      'Thursday',
-      'Friday',
-      'Saturday',
-      'Sunday',
-    ];
-    return names[(dt.weekday - 1) % 7];
+  String _formatDayOfWeek(int weekday) {
+    const names = {
+      1: 'Monday',
+      2: 'Tuesday',
+      3: 'Wednesday',
+      4: 'Thursday',
+      5: 'Friday',
+      6: 'Saturday',
+      7: 'Sunday',
+    };
+    return names[weekday]!;
+  }
+
+  /// Format an hour of the day into a time‑of‑day string.  This helper is a
+  /// simple example that classifies hours into morning, afternoon and evening.
+  String _formatTimeOfDay(int hour) {
+    // Example: classify into morning/afternoon/evening
+    String timeOfDay;
+    if (hour < 12) {
+      timeOfDay = "morning";
+    } else if (hour < 18) {
+      timeOfDay = "afternoon";
+    } else {
+      timeOfDay = "evening";
+    }
+    return timeOfDay;
   }
 
   // ---------------------------------------------------------------------------
@@ -1293,10 +1317,9 @@ class RectangleCalculatorThread {
     cleanup();
   }
 
-  bool predictedCameraAlreadyAdded(SpeedCameraEvent cam) {
+  bool predictedCameraAlreadyAdded(List<double> cam) {
     for (final existing in predictedCameras) {
-      if (existing.latitude == cam.latitude &&
-          existing.longitude == cam.longitude) {
+      if (existing.latitude == cam[0] && existing.longitude == cam[1]) {
         return true;
       }
     }
@@ -2183,17 +2206,21 @@ class RectangleCalculatorThread {
     }
   }
 
-  Future<SpeedCameraEvent?> processPredictiveCameras(
-    double longitude,
-    double latitude,
-  ) async =>
-      predictSpeedCamera(
-        model: _predictiveModel,
-        latitude: latitude,
-        longitude: longitude,
-        timeOfDay: _formatTimeOfDay(DateTime.now()),
-        dayOfWeek: _formatDayOfWeek(DateTime.now()),
-      );
+  Future<List<double>> predictFromServer(
+      double lat, double lon, String tod, String dow) async {
+    final resp = await http.post(
+      Uri.parse('http://127.0.0.1:8000/predict'),
+      headers: {'Content-Type': 'application/json'},
+      body: jsonEncode({
+        'latitude': lat,
+        'longitude': lon,
+        'time_of_day': tod,
+        'day_of_week': dow,
+      }),
+    );
+    final json = jsonDecode(resp.body);
+    return (json['pred'] as List).map((e) => (e as num).toDouble()).toList();
+  }
 
   Future<void> speedCamLookupAhead(GeoRect rect, {http.Client? client}) async {
     logger.printLogLine('speedCamLookupAhead bounds: $rect');
