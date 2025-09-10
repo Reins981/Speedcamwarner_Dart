@@ -143,6 +143,7 @@ class ServiceAccount {
       'coordinates': [
         {'latitude': latitude, 'longitude': longitude},
       ],
+      'predictive': (name == 'AI Camera') ? true : false,
     };
     logger.printLogLine('Adding new camera: $newCamera');
 

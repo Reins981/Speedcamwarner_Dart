@@ -1354,6 +1354,7 @@ class RectangleCalculatorThread {
             'name': cam.name,
             'maxspeed': cam.maxspeed,
             'direction': cam.direction,
+            'predictive': cam.predictive,
           }),
         );
       }
@@ -3197,6 +3198,8 @@ class RectangleCalculatorThread {
       distanceCamCounterNotifier.value = value;
   void updateMobileCamCount(int value) =>
       mobileCamCounterNotifier.value = value;
+  void updatePredictiveCamCount(int value) =>
+      predictiveCamCounterNotifier.value = value;
   void updateOnlineStatus(bool value) => onlineStatusNotifier.value = value;
   void updateGpsStatus(bool value) => gpsStatusNotifier.value = value;
 

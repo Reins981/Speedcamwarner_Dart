@@ -17,7 +17,7 @@ import 'voice_prompt_events.dart';
 /// Representation of a user contributed camera.
 class UserCamera {
   final int id;
-  final String? name;
+  final String name;
   final String? roadName;
   final double lon;
   final double lat;
@@ -220,7 +220,7 @@ class POIReader extends Logger {
   /// Send camera information to the speed‑camera queue for further processing.
   void _propagateCamera(
       String? roadName, double longitude, double latitude, String cameraType,
-      {List<double>? ccpPair}) {
+      {List<double>? ccpPair, String name = 'Manual Camera'}) {
     printLogLine(
       'Propagating $cameraType camera (${longitude.toStringAsFixed(5)}, ${latitude.toStringAsFixed(5)})',
     );
@@ -241,14 +241,14 @@ class POIReader extends Logger {
     unawaited(
       calculator.updateSpeedCams([
         SpeedCameraEvent(
-          latitude: latitude,
-          longitude: longitude,
-          fixed: cameraType == 'fix_cam',
-          traffic: cameraType == 'traffic_cam',
-          distance: cameraType == 'distance_cam',
-          mobile: cameraType == 'mobile_cam',
-          name: roadName ?? '',
-        ),
+            latitude: latitude,
+            longitude: longitude,
+            fixed: cameraType == 'fix_cam',
+            traffic: cameraType == 'traffic_cam',
+            distance: cameraType == 'distance_cam',
+            mobile: cameraType == 'mobile_cam',
+            name: roadName ?? '',
+            predictive: (name == 'AI Camera') ? true : false),
       ], mapUpdate: true),
     );
   }
@@ -382,7 +382,7 @@ class POIReader extends Logger {
         _updateOsmWrapper();
         _propagateCamera(
             userCam.roadName, userCam.lon, userCam.lat, 'mobile_cam',
-            ccpPair: ccpPair);
+            ccpPair: ccpPair, name: userCam.name);
         camId += 1;
       } catch (_) {
         printLogLine(
