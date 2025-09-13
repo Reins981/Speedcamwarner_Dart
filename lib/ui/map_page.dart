@@ -341,10 +341,15 @@ class _MapPageState extends State<MapPage> {
       );
       setState(() {
         if (index != -1) {
-          _cameraMarkers[index] = newMarker;
+          final updated = List<Marker>.from(_cameraMarkers);
+          updated[index] = newMarker;
+          _cameraMarkers = updated;
+        } else {
+          _cameraMarkers = [..._cameraMarkers, newMarker];
         }
-        _markerData.remove(oldMarker);
-        _markerData[newMarker] = cam;
+        _markerData
+          ..remove(oldMarker)
+          ..[newMarker] = cam;
       });
       return;
     }
@@ -355,7 +360,7 @@ class _MapPageState extends State<MapPage> {
       child: _buildCameraMarker(cam),
     );
     setState(() {
-      _cameraMarkers.add(marker);
+      _cameraMarkers = [..._cameraMarkers, marker];
       _markerData[marker] = cam;
     });
   }
@@ -378,7 +383,7 @@ class _MapPageState extends State<MapPage> {
     }
     if (newMarkers.isEmpty) return;
     setState(() {
-      _cameraMarkers.addAll(newMarkers);
+      _cameraMarkers = [..._cameraMarkers, ...newMarkers];
     });
   }
 
@@ -395,7 +400,8 @@ class _MapPageState extends State<MapPage> {
     }
     if (markerToRemove != null) {
       setState(() {
-        _cameraMarkers.remove(markerToRemove);
+        _cameraMarkers =
+            _cameraMarkers.where((m) => m != markerToRemove).toList();
         _markerData.remove(markerToRemove);
       });
     }
@@ -443,7 +449,7 @@ class _MapPageState extends State<MapPage> {
     }
     if (newMarkers.isEmpty && newPolygons.isEmpty) return;
     setState(() {
-      _constructionMarkers.addAll(newMarkers);
+      _constructionMarkers = [..._constructionMarkers, ...newMarkers];
       _constructionPolygons = [..._constructionPolygons, ...newPolygons];
     });
   }
@@ -592,12 +598,8 @@ class _MapPageState extends State<MapPage> {
       }
     }
     setState(() {
-      _poiMarkers
-        ..clear()
-        ..addAll(markers);
-      _poiData
-        ..clear()
-        ..addAll(data);
+      _poiMarkers = markers;
+      _poiData = data;
     });
   }
 
