@@ -396,6 +396,8 @@ class RectangleCalculatorThread {
     _constructionLookupInProgress = value;
   }
 
+  bool configLoaded = false;
+
   final Lock _speedCamLock = Lock();
   final Lock _constructionLock = Lock();
   final Lock _predictiveCamLock = Lock();
@@ -699,7 +701,10 @@ class RectangleCalculatorThread {
 
   Future<void> init() async {
     // Load configs immediately
-    _loadConfigs();
+    if (!configLoaded) {
+      _loadConfigs();
+      configLoaded = true;
+    }
   }
 
   /// Update run‑time configuration values.  The map [configs] is merged into an
@@ -910,7 +915,6 @@ class RectangleCalculatorThread {
       // Process each vector on a separate task to avoid delaying the stream.
       unawaited(Future(() async {
         try {
-          logger.printLogLine('Loading config');
           await init();
           await _processVector(vector);
         } catch (e, stack) {
