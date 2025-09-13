@@ -52,7 +52,7 @@ class SpeedCamWarner {
   late double maxStorageTimeBackup;
   int traversedCamerasInterval = 3; // seconds
   int maxDismissCounter = 5;
-  int maxDistanceToFutureCamera = 5000; // meters
+  int maxDistanceToFutureCamera = 10000; // meters
 
   StreamSubscription<Timestamped<Map<String, dynamic>>>? _sub;
   void Function()? _positionListener;
@@ -98,10 +98,6 @@ class SpeedCamWarner {
     maxDismissCounter =
         (AppConfig.get<num>('speedCamWarner.max_dismiss_counter') ??
                 maxDismissCounter)
-            .toInt();
-    maxDistanceToFutureCamera =
-        (AppConfig.get<num>('speedCamWarner.max_distance_to_future_camera') ??
-                maxDistanceToFutureCamera)
             .toInt();
 
     // Keep a backup of the storage time for later restoration.

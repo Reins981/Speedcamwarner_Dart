@@ -205,7 +205,7 @@ class _DashboardPageState extends State<DashboardPage> {
       cam.longitude,
     );
     final maxDistance =
-        (AppConfig.get<num>('speedCamWarner.max_distance_to_future_camera') ??
+        (AppConfig.get<num>('speedCamWarner.max_display_distance_camera') ??
                 5000)
             .toDouble();
     return distance <= maxDistance;

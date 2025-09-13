@@ -603,6 +603,7 @@ class RectangleCalculatorThread {
   bool considerBackupRects = true;
   bool enableOrderedRectsExtrapolated = true;
   int maxNumberExtrapolatedRects = 6;
+  double maxDistanceToFutureCamera = 0;
   Map<String, dynamic> maxspeedCountries = {};
   Map<String, dynamic> roadClassesToSpeedConfig = {};
 
@@ -795,6 +796,10 @@ class RectangleCalculatorThread {
           'calculator.road_classes_to_speed',
         ) ??
         roadClassesToSpeedConfig;
+    maxDistanceToFutureCamera =
+        (AppConfig.get<num>('speedCamWarner.max_distance_to_future_camera') ??
+                5000)
+            .toDouble();
 
     printConfigValues();
   }
@@ -3229,8 +3234,13 @@ class RectangleCalculatorThread {
   }) {
     processNextCamNotifier.value = process;
     if (process) {
-      nextCamRoadNotifier.value = road;
-      nextCamDistanceNotifier.value = distance;
+      if (distance! <= maxDistanceToFutureCamera) {
+        nextCamRoadNotifier.value = road;
+        nextCamDistanceNotifier.value = distance;
+      } else {
+        nextCamRoadNotifier.value = null;
+        nextCamDistanceNotifier.value = null;
+      }
     } else {
       nextCamRoadNotifier.value = null;
       nextCamDistanceNotifier.value = null;

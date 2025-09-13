@@ -64,7 +64,7 @@
     "max_storage_time": 28800,
     "traversed_cameras_interval": 3,
     "max_dismiss_counter": 5,
-    "max_distance_to_future_camera": 5000,
+    "max_distance_to_future_camera": 10000,
     "baseurl": "http://overpass-api.de/api/interpreter?",
     "querystring_amenity": "data=[out:json];(node[\"amenity\"=\"*\"]",
     "querystring_cameras1": "data=[out:json][timeout:25];(node[\"highway\"=\"speed_camera\"]",
