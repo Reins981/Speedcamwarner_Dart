@@ -500,20 +500,36 @@ class _MapPageState extends State<MapPage> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(title: const Text('Map')),
-      body: FlutterMap(
-        mapController: _mapController,
-        options: MapOptions(initialCenter: _center, initialZoom: 15),
-        children: [
-          TileLayer(
-            urlTemplate: 'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
-            userAgentPackageName: 'com.example.speedcamwarner',
-          ),
-          if (_rectPolygons.isNotEmpty || _constructionPolygons.isNotEmpty)
-            PolygonLayer(
-              polygons: [
-                ..._rectPolygons,
-                ..._constructionPolygons,
-              ],
+      body: PopupScope(
+        child: FlutterMap(
+          mapController: _mapController,
+          options: MapOptions(initialCenter: _center, initialZoom: 15),
+          children: [
+            TileLayer(
+              urlTemplate: 'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
+              userAgentPackageName: 'com.example.speedcamwarner',
+            ),
+            if (_rectPolygons.isNotEmpty || _constructionPolygons.isNotEmpty)
+              PolygonLayer(
+                polygons: [
+                  ..._rectPolygons,
+                  ..._constructionPolygons,
+                ],
+              ),
+            if (_gpsMarker != null) MarkerLayer(markers: [_gpsMarker!]),
+            MarkerClusterLayerWidget(
+              options: MarkerClusterLayerOptions(
+                markers: _cameraMarkers,
+                maxClusterRadius: 45,
+                disableClusteringAtZoom: 16,
+                builder: (context, markers) => CircleAvatar(
+                  child: Text(markers.length.toString()),
+                ),
+                popupOptions: PopupOptions(
+                  popupController: _popupController,
+                  popupBuilder: (context, marker) => _buildMarkerPopup(marker),
+                ),
+              ),
             ),
           if (_gpsMarker != null) MarkerLayer(markers: [_gpsMarker!]),
           MarkerClusterLayerWidget(
@@ -541,8 +557,8 @@ class _MapPageState extends State<MapPage> {
                 builder: (context, marker) => _buildMarkerPopup(marker),
               ),
             ),
-          ),
-        ],
+          ],
+        ),
       ),
       floatingActionButton: Column(
         mainAxisSize: MainAxisSize.min,
