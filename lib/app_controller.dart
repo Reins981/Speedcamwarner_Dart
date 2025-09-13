@@ -327,14 +327,16 @@ class AppController {
 
     final poiDistance =
         (AppConfig.get<num>('main.poi_distance') ?? 50).toDouble();
-    final kmPerTile = (40075.016686 * math.cos(lat * math.pi / 180.0)) /
-        math.pow(2, calculator.zoom);
-    final tileDistance = poiDistance / kmPerTile;
+    // km per tile horizontally at latitude φ (Web Mercator)
+    final latRad = lat * math.pi / 180.0;
+    final kmPerTileX =
+        40075.016686 * math.cos(latRad) / math.pow(2, calculator.zoom);
+    final tilesOffset = poiDistance / kmPerTileX;
 
     final pts = calculator.calculatePoints2Angle(
       xtile,
       ytile,
-      tileDistance,
+      tilesOffset,
       calculator.currentRectAngle * math.pi / 180.0,
     );
     final poly = calculator.createGeoJsonTilePolygonAngle(
@@ -344,10 +346,37 @@ class AppController {
       pts[1],
       pts[3],
     );
-    final lonMin = math.min(poly[0].x, poly[2].x);
-    final lonMax = math.max(poly[0].x, poly[2].x);
-    final latMin = math.min(poly[0].y, poly[2].y);
-    final latMax = math.max(poly[0].y, poly[2].y);
+    double lonMin = double.infinity, lonMax = -double.infinity;
+    double latMin = double.infinity, latMax = -double.infinity;
+
+    for (final p in poly) {
+      // Ensure p.x is LON and p.y is LAT in your point type; swap if your struct is (lat,lon)
+      final lonP = p.x;
+      final latP = p.y;
+      if (lonP < lonMin) lonMin = lonP;
+      if (lonP > lonMax) lonMax = lonP;
+      if (latP < latMin) latMin = latP;
+      if (latP > latMax) latMax = latP;
+    }
+
+    // Optional sanity clamps
+    lonMin = lonMin.clamp(-180.0, 180.0);
+    lonMax = lonMax.clamp(-180.0, 180.0);
+    latMin = latMin.clamp(-85.0511, 85.0511);
+    latMax = latMax.clamp(-85.0511, 85.0511);
+
+    // Make sure min < max; if not, swap (prevents empty bbox due to ordering bugs)
+    if (lonMin > lonMax) {
+      final t = lonMin;
+      lonMin = lonMax;
+      lonMax = t;
+    }
+    if (latMin > latMax) {
+      final t = latMin;
+      latMin = latMax;
+      latMax = t;
+    }
+
     final area = GeoRect(
       minLat: latMin,
       minLon: lonMin,
