@@ -501,6 +501,7 @@ class _MapPageState extends State<MapPage> {
     return Scaffold(
       appBar: AppBar(title: const Text('Map')),
       body: PopupScope(
+        popupController: _popupController,
         child: FlutterMap(
           mapController: _mapController,
           options: MapOptions(initialCenter: _center, initialZoom: 15),
@@ -522,23 +523,14 @@ class _MapPageState extends State<MapPage> {
                 markers: _cameraMarkers,
                 maxClusterRadius: 45,
                 disableClusteringAtZoom: 16,
+                size: const Size(40, 40),
+                alignment: Alignment.center,
                 builder: (context, markers) => CircleAvatar(
-                  child: Text(markers.length.toString()),
-                ),
-                popupOptions: PopupOptions(
-                  popupController: _popupController,
-                  popupBuilder: (context, marker) => _buildMarkerPopup(marker),
-                ),
-              ),
-            ),
-            if (_gpsMarker != null) MarkerLayer(markers: [_gpsMarker!]),
-            MarkerClusterLayerWidget(
-              options: MarkerClusterLayerOptions(
-                markers: _cameraMarkers,
-                maxClusterRadius: 45,
-                disableClusteringAtZoom: 16,
-                builder: (context, markers) => CircleAvatar(
-                  child: Text(markers.length.toString()),
+                  backgroundColor: Colors.blue,
+                  child: Text(
+                    markers.length.toString(),
+                    style: const TextStyle(color: Colors.white),
+                  ),
                 ),
                 popupOptions: PopupOptions(
                   popupController: _popupController,
@@ -549,7 +541,10 @@ class _MapPageState extends State<MapPage> {
             PopupMarkerLayer(
               options: PopupMarkerLayerOptions(
                 popupController: _popupController,
-                markers: [..._constructionMarkers, ..._poiMarkers],
+                markers: [
+                  ..._constructionMarkers,
+                  ..._poiMarkers
+                ],
                 popupDisplayOptions: PopupDisplayOptions(
                   builder: (context, marker) => _buildMarkerPopup(marker),
                 ),
