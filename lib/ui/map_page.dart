@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_map/flutter_map.dart';
 import 'package:flutter_map_marker_popup/flutter_map_marker_popup.dart';
+import 'package:flutter_map_marker_cluster/flutter_map_marker_cluster.dart';
 import 'package:latlong2/latlong.dart';
 
 import '../rectangle_calculator.dart';
@@ -276,6 +277,50 @@ class _MapPageState extends State<MapPage> {
     );
   }
 
+  Widget _buildMarkerPopup(Marker marker) {
+    final cam = _markerData[marker];
+    if (cam != null) {
+      final types = <String>[
+        if (cam.fixed) 'fixed',
+        if (cam.traffic) 'traffic',
+        if (cam.distance) 'distance',
+        if (cam.mobile) 'mobile',
+        if (cam.predictive) 'predictive',
+      ].join(', ');
+      return Card(
+        child: Padding(
+          padding: const EdgeInsets.all(8.0),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                (cam.name != null && cam.name!.isNotEmpty)
+                    ? cam.name!
+                    : 'Speed camera',
+              ),
+              if (types.isNotEmpty)
+                Text(types, style: const TextStyle(fontSize: 12)),
+            ],
+          ),
+        ),
+      );
+    }
+    final poi = _poiData[marker];
+    if (poi != null) {
+      return _buildPoiPopup(poi);
+    }
+    if (_constructionData.containsKey(marker)) {
+      return const Card(
+        child: Padding(
+          padding: EdgeInsets.all(8.0),
+          child: Text('Construction area'),
+        ),
+      );
+    }
+    return const SizedBox.shrink();
+  }
+
   void _onCameraEvent(SpeedCameraEvent cam) {
     MapEntry<Marker, SpeedCameraEvent>? existing;
     for (final entry in _markerData.entries) {
@@ -455,78 +500,51 @@ class _MapPageState extends State<MapPage> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(title: const Text('Map')),
-      body: FlutterMap(
-        mapController: _mapController,
-        options: MapOptions(initialCenter: _center, initialZoom: 15),
-        children: [
-          TileLayer(
-            urlTemplate: 'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
-            userAgentPackageName: 'com.example.speedcamwarner',
-          ),
-          if (_rectPolygons.isNotEmpty || _constructionPolygons.isNotEmpty)
-            PolygonLayer(
-              polygons: [
-                ..._rectPolygons,
-                ..._constructionPolygons,
-              ],
+      body: PopupScope(
+        child: FlutterMap(
+          mapController: _mapController,
+          options: MapOptions(initialCenter: _center, initialZoom: 15),
+          children: [
+            TileLayer(
+              urlTemplate: 'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
+              userAgentPackageName: 'com.example.speedcamwarner',
             ),
-          if (_gpsMarker != null) MarkerLayer(markers: [_gpsMarker!]),
-          PopupMarkerLayer(
-            options: PopupMarkerLayerOptions(
-              popupController: _popupController,
-              markers: [
-                ..._cameraMarkers,
-                ..._constructionMarkers,
-                ..._poiMarkers
-              ],
-              popupDisplayOptions: PopupDisplayOptions(
-                builder: (context, marker) {
-                  final cam = _markerData[marker];
-                  if (cam != null) {
-                    final types = <String>[
-                      if (cam.fixed) 'fixed',
-                      if (cam.traffic) 'traffic',
-                      if (cam.distance) 'distance',
-                      if (cam.mobile) 'mobile',
-                      if (cam.predictive) 'predictive',
-                    ].join(', ');
-                    return Card(
-                      child: Padding(
-                        padding: const EdgeInsets.all(8.0),
-                        child: Column(
-                          mainAxisSize: MainAxisSize.min,
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(
-                              (cam.name != null && cam.name!.isNotEmpty)
-                                  ? cam.name!
-                                  : 'Speed camera',
-                            ),
-                            if (types.isNotEmpty)
-                              Text(types, style: const TextStyle(fontSize: 12)),
-                          ],
-                        ),
-                      ),
-                    );
-                  }
-                  final poi = _poiData[marker];
-                  if (poi != null) {
-                    return _buildPoiPopup(poi);
-                  }
-                  if (_constructionData.containsKey(marker)) {
-                    return const Card(
-                      child: Padding(
-                        padding: EdgeInsets.all(8.0),
-                        child: Text('Construction area'),
-                      ),
-                    );
-                  }
-                  return const SizedBox.shrink();
-                },
+            if (_rectPolygons.isNotEmpty || _constructionPolygons.isNotEmpty)
+              PolygonLayer(
+                polygons: [
+                  ..._rectPolygons,
+                  ..._constructionPolygons,
+                ],
+              ),
+            if (_gpsMarker != null) MarkerLayer(markers: [_gpsMarker!]),
+            MarkerClusterLayerWidget(
+              options: MarkerClusterLayerOptions(
+                markers: _cameraMarkers,
+                maxClusterRadius: 45,
+                disableClusteringAtZoom: 16,
+                builder: (context, markers) => CircleAvatar(
+                  child: Text(markers.length.toString()),
+                ),
+                popupOptions: PopupOptions(
+                  popupController: _popupController,
+                  popupBuilder: (context, marker) => _buildMarkerPopup(marker),
+                ),
               ),
             ),
-          ),
-        ],
+            PopupMarkerLayer(
+              options: PopupMarkerLayerOptions(
+                popupController: _popupController,
+                markers: [
+                  ..._constructionMarkers,
+                  ..._poiMarkers
+                ],
+                popupDisplayOptions: PopupDisplayOptions(
+                  builder: (context, marker) => _buildMarkerPopup(marker),
+                ),
+              ),
+            ),
+          ],
+        ),
       ),
       floatingActionButton: Column(
         mainAxisSize: MainAxisSize.min,
