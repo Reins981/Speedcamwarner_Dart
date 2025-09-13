@@ -531,16 +531,30 @@ class _MapPageState extends State<MapPage> {
                 ),
               ),
             ),
-            PopupMarkerLayer(
-              options: PopupMarkerLayerOptions(
+          if (_gpsMarker != null) MarkerLayer(markers: [_gpsMarker!]),
+          MarkerClusterLayerWidget(
+            options: MarkerClusterLayerOptions(
+              markers: _cameraMarkers,
+              maxClusterRadius: 45,
+              disableClusteringAtZoom: 16,
+              builder: (context, markers) => CircleAvatar(
+                child: Text(markers.length.toString()),
+              ),
+              popupOptions: PopupOptions(
                 popupController: _popupController,
-                markers: [
-                  ..._constructionMarkers,
-                  ..._poiMarkers
-                ],
-                popupDisplayOptions: PopupDisplayOptions(
-                  builder: (context, marker) => _buildMarkerPopup(marker),
-                ),
+                popupBuilder: (context, marker) => _buildMarkerPopup(marker),
+              ),
+            ),
+          ),
+          PopupMarkerLayer(
+            options: PopupMarkerLayerOptions(
+              popupController: _popupController,
+              markers: [
+                ..._constructionMarkers,
+                ..._poiMarkers
+              ],
+              popupDisplayOptions: PopupDisplayOptions(
+                builder: (context, marker) => _buildMarkerPopup(marker),
               ),
             ),
           ],
