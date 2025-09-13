@@ -39,11 +39,11 @@ class MapPage extends StatefulWidget {
 class _MapPageState extends State<MapPage> {
   late LatLng _center;
   Marker? _gpsMarker;
-  final List<Marker> _cameraMarkers = [];
-  final List<Marker> _poiMarkers = [];
-  final Map<Marker, List<dynamic>> _poiData = {};
+  List<Marker> _cameraMarkers = [];
+  List<Marker> _poiMarkers = [];
+  Map<Marker, List<dynamic>> _poiData = {};
   final Map<Marker, SpeedCameraEvent> _markerData = {};
-  final List<Marker> _constructionMarkers = [];
+  List<Marker> _constructionMarkers = [];
   final Map<Marker, GeoRect> _constructionData = {};
   final PopupController _popupController = PopupController();
   final MapController _mapController = MapController();
