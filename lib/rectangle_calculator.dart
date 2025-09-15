@@ -2225,7 +2225,7 @@ class RectangleCalculatorThread {
         triggerOsmLookup(rect, lookupType: 'camera_ahead', client: client);
     final distFuture =
         triggerOsmLookup(rect, lookupType: 'distance_cam', client: client);
-    final wazeFuture = fetchWazeCameras(rect, client: client);
+    final lufopFuture = fetchLufopCameras(client: client);
 
     final results = await Future.wait([camFuture, distFuture]);
     final camRes = results[0];
@@ -2246,16 +2246,37 @@ class RectangleCalculatorThread {
           distRes.elements!, 'distance_cam');
     }
 
-    await wazeFuture;
+    await lufopFuture;
   }
 
-  Future<void> fetchWazeCameras(GeoRect rect, {http.Client? client}) async {
-    final left = rect.minLon;
-    final right = rect.maxLon;
-    final bottom = rect.minLat;
-    final top = rect.maxLat;
+  bool isMobileCam(Map<String, dynamic> it) {
+    final fields = [
+      it['type'],
+      it['category'],
+      it['name'],
+      it['description'],
+      it['comment'],
+    ].whereType<String>().join(' ').toLowerCase();
+
+    const keywords = [
+      'mobile',
+      'radar mobile',
+      'radar autonome',
+      'radar móvil',
+      'móvil',
+      'mobiler blitzer',
+      'mobil',
+      'geschwindigkeitskontrolle mobil',
+      'autovelox mobile',
+      'mobiele flitser',
+    ];
+
+    return keywords.any((k) => fields.contains(k));
+  }
+
+  Future<void> fetchLufopCameras({http.Client? client}) async {
     final url =
-        'https://www.waze.com/row-rtserver/web/TGeoRSS?ma=600&mj=1000&mu=1000&left=$left&right=$right&bottom=$bottom&top=$top';
+        'https://api.lufop.net/api?key=<your_key>&q=$latitude,$longitude&m=100';
     final httpClient = client ?? http.Client();
     try {
       final response = await httpClient.get(Uri.parse(url));
@@ -2297,7 +2318,8 @@ class RectangleCalculatorThread {
           try {
             await updateSpeedCams(cams);
           } catch (e, stack) {
-            logger.printLogLine('updateSpeedCams failed: $e', logLevel: 'ERROR');
+            logger.printLogLine('updateSpeedCams failed: $e',
+                logLevel: 'ERROR');
             logger.printLogLine(stack.toString(), logLevel: 'DEBUG');
           }
           updateMapQueue();
