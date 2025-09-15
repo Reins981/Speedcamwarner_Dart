@@ -2225,6 +2225,7 @@ class RectangleCalculatorThread {
         triggerOsmLookup(rect, lookupType: 'camera_ahead', client: client);
     final distFuture =
         triggerOsmLookup(rect, lookupType: 'distance_cam', client: client);
+    final wazeFuture = fetchWazeCameras(rect, client: client);
 
     final results = await Future.wait([camFuture, distFuture]);
     final camRes = results[0];
@@ -2243,6 +2244,80 @@ class RectangleCalculatorThread {
     if (distRes.success && distRes.elements != null) {
       await processSpeedCamLookupAheadResults(
           distRes.elements!, 'distance_cam');
+    }
+
+    await wazeFuture;
+  }
+
+  Future<void> fetchWazeCameras(GeoRect rect, {http.Client? client}) async {
+    final left = rect.minLon;
+    final right = rect.maxLon;
+    final bottom = rect.minLat;
+    final top = rect.maxLat;
+    final url =
+        'https://www.waze.com/row-rtserver/web/TGeoRSS?ma=600&mj=1000&mu=1000&left=$left&right=$right&bottom=$bottom&top=$top';
+    final httpClient = client ?? http.Client();
+    try {
+      final response = await httpClient.get(Uri.parse(url));
+      if (response.statusCode == 200) {
+        final data = jsonDecode(response.body);
+        final alerts = data['alerts'] ?? [];
+        final List<SpeedCameraEvent> cams = [];
+        for (final a in alerts) {
+          if (a['type'] == 'POLICE') {
+            final loc = a['location'] as Map<String, dynamic>? ?? {};
+            final lat = (loc['y'] as num?)?.toDouble();
+            final lon = (loc['x'] as num?)?.toDouble();
+            if (lat != null && lon != null) {
+              logger.printLogLine('Adding Waze mobile camera: ($lat,$lon)');
+              final cam = SpeedCameraEvent(
+                latitude: lat,
+                longitude: lon,
+                mobile: true,
+              );
+              _cameraCache.add(cam);
+              cams.add(cam);
+              mobile_cams += 1;
+              _cameraStreamController.add(cam);
+              unawaited(resolveRoadName(lat, lon).then((value) {
+                cam.name = value;
+                _cameraStreamController.add(cam);
+                _speedCamEventController.add(
+                  Timestamped<Map<String, dynamic>>({
+                    'update_cam_name': true,
+                    'name': cam.name,
+                    'cam_coords': [cam.longitude, cam.latitude],
+                  }),
+                );
+              }));
+            }
+          }
+        }
+        if (cams.isNotEmpty) {
+          try {
+            await updateSpeedCams(cams);
+          } catch (e, stack) {
+            logger.printLogLine('updateSpeedCams failed: $e', logLevel: 'ERROR');
+            logger.printLogLine(stack.toString(), logLevel: 'DEBUG');
+          }
+          updateMapQueue();
+          updateInfoPage(
+            'SPEED_CAMERAS:$fix_cams,$traffic_cams,$distance_cams,$mobile_cams',
+          );
+        }
+      } else {
+        logger.printLogLine(
+          'Waze camera fetch failed with status ${response.statusCode}',
+          logLevel: 'ERROR',
+        );
+      }
+    } catch (e, stack) {
+      logger.printLogLine('Waze camera fetch failed: $e', logLevel: 'ERROR');
+      logger.printLogLine(stack.toString(), logLevel: 'DEBUG');
+    } finally {
+      if (client == null) {
+        httpClient.close();
+      }
     }
   }
 
