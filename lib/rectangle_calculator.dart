@@ -2373,12 +2373,12 @@ class RectangleCalculatorThread {
         }
       } else {
         logger.printLogLine(
-          'Waze camera fetch failed with status ${response.statusCode}',
+          'Lufop camera fetch failed with status ${response.statusCode}',
           logLevel: 'ERROR',
         );
       }
     } catch (e, stack) {
-      logger.printLogLine('Waze camera fetch failed: $e', logLevel: 'ERROR');
+      logger.printLogLine('Lufop camera fetch failed: $e', logLevel: 'ERROR');
       logger.printLogLine(stack.toString(), logLevel: 'DEBUG');
     } finally {
       if (client == null) {
