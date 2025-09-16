@@ -2321,6 +2321,7 @@ class RectangleCalculatorThread {
   Future<void> fetchLufopCameras({http.Client? client}) async {
     final url =
         'https://api.lufop.net/api?key=$lufopKey&format=json&q=$latitude,$longitude&m=100';
+    logger.printLogLine('Fetching Lufop cameras from $url');
     final httpClient = client ?? http.Client();
     try {
       final response = await httpClient.get(Uri.parse(url));
@@ -2335,6 +2336,7 @@ class RectangleCalculatorThread {
 
         final alerts =
             items.whereType<Map<String, dynamic>>().where(isMobileCam);
+        logger.printLogLine('Lufop returned ${alerts.length} mobile cameras');
         final List<SpeedCameraEvent> cams = [];
         for (final a in alerts) {
           final ll = _extractLatLon(a);
