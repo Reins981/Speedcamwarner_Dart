@@ -471,6 +471,7 @@ class RectangleCalculatorThread {
   final Map<String, dynamic> _directionCache = {};
   final Map<String, dynamic> _bearingCache = {};
   final Map<String, String> _combinedTags = {};
+  String lufopKey = '';
   final List<SpeedCameraEvent> predictedCameras = [];
 
   final ThreadPool _threadPool = ThreadPool();
@@ -717,7 +718,7 @@ class RectangleCalculatorThread {
     _configs.addAll(configs);
   }
 
-  void _loadConfigs() {
+  void _loadConfigs() async {
     maxDownloadTime = Duration(
       seconds:
           (AppConfig.get<num>('calculator.max_download_time') ?? 20).toInt(),
@@ -805,6 +806,10 @@ class RectangleCalculatorThread {
         (AppConfig.get<num>('speedCamWarner.max_distance_to_future_camera') ??
                 5000)
             .toDouble();
+
+    final Map<String, dynamic> credentials =
+        await ServiceAccount.loadServiceAccount();
+    lufopKey = credentials['lufop_key'] ?? '';
 
     printConfigValues();
   }
@@ -2274,44 +2279,83 @@ class RectangleCalculatorThread {
     return keywords.any((k) => fields.contains(k));
   }
 
+  // Helper: parse to double from num or String
+  double? _asDouble(dynamic v) {
+    if (v == null) return null;
+    if (v is num) return v.toDouble();
+    if (v is String) return double.tryParse(v.replaceAll(',', '.'));
+    return null;
+  }
+
+  // Try multiple common field names (Lufop / other feeds)
+  ({double? lat, double? lon}) _extractLatLon(Map<String, dynamic> a) {
+    // Direct fields
+    final lat1 = _asDouble(a['lat'] ?? a['latitude'] ?? a['y']);
+    final lon1 = _asDouble(a['lon'] ?? a['lng'] ?? a['longitude'] ?? a['x']);
+
+    if (lat1 != null && lon1 != null) return (lat: lat1, lon: lon1);
+
+    // Nested objects: location, coord, geom, position, etc.
+    for (final key in ['location', 'coord', 'coords', 'geom', 'position']) {
+      final m = a[key];
+      if (m is Map<String, dynamic>) {
+        final lat2 = _asDouble(m['lat'] ?? m['latitude'] ?? m['y']);
+        final lon2 =
+            _asDouble(m['lon'] ?? m['lng'] ?? m['longitude'] ?? m['x']);
+        if (lat2 != null && lon2 != null) return (lat: lat2, lon: lon2);
+      } else if (m is String) {
+        // e.g. "48.85,2.35"
+        final parts =
+            m.split(RegExp(r'[,\s;]')).where((s) => s.isNotEmpty).toList();
+        if (parts.length >= 2) {
+          final lat3 = _asDouble(parts[0]);
+          final lon3 = _asDouble(parts[1]);
+          if (lat3 != null && lon3 != null) return (lat: lat3, lon: lon3);
+        }
+      }
+    }
+
+    return (lat: null, lon: null);
+  }
+
   Future<void> fetchLufopCameras({http.Client? client}) async {
     final url =
-        'https://api.lufop.net/api?key=<your_key>&q=$latitude,$longitude&m=100';
+        'https://api.lufop.net/api?key=$lufopKey&q=$latitude,$longitude&m=100';
     final httpClient = client ?? http.Client();
     try {
       final response = await httpClient.get(Uri.parse(url));
       if (response.statusCode == 200) {
         final data = jsonDecode(response.body);
-        final alerts = data['alerts'] ?? [];
+        // Some APIs return a list; some wrap in {"results": [...]}
+        final List items = data is List
+            ? data
+            : (data is Map<String, dynamic> && data['results'] is List
+                ? data['results'] as List
+                : const []);
+
+        final alerts =
+            items.whereType<Map<String, dynamic>>().where(isMobileCam);
         final List<SpeedCameraEvent> cams = [];
         for (final a in alerts) {
-          if (a['type'] == 'POLICE') {
-            final loc = a['location'] as Map<String, dynamic>? ?? {};
-            final lat = (loc['y'] as num?)?.toDouble();
-            final lon = (loc['x'] as num?)?.toDouble();
-            if (lat != null && lon != null) {
-              logger.printLogLine('Adding Waze mobile camera: ($lat,$lon)');
-              final cam = SpeedCameraEvent(
-                latitude: lat,
-                longitude: lon,
-                mobile: true,
-              );
-              _cameraCache.add(cam);
-              cams.add(cam);
-              mobile_cams += 1;
-              _cameraStreamController.add(cam);
-              unawaited(resolveRoadName(lat, lon).then((value) {
-                cam.name = value;
-                _cameraStreamController.add(cam);
-                _speedCamEventController.add(
-                  Timestamped<Map<String, dynamic>>({
-                    'update_cam_name': true,
-                    'name': cam.name,
-                    'cam_coords': [cam.longitude, cam.latitude],
-                  }),
-                );
-              }));
-            }
+          final ll = _extractLatLon(a);
+          final lat = ll.lat;
+          final lon = ll.lon;
+          if (lat != null && lon != null) {
+            logger.printLogLine('Adding Lufop mobile camera: ($lat,$lon)');
+            final name =
+                (a['name'] ?? a['description'] ?? a['type'] ?? '').toString();
+            final speed = _asDouble(a['speed'] ?? a['limit']); // if provided
+            final cam = SpeedCameraEvent(
+              latitude: lat,
+              longitude: lon,
+              mobile: true,
+              name: name.isNotEmpty ? name : "",
+              maxspeed: speed?.toInt(),
+            );
+            _cameraCache.add(cam);
+            cams.add(cam);
+            mobile_cams += 1;
+            _cameraStreamController.add(cam);
           }
         }
         if (cams.isNotEmpty) {
