@@ -64,6 +64,13 @@ class _DashboardPageState extends State<DashboardPage> {
   ValueNotifier<String>? _directionNotifier;
   ValueNotifier<String>? _averageBearingNotifier;
 
+  static const double _accelerationDisplayClamp = 5.0;
+  static const double _accelerationHighlightThreshold = 2.5;
+  static const double _accelerationBarMaxSpeedKmh = 300.0;
+  static const double _accelerationBarHighSpeedMarkerKmh = 250.0;
+  static const double _accelerationMinorTickIntervalKmh = 5.0;
+  static const double _accelerationMajorTickIntervalKmh = 50.0;
+
   static final ValueNotifier<String> _emptyRoadName = ValueNotifier<String>('');
 
   @override
@@ -624,10 +631,15 @@ class _DashboardPageState extends State<DashboardPage> {
   }
 
   Widget _buildAccelerationWidget() {
-    final clampedAcceleration = _acceleration.clamp(-5.0, 5.0).toDouble();
-    final ratio = ((clampedAcceleration + 5) / 10).clamp(0.0, 1.0);
-    final bool isHighAcceleration = clampedAcceleration >= 2.5;
-    final bool isHeavyBraking = clampedAcceleration <= -2.5;
+    final clampedAcceleration =
+        _acceleration.clamp(-_accelerationDisplayClamp, _accelerationDisplayClamp).toDouble();
+    final bool isHighAcceleration =
+        clampedAcceleration >= _accelerationHighlightThreshold;
+    final bool isHeavyBraking =
+        clampedAcceleration <= -_accelerationHighlightThreshold;
+    final double cappedSpeed =
+        _speed.clamp(0.0, _accelerationBarMaxSpeedKmh).toDouble();
+    final double speedRatio = cappedSpeed / _accelerationBarMaxSpeedKmh;
     const gradient = LinearGradient(
       begin: Alignment.centerLeft,
       end: Alignment.centerRight,
@@ -668,7 +680,11 @@ class _DashboardPageState extends State<DashboardPage> {
           LayoutBuilder(
             builder: (context, constraints) {
               final barWidth = constraints.maxWidth;
-              final fillWidth = ratio * barWidth;
+              final fillWidth = speedRatio * barWidth;
+              final highSpeedMarkerRatio =
+                  (_accelerationBarHighSpeedMarkerKmh / _accelerationBarMaxSpeedKmh)
+                      .clamp(0.0, 1.0);
+              final markerLeft = barWidth * highSpeedMarkerRatio;
               return SizedBox(
                 height: 18,
                 child: Stack(
@@ -683,8 +699,9 @@ class _DashboardPageState extends State<DashboardPage> {
                     Positioned.fill(
                       child: CustomPaint(
                         painter: const _AccelerationTicksPainter(
-                          tickCount: 20,
-                          neutralIndex: 10,
+                          maxValue: _accelerationBarMaxSpeedKmh,
+                          minorTickInterval: _accelerationMinorTickIntervalKmh,
+                          majorTickInterval: _accelerationMajorTickIntervalKmh,
                         ),
                       ),
                     ),
@@ -710,13 +727,13 @@ class _DashboardPageState extends State<DashboardPage> {
                       ),
                     ),
                     Positioned(
-                      left: barWidth * 0.5,
+                      left: math.max(0.0, markerLeft - 1),
                       top: 0,
                       bottom: 0,
                       child: Container(
                         width: 2,
                         decoration: BoxDecoration(
-                          color: Colors.white.withOpacity(0.3),
+                          color: Colors.redAccent.withOpacity(0.35),
                           borderRadius: BorderRadius.circular(1),
                         ),
                       ),
@@ -726,15 +743,50 @@ class _DashboardPageState extends State<DashboardPage> {
               );
             },
           ),
+          const SizedBox(height: 4),
+          Row(
+            children: [
+              for (final value in const [0, 50, 100, 150, 200, 250, 300])
+                Expanded(
+                  child: Align(
+                    alignment: value == 0
+                        ? Alignment.centerLeft
+                        : value == 300
+                            ? Alignment.centerRight
+                            : Alignment.center,
+                    child: Text(
+                      '$value',
+                      style: const TextStyle(
+                        color: Colors.white38,
+                        fontSize: 10,
+                      ),
+                    ),
+                  ),
+                ),
+            ],
+          ),
           const SizedBox(height: 8),
-          AnimatedDefaultTextStyle(
-            duration: const Duration(milliseconds: 200),
-            style: TextStyle(
-              color: textColor,
-              fontWeight:
-                  isHighAcceleration ? FontWeight.bold : FontWeight.w500,
-            ),
-            child: Text('${clampedAcceleration.toStringAsFixed(2)} m/s²'),
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            crossAxisAlignment: CrossAxisAlignment.end,
+            children: [
+              Text(
+                '${cappedSpeed.toStringAsFixed(0)} km/h',
+                style: const TextStyle(
+                  color: Colors.white70,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+              AnimatedDefaultTextStyle(
+                duration: const Duration(milliseconds: 200),
+                style: TextStyle(
+                  color: textColor,
+                  fontWeight:
+                      isHighAcceleration ? FontWeight.bold : FontWeight.w500,
+                ),
+                child: Text('${clampedAcceleration.toStringAsFixed(2)} m/s²'),
+              ),
+            ],
           ),
         ],
       ),
@@ -983,35 +1035,43 @@ class _DashboardPageState extends State<DashboardPage> {
 
 class _AccelerationTicksPainter extends CustomPainter {
   const _AccelerationTicksPainter({
-    required this.tickCount,
-    required this.neutralIndex,
+    required this.maxValue,
+    required this.minorTickInterval,
+    required this.majorTickInterval,
   });
 
-  final int tickCount;
-  final int neutralIndex;
+  final double maxValue;
+  final double minorTickInterval;
+  final double majorTickInterval;
 
   @override
   void paint(Canvas canvas, Size size) {
-    if (tickCount <= 0) {
+    if (maxValue <= 0 || minorTickInterval <= 0) {
       return;
     }
+    final int minorTickCount = (maxValue / minorTickInterval).round();
+    if (minorTickCount <= 0) {
+      return;
+    }
+    final int majorTickEvery = math.max(1, (majorTickInterval / minorTickInterval).round());
     final double height = size.height;
-    for (int i = 0; i <= tickCount; i++) {
-      final double dx = size.width * (i / tickCount);
-      final bool isNeutral = i == neutralIndex;
+    for (int i = 0; i <= minorTickCount; i++) {
+      final double dx = size.width * (i / minorTickCount);
+      final bool isMajorTick = i % majorTickEvery == 0;
       final Paint paint = Paint()
-        ..color = (isNeutral ? Colors.white38 : Colors.white24)
-        ..strokeWidth = isNeutral ? 2 : 1;
-      final double top = isNeutral ? 0 : height * 0.35;
-      final double bottom = isNeutral ? height : height * 0.65;
+        ..color = isMajorTick ? Colors.white38 : Colors.white24
+        ..strokeWidth = isMajorTick ? 2 : 1;
+      final double top = isMajorTick ? 0 : height * 0.55;
+      final double bottom = isMajorTick ? height : height * 0.45;
       canvas.drawLine(Offset(dx, top), Offset(dx, bottom), paint);
     }
   }
 
   @override
   bool shouldRepaint(covariant _AccelerationTicksPainter oldDelegate) {
-    return oldDelegate.tickCount != tickCount ||
-        oldDelegate.neutralIndex != neutralIndex;
+    return oldDelegate.maxValue != maxValue ||
+        oldDelegate.minorTickInterval != minorTickInterval ||
+        oldDelegate.majorTickInterval != majorTickInterval;
   }
 }
 
