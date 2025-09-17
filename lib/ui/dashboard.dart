@@ -148,7 +148,7 @@ class _DashboardPageState extends State<DashboardPage> {
       // Smooth the acceleration bar by easing toward the new acceleration
       // value instead of jumping directly based on the full speed change.
       final targetAcceleration = (_speed - _previousSpeed) / 3.6;
-      _acceleration = ui.lerpDouble(_acceleration, targetAcceleration, 0.2)!;
+      _acceleration = ui.lerpDouble(_acceleration, targetAcceleration, 0.35)!;
     });
   }
 
@@ -624,12 +624,33 @@ class _DashboardPageState extends State<DashboardPage> {
   }
 
   Widget _buildAccelerationWidget() {
-    final ratio = ((_acceleration + 5) / 10).clamp(0.0, 1.0);
-    // Use a full hue spectrum so braking (blue) and acceleration (red)
-    // produce more fine-grained color changes around the neutral (green)
-    // point.
-    final hue = 240 - (ratio * 240);
-    final color = HSVColor.fromAHSV(1.0, hue, 1.0, 1.0).toColor();
+    final clampedAcceleration = _acceleration.clamp(-5.0, 5.0).toDouble();
+    final ratio = ((clampedAcceleration + 5) / 10).clamp(0.0, 1.0);
+    final bool isHighAcceleration = clampedAcceleration >= 2.5;
+    final bool isHeavyBraking = clampedAcceleration <= -2.5;
+    const gradient = LinearGradient(
+      begin: Alignment.centerLeft,
+      end: Alignment.centerRight,
+      colors: [
+        Color(0xFF1565C0),
+        Color(0xFF42A5F5),
+        Color(0xFF66BB6A),
+        Color(0xFFFFEB3B),
+        Color(0xFFFF9800),
+        Color(0xFFFF5252),
+      ],
+      stops: [0.0, 0.3, 0.5, 0.7, 0.85, 1.0],
+    );
+    final Color glowColor = isHighAcceleration
+        ? Colors.redAccent.withOpacity(0.6)
+        : isHeavyBraking
+            ? Colors.blueAccent.withOpacity(0.5)
+            : Colors.white.withOpacity(0.25);
+    final Color textColor = isHighAcceleration
+        ? Colors.redAccent
+        : isHeavyBraking
+            ? Colors.lightBlueAccent
+            : Colors.white70;
     return Container(
       decoration: BoxDecoration(
         color: Colors.white.withOpacity(0.05),
@@ -644,19 +665,76 @@ class _DashboardPageState extends State<DashboardPage> {
             style: TextStyle(color: Colors.white70, fontSize: 16),
           ),
           const SizedBox(height: 8),
-          ClipRRect(
-            borderRadius: BorderRadius.circular(4),
-            child: LinearProgressIndicator(
-              value: ratio,
-              backgroundColor: Colors.white24,
-              valueColor: AlwaysStoppedAnimation<Color>(color),
-              minHeight: 10,
-            ),
+          LayoutBuilder(
+            builder: (context, constraints) {
+              final barWidth = constraints.maxWidth;
+              final fillWidth = ratio * barWidth;
+              return SizedBox(
+                height: 18,
+                child: Stack(
+                  alignment: Alignment.centerLeft,
+                  children: [
+                    Container(
+                      decoration: BoxDecoration(
+                        color: Colors.white10,
+                        borderRadius: BorderRadius.circular(6),
+                      ),
+                    ),
+                    Positioned.fill(
+                      child: CustomPaint(
+                        painter: const _AccelerationTicksPainter(
+                          tickCount: 20,
+                          neutralIndex: 10,
+                        ),
+                      ),
+                    ),
+                    Align(
+                      alignment: Alignment.centerLeft,
+                      child: AnimatedContainer(
+                        duration: const Duration(milliseconds: 350),
+                        curve: Curves.easeOutCubic,
+                        height: 18,
+                        width: fillWidth,
+                        decoration: BoxDecoration(
+                          gradient: gradient,
+                          borderRadius: BorderRadius.circular(6),
+                          boxShadow: [
+                            if (fillWidth > 0)
+                              BoxShadow(
+                                color: glowColor,
+                                blurRadius: isHighAcceleration ? 16 : 10,
+                                spreadRadius: isHighAcceleration ? 1 : 0,
+                              ),
+                          ],
+                        ),
+                      ),
+                    ),
+                    Positioned(
+                      left: barWidth * 0.5,
+                      top: 0,
+                      bottom: 0,
+                      child: Container(
+                        width: 2,
+                        decoration: BoxDecoration(
+                          color: Colors.white.withOpacity(0.3),
+                          borderRadius: BorderRadius.circular(1),
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              );
+            },
           ),
           const SizedBox(height: 8),
-          Text(
-            '${_acceleration.toStringAsFixed(1)} m/s²',
-            style: const TextStyle(color: Colors.white70),
+          AnimatedDefaultTextStyle(
+            duration: const Duration(milliseconds: 200),
+            style: TextStyle(
+              color: textColor,
+              fontWeight:
+                  isHighAcceleration ? FontWeight.bold : FontWeight.w500,
+            ),
+            child: Text('${clampedAcceleration.toStringAsFixed(2)} m/s²'),
           ),
         ],
       ),
@@ -900,6 +978,40 @@ class _DashboardPageState extends State<DashboardPage> {
     if (cam.mobile) return 'images/mobilecamera_map.png';
     if (cam.predictive) return 'images/mobilecamera_map.png';
     return 'images/distancecamera_map.png';
+  }
+}
+
+class _AccelerationTicksPainter extends CustomPainter {
+  const _AccelerationTicksPainter({
+    required this.tickCount,
+    required this.neutralIndex,
+  });
+
+  final int tickCount;
+  final int neutralIndex;
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    if (tickCount <= 0) {
+      return;
+    }
+    final double height = size.height;
+    for (int i = 0; i <= tickCount; i++) {
+      final double dx = size.width * (i / tickCount);
+      final bool isNeutral = i == neutralIndex;
+      final Paint paint = Paint()
+        ..color = (isNeutral ? Colors.white38 : Colors.white24)
+        ..strokeWidth = isNeutral ? 2 : 1;
+      final double top = isNeutral ? 0 : height * 0.35;
+      final double bottom = isNeutral ? height : height * 0.65;
+      canvas.drawLine(Offset(dx, top), Offset(dx, bottom), paint);
+    }
+  }
+
+  @override
+  bool shouldRepaint(covariant _AccelerationTicksPainter oldDelegate) {
+    return oldDelegate.tickCount != tickCount ||
+        oldDelegate.neutralIndex != neutralIndex;
   }
 }
 
