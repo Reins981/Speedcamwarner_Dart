@@ -809,7 +809,9 @@ class RectangleCalculatorThread {
 
     final Map<String, dynamic> credentials =
         await ServiceAccount.loadServiceAccount();
+    print(credentials);
     lufopKey = credentials['lufop_key'] ?? '';
+    print('LUFOP Key: $lufopKey');
 
     printConfigValues();
   }
