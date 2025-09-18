@@ -471,7 +471,7 @@ class RectangleCalculatorThread {
   final Map<String, dynamic> _directionCache = {};
   final Map<String, dynamic> _bearingCache = {};
   final Map<String, String> _combinedTags = {};
-  String lufopKey = '';
+  String? lufopKey;
   final List<SpeedCameraEvent> predictedCameras = [];
 
   final ThreadPool _threadPool = ThreadPool();
@@ -703,7 +703,7 @@ class RectangleCalculatorThread {
   Future<void> init() async {
     // Load configs immediately
     if (!configLoaded) {
-      _loadConfigs();
+      await _loadConfigs();
       configLoaded = true;
     }
   }
@@ -718,7 +718,7 @@ class RectangleCalculatorThread {
     _configs.addAll(configs);
   }
 
-  void _loadConfigs() async {
+  Future<void> _loadConfigs() async {
     maxDownloadTime = Duration(
       seconds:
           (AppConfig.get<num>('calculator.max_download_time') ?? 20).toInt(),
@@ -809,9 +809,7 @@ class RectangleCalculatorThread {
 
     final Map<String, dynamic> credentials =
         await ServiceAccount.loadServiceAccount();
-    print(credentials);
-    lufopKey = credentials['lufop_key'] ?? '';
-    print('LUFOP Key: $lufopKey');
+    lufopKey = credentials['lufop_key'];
 
     printConfigValues();
   }
@@ -2227,6 +2225,10 @@ class RectangleCalculatorThread {
   }
 
   Future<void> speedCamLookupAhead(GeoRect rect, {http.Client? client}) async {
+    while (!configLoaded) {
+      logger.printLogLine('Waiting for config to load...');
+      await Future.delayed(const Duration(milliseconds: 100));
+    }
     logger.printLogLine('speedCamLookupAhead bounds: $rect');
     final camFuture =
         triggerOsmLookup(rect, lookupType: 'camera_ahead', client: client);
@@ -2259,10 +2261,9 @@ class RectangleCalculatorThread {
   bool isMobileCam(Map<String, dynamic> it) {
     final fields = [
       it['type'],
-      it['category'],
+      it['commune'],
       it['name'],
-      it['description'],
-      it['comment'],
+      it['voie'],
     ].whereType<String>().join(' ').toLowerCase();
 
     const keywords = [
@@ -2322,7 +2323,7 @@ class RectangleCalculatorThread {
 
   Future<void> fetchLufopCameras({http.Client? client}) async {
     final url =
-        'https://api.lufop.net/api?key=$lufopKey&format=json&q=$latitude,$longitude&m=100';
+        'https://api.lufop.net/api?key=$lufopKey&format=json&q=$latitude,$longitude&m=10000&nbr=10000';
     logger.printLogLine('Fetching Lufop cameras from $url');
     final httpClient = client ?? http.Client();
     try {
@@ -2355,6 +2356,7 @@ class RectangleCalculatorThread {
               mobile: true,
               name: name.isNotEmpty ? name : "",
               maxspeed: speed?.toInt(),
+              direction: a['azimuth']?.toString() ?? '-',
             );
             _cameraCache.add(cam);
             cams.add(cam);
