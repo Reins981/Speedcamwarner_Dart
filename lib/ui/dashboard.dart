@@ -644,14 +644,16 @@ class _DashboardPageState extends State<DashboardPage> {
       begin: Alignment.centerLeft,
       end: Alignment.centerRight,
       colors: [
+        Color(0xFF0D47A1),
         Color(0xFF1565C0),
-        Color(0xFF42A5F5),
-        Color(0xFF66BB6A),
-        Color(0xFFFFEB3B),
-        Color(0xFFFF9800),
-        Color(0xFFFF5252),
+        Color(0xFF00ACC1),
+        Color(0xFF1DE9B6),
+        Color(0xFFFFEA00),
+        Color(0xFFFF9100),
+        Color(0xFFFF1744),
+        Color(0xFFB71C1C),
       ],
-      stops: [0.0, 0.3, 0.5, 0.7, 0.85, 1.0],
+      stops: [0.0, 0.12, 0.25, 0.38, 0.55, 0.72, 0.88, 1.0],
     );
     final Color glowColor = isHighAcceleration
         ? Colors.redAccent.withOpacity(0.6)
