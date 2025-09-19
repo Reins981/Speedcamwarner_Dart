@@ -445,35 +445,35 @@ class _DashboardPageState extends State<DashboardPage> {
           FloatingActionButton(
             onPressed: _selectPoiLookup,
             tooltip: 'Find POIs',
-            backgroundColor: Colors.deepPurple.withOpacity(0.4),
+            backgroundColor: Colors.deepPurple.withOpacity(0.2),
             child: const Icon(Icons.location_searching),
           ),
           const SizedBox(height: 8),
           FloatingActionButton(
             onPressed: _addCamera,
             tooltip: 'Add police camera',
-            backgroundColor: Colors.deepPurple.withOpacity(0.4),
+            backgroundColor: Colors.deepPurple.withOpacity(0.2),
             child: const Icon(Icons.local_police),
           ),
           const SizedBox(height: 8),
           FloatingActionButton(
             onPressed: _startRecording,
             tooltip: 'Start recording',
-            backgroundColor: Colors.deepPurple.withOpacity(0.4),
+            backgroundColor: Colors.deepPurple.withOpacity(0.2),
             child: const Icon(Icons.fiber_manual_record),
           ),
           const SizedBox(height: 8),
           FloatingActionButton(
             onPressed: _stopRecording,
             tooltip: 'Stop recording',
-            backgroundColor: Colors.deepPurple.withOpacity(0.4),
+            backgroundColor: Colors.deepPurple.withOpacity(0.2),
             child: const Icon(Icons.stop),
           ),
           const SizedBox(height: 8),
           FloatingActionButton(
             onPressed: _loadRoute,
             tooltip: 'Load route',
-            backgroundColor: Colors.blue.withOpacity(0.6),
+            backgroundColor: Colors.blue.withOpacity(0.4),
             child: const Icon(Icons.play_arrow),
           ),
         ],
@@ -663,8 +663,9 @@ class _DashboardPageState extends State<DashboardPage> {
   }
 
   Widget _buildAccelerationWidget() {
-    final clampedAcceleration =
-        _acceleration.clamp(-_accelerationDisplayClamp, _accelerationDisplayClamp).toDouble();
+    final clampedAcceleration = _acceleration
+        .clamp(-_accelerationDisplayClamp, _accelerationDisplayClamp)
+        .toDouble();
     final bool isHighAcceleration =
         clampedAcceleration >= _accelerationHighlightThreshold;
     final bool isHeavyBraking =
@@ -734,9 +735,9 @@ class _DashboardPageState extends State<DashboardPage> {
             builder: (context, constraints) {
               final barWidth = constraints.maxWidth;
               final fillWidth = speedRatio * barWidth;
-              final highSpeedMarkerRatio =
-                  (_accelerationBarHighSpeedMarkerKmh / _accelerationBarMaxSpeedKmh)
-                      .clamp(0.0, 1.0);
+              final highSpeedMarkerRatio = (_accelerationBarHighSpeedMarkerKmh /
+                      _accelerationBarMaxSpeedKmh)
+                  .clamp(0.0, 1.0);
               final markerLeft = barWidth * highSpeedMarkerRatio;
               return SizedBox(
                 height: 18,
@@ -828,8 +829,7 @@ class _DashboardPageState extends State<DashboardPage> {
                     final double maxWidth = constraints.maxWidth.isFinite
                         ? constraints.maxWidth
                         : 0.0;
-                    final double fontSize =
-                        (maxWidth / 4.5).clamp(18.0, 40.0);
+                    final double fontSize = (maxWidth / 4.5).clamp(18.0, 40.0);
                     return Align(
                       alignment: Alignment.centerLeft,
                       child: Text(
@@ -851,8 +851,7 @@ class _DashboardPageState extends State<DashboardPage> {
                     final double maxWidth = constraints.maxWidth.isFinite
                         ? constraints.maxWidth
                         : 0.0;
-                    final double fontSize =
-                        (maxWidth / 5.5).clamp(18.0, 36.0);
+                    final double fontSize = (maxWidth / 5.5).clamp(18.0, 36.0);
                     return AnimatedDefaultTextStyle(
                       duration: const Duration(milliseconds: 200),
                       style: TextStyle(
@@ -1240,7 +1239,8 @@ class _AccelerationTicksPainter extends CustomPainter {
     if (minorTickCount <= 0) {
       return;
     }
-    final int majorTickEvery = math.max(1, (majorTickInterval / minorTickInterval).round());
+    final int majorTickEvery =
+        math.max(1, (majorTickInterval / minorTickInterval).round());
     final double height = size.height;
     for (int i = 0; i <= minorTickCount; i++) {
       final double dx = size.width * (i / minorTickCount);

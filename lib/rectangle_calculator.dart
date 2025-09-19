@@ -2369,11 +2369,12 @@ class RectangleCalculatorThread {
                 ? data['results'] as List
                 : const []);
 
-        final alerts =
+        final alertsMobile =
             items.whereType<Map<String, dynamic>>().where(isMobileCam);
-        logger.printLogLine('Lufop returned ${alerts.length} mobile cameras');
+        logger.printLogLine(
+            'Lufop returned ${alertsMobile.length} mobile cameras');
         final List<SpeedCameraEvent> cams = [];
-        for (final a in alerts) {
+        for (final a in alertsMobile) {
           final ll = _extractLatLon(a);
           final lat = ll.lat;
           final lon = ll.lon;
@@ -2389,7 +2390,56 @@ class RectangleCalculatorThread {
               maxspeed: speed?.toInt(),
               direction: a['azimuth']?.toString() ?? '-',
             );
-            _cameraCache.add(cam);
+            cams.add(cam);
+            mobile_cams += 1;
+            _cameraStreamController.add(cam);
+          }
+        }
+        final alertsFix =
+            items.whereType<Map<String, dynamic>>().where(isMobileCam);
+        logger
+            .printLogLine('Lufop returned ${alertsFix.length} mobile cameras');
+        for (final a in alertsFix) {
+          final ll = _extractLatLon(a);
+          final lat = ll.lat;
+          final lon = ll.lon;
+          if (lat != null && lon != null) {
+            logger.printLogLine('Adding Lufop mobile camera: ($lat,$lon)');
+            final name = (a['voie'] ?? a['description'] ?? '').toString();
+            final speed = _asDouble(a['speed'] ?? a['limit']); // if provided
+            final cam = SpeedCameraEvent(
+              latitude: lat,
+              longitude: lon,
+              mobile: true,
+              name: name.isNotEmpty ? name : "",
+              maxspeed: speed?.toInt(),
+              direction: a['azimuth']?.toString() ?? '-',
+            );
+            cams.add(cam);
+            mobile_cams += 1;
+            _cameraStreamController.add(cam);
+          }
+        }
+        final alertsRedLight =
+            items.whereType<Map<String, dynamic>>().where(isMobileCam);
+        logger.printLogLine(
+            'Lufop returned ${alertsRedLight.length} mobile cameras');
+        for (final a in alertsRedLight) {
+          final ll = _extractLatLon(a);
+          final lat = ll.lat;
+          final lon = ll.lon;
+          if (lat != null && lon != null) {
+            logger.printLogLine('Adding Lufop mobile camera: ($lat,$lon)');
+            final name = (a['voie'] ?? a['description'] ?? '').toString();
+            final speed = _asDouble(a['speed'] ?? a['limit']); // if provided
+            final cam = SpeedCameraEvent(
+              latitude: lat,
+              longitude: lon,
+              mobile: true,
+              name: name.isNotEmpty ? name : "",
+              maxspeed: speed?.toInt(),
+              direction: a['azimuth']?.toString() ?? '-',
+            );
             cams.add(cam);
             mobile_cams += 1;
             _cameraStreamController.add(cam);
@@ -2503,7 +2553,6 @@ class RectangleCalculatorThread {
                   name: tags['name']?.toString(),
                   maxspeed: maxspeed,
                   direction: direction);
-              _cameraCache.add(cam);
               cams.add(cam);
               distance_cams += 1;
               _cameraStreamController.add(cam);
@@ -2534,7 +2583,6 @@ class RectangleCalculatorThread {
                 name: tags['name']?.toString(),
                 maxspeed: maxspeed,
                 direction: direction);
-            _cameraCache.add(cam);
             cams.add(cam);
             mobile_cams += 1;
             _cameraStreamController.add(cam);
@@ -2565,7 +2613,6 @@ class RectangleCalculatorThread {
                 name: tags['name']?.toString(),
                 maxspeed: maxspeed,
                 direction: direction);
-            _cameraCache.add(cam);
             cams.add(cam);
             fix_cams += 1;
             _cameraStreamController.add(cam);
@@ -2594,7 +2641,6 @@ class RectangleCalculatorThread {
                 name: tags['name']?.toString(),
                 maxspeed: maxspeed,
                 direction: direction);
-            _cameraCache.add(cam);
             cams.add(cam);
             traffic_cams += 1;
             _cameraStreamController.add(cam);
