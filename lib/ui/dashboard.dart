@@ -184,18 +184,30 @@ class _DashboardPageState extends State<DashboardPage> {
       _online = _calculator!.onlineStatusNotifier.value;
       _speedHistory.add(_speed);
       if (_speedHistory.length > 30) _speedHistory.removeAt(0);
-      // Smooth the acceleration bar by easing toward the new acceleration
-      // value instead of jumping directly based on the full speed change.
-      final targetAcceleration = (_speed - _previousSpeed) / 3.6;
-      final double accelerationDelta =
-          (targetAcceleration - _acceleration).abs();
-      final double lerpStrength = accelerationDelta >= 2.0
-          ? 0.85
-          : accelerationDelta >= 1.0
-              ? 0.65
-              : 0.45;
-      _acceleration =
-          ui.lerpDouble(_acceleration, targetAcceleration, lerpStrength)!;
+      // Push the acceleration bar to surge aggressively toward the new value
+      // so large speed changes feel punchy like a sports car dash.
+      final double targetAcceleration = (_speed - _previousSpeed) / 3.6;
+      final double accelerationChange = targetAcceleration - _acceleration;
+      final double magnitude = accelerationChange.abs();
+      final double responseStrength;
+      if (magnitude >= 3.0) {
+        responseStrength = 1.0;
+      } else if (magnitude >= 1.5) {
+        responseStrength = 0.92;
+      } else if (magnitude >= 0.75) {
+        responseStrength = 0.78;
+      } else {
+        responseStrength = 0.62;
+      }
+
+      final double punch = magnitude >= 1.0
+          ? accelerationChange.sign * math.min(1.4, magnitude * 0.35)
+          : 0.0;
+      final double destination = targetAcceleration + punch;
+      final double nextAcceleration =
+          ui.lerpDouble(_acceleration, destination, responseStrength)!;
+      const double maxOvershoot = _accelerationDisplayClamp * 1.1;
+      _acceleration = nextAcceleration.clamp(-maxOvershoot, maxOvershoot);
     });
   }
 
@@ -770,8 +782,8 @@ class _DashboardPageState extends State<DashboardPage> {
                     Align(
                       alignment: Alignment.centerLeft,
                       child: AnimatedContainer(
-                        duration: const Duration(milliseconds: 220),
-                        curve: Curves.easeOutExpo,
+                        duration: const Duration(milliseconds: 140),
+                        curve: const _AggressiveEaseOutCurve(0.08),
                         height: 18,
                         width: fillWidth,
                         decoration: BoxDecoration(
@@ -900,8 +912,8 @@ class _DashboardPageState extends State<DashboardPage> {
             children: [
               TweenAnimationBuilder<double>(
                 tween: Tween(begin: _previousSpeed, end: _speed),
-                duration: const Duration(milliseconds: 300),
-                curve: Curves.easeOutCubic,
+                duration: const Duration(milliseconds: 160),
+                curve: const _AggressiveEaseOutCurve(0.12),
                 builder: (context, value, child) {
                   final normalizedSpeed =
                       value.clamp(0.0, _accelerationBarMaxSpeedKmh);
@@ -1120,6 +1132,28 @@ class _DashboardPageState extends State<DashboardPage> {
     if (cam.mobile) return 'images/mobilecamera_map.png';
     if (cam.predictive) return 'images/mobilecamera_map.png';
     return 'images/distancecamera_map.png';
+  }
+}
+
+class _AggressiveEaseOutCurve extends Curve {
+  const _AggressiveEaseOutCurve([this.overshoot = 0.0]);
+
+  final double overshoot;
+
+  @override
+  double transform(double t) {
+    if (t <= 0) return 0;
+    if (t >= 1) return 1;
+
+    final double inverted = 1 - t;
+    final double eased = 1 - inverted * inverted * inverted * inverted;
+    if (overshoot <= 0) {
+      return eased;
+    }
+
+    final double punch = math.sin(t * math.pi) * overshoot;
+    final double value = eased + punch;
+    return value.clamp(0.0, 1.0);
   }
 }
 
