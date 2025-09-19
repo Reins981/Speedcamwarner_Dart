@@ -187,7 +187,15 @@ class _DashboardPageState extends State<DashboardPage> {
       // Smooth the acceleration bar by easing toward the new acceleration
       // value instead of jumping directly based on the full speed change.
       final targetAcceleration = (_speed - _previousSpeed) / 3.6;
-      _acceleration = ui.lerpDouble(_acceleration, targetAcceleration, 0.35)!;
+      final double accelerationDelta =
+          (targetAcceleration - _acceleration).abs();
+      final double lerpStrength = accelerationDelta >= 2.0
+          ? 0.85
+          : accelerationDelta >= 1.0
+              ? 0.65
+              : 0.45;
+      _acceleration =
+          ui.lerpDouble(_acceleration, targetAcceleration, lerpStrength)!;
     });
   }
 
@@ -762,8 +770,8 @@ class _DashboardPageState extends State<DashboardPage> {
                     Align(
                       alignment: Alignment.centerLeft,
                       child: AnimatedContainer(
-                        duration: const Duration(milliseconds: 350),
-                        curve: Curves.easeOutCubic,
+                        duration: const Duration(milliseconds: 220),
+                        curve: Curves.easeOutExpo,
                         height: 18,
                         width: fillWidth,
                         decoration: BoxDecoration(
@@ -892,7 +900,8 @@ class _DashboardPageState extends State<DashboardPage> {
             children: [
               TweenAnimationBuilder<double>(
                 tween: Tween(begin: _previousSpeed, end: _speed),
-                duration: const Duration(milliseconds: 500),
+                duration: const Duration(milliseconds: 300),
+                curve: Curves.easeOutCubic,
                 builder: (context, value, child) {
                   final normalizedSpeed =
                       value.clamp(0.0, _accelerationBarMaxSpeedKmh);
