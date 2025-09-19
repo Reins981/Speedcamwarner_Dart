@@ -2282,6 +2282,38 @@ class RectangleCalculatorThread {
     return keywords.any((k) => fields.contains(k));
   }
 
+  bool isFixCam(Map<String, dynamic> it) {
+    final fields = [
+      it['type'],
+      it['commune'],
+      it['name'],
+      it['voie'],
+    ].whereType<String>().join(' ').toLowerCase();
+
+    const keywords = [
+      'fixe',
+      'Fixe',
+    ];
+
+    return keywords.any((k) => fields.contains(k));
+  }
+
+  bool isRedLightCam(Map<String, dynamic> it) {
+    final fields = [
+      it['type'],
+      it['commune'],
+      it['name'],
+      it['voie'],
+    ].whereType<String>().join(' ').toLowerCase();
+
+    const keywords = [
+      'feu rouge',
+      'Feu Rouge',
+    ];
+
+    return keywords.any((k) => fields.contains(k));
+  }
+
   // Helper: parse to double from num or String
   double? _asDouble(dynamic v) {
     if (v == null) return null;
@@ -2347,8 +2379,7 @@ class RectangleCalculatorThread {
           final lon = ll.lon;
           if (lat != null && lon != null) {
             logger.printLogLine('Adding Lufop mobile camera: ($lat,$lon)');
-            final name =
-                (a['name'] ?? a['description'] ?? a['type'] ?? '').toString();
+            final name = (a['voie'] ?? a['description'] ?? '').toString();
             final speed = _asDouble(a['speed'] ?? a['limit']); // if provided
             final cam = SpeedCameraEvent(
               latitude: lat,
