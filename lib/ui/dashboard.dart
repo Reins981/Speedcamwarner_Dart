@@ -70,6 +70,36 @@ class _DashboardPageState extends State<DashboardPage> {
   static const double _accelerationBarHighSpeedMarkerKmh = 250.0;
   static const double _accelerationMinorTickIntervalKmh = 5.0;
   static const double _accelerationMajorTickIntervalKmh = 50.0;
+  static const List<Color> _speedRingColors = <Color>[
+    Color(0xFF001033),
+    Color(0xFF002C6F),
+    Color(0xFF004DC7),
+    Color(0xFF006FE3),
+    Color(0xFF0090FF),
+    Color(0xFF00C0FF),
+    Color(0xFF00F4B6),
+    Color(0xFF55FF1A),
+    Color(0xFFB7FF00),
+    Color(0xFFFFC400),
+    Color(0xFFFF7A00),
+    Color(0xFFFF0038),
+    Color(0xFF9600FF),
+  ];
+  static const List<double> _speedRingStops = <double>[
+    0.0,
+    0.05,
+    0.1,
+    0.16,
+    0.23,
+    0.31,
+    0.4,
+    0.52,
+    0.64,
+    0.76,
+    0.86,
+    0.94,
+    1.0,
+  ];
 
   static final ValueNotifier<String> _emptyRoadName = ValueNotifier<String>('');
 
@@ -644,14 +674,35 @@ class _DashboardPageState extends State<DashboardPage> {
       begin: Alignment.centerLeft,
       end: Alignment.centerRight,
       colors: [
-        Color(0xFF1565C0),
-        Color(0xFF42A5F5),
-        Color(0xFF66BB6A),
-        Color(0xFFFFEB3B),
-        Color(0xFFFF9800),
-        Color(0xFFFF5252),
+        Color(0xFF010A43),
+        Color(0xFF072E8D),
+        Color(0xFF0053C7),
+        Color(0xFF0088FF),
+        Color(0xFF00C4FF),
+        Color(0xFF00F5B6),
+        Color(0xFF56FF19),
+        Color(0xFFFFF500),
+        Color(0xFFFFC400),
+        Color(0xFFFF9100),
+        Color(0xFFFF4D00),
+        Color(0xFFFF1744),
+        Color(0xFFC4001D),
       ],
-      stops: [0.0, 0.3, 0.5, 0.7, 0.85, 1.0],
+      stops: [
+        0.0,
+        0.06,
+        0.12,
+        0.18,
+        0.26,
+        0.34,
+        0.44,
+        0.54,
+        0.64,
+        0.74,
+        0.84,
+        0.92,
+        1.0,
+      ],
     );
     final Color glowColor = isHighAcceleration
         ? Colors.redAccent.withOpacity(0.6)
@@ -794,7 +845,6 @@ class _DashboardPageState extends State<DashboardPage> {
   }
 
   Widget _buildSpeedWidget() {
-    final max = _maxSpeed ?? 200;
     return Center(
       child: AspectRatio(
         aspectRatio: 1,
@@ -810,23 +860,20 @@ class _DashboardPageState extends State<DashboardPage> {
                 tween: Tween(begin: _previousSpeed, end: _speed),
                 duration: const Duration(milliseconds: 500),
                 builder: (context, value, child) {
-                  final progress = (value / max).clamp(0.0, 1.0);
-                  final colorRatio = (value / 200).clamp(0.0, 1.0);
-                  final hue = (1 - colorRatio) * 120;
-                  final ringColor = HSVColor.fromAHSV(
-                    1.0,
-                    hue,
-                    1.0,
-                    1.0,
-                  ).toColor();
+                  final normalizedSpeed =
+                      value.clamp(0.0, _accelerationBarMaxSpeedKmh);
+                  final progress =
+                      (normalizedSpeed / _accelerationBarMaxSpeedKmh)
+                          .clamp(0.0, 1.0);
                   return SizedBox(
                     width: double.infinity,
                     height: double.infinity,
-                    child: CircularProgressIndicator(
-                      value: progress,
-                      strokeWidth: 12,
-                      backgroundColor: Colors.white24,
-                      valueColor: AlwaysStoppedAnimation<Color>(ringColor),
+                    child: CustomPaint(
+                      painter: _SpeedRingPainter(
+                        progress: progress,
+                        colors: _speedRingColors,
+                        stops: _speedRingStops,
+                      ),
                     ),
                   );
                 },
@@ -1030,6 +1077,111 @@ class _DashboardPageState extends State<DashboardPage> {
     if (cam.mobile) return 'images/mobilecamera_map.png';
     if (cam.predictive) return 'images/mobilecamera_map.png';
     return 'images/distancecamera_map.png';
+  }
+}
+
+class _SpeedRingPainter extends CustomPainter {
+  _SpeedRingPainter({
+    required this.progress,
+    required this.colors,
+    required this.stops,
+  }) : assert(colors.length == stops.length,
+            'colors and stops must have the same length');
+
+  final double progress;
+  final List<Color> colors;
+  final List<double> stops;
+
+  static const double _strokeWidth = 12.0;
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final double clampedProgress = progress.clamp(0.0, 1.0);
+    final Offset center = size.center(Offset.zero);
+    final double radius =
+        math.min(size.width, size.height) / 2 - _strokeWidth / 2;
+    final Rect rect = Rect.fromCircle(center: center, radius: radius);
+    const double startAngle = -math.pi / 2;
+    final double sweepAngle = clampedProgress * 2 * math.pi;
+
+    final Paint trackPaint = Paint()
+      ..color = Colors.white24
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = _strokeWidth;
+    canvas.drawArc(rect, startAngle, 2 * math.pi, false, trackPaint);
+
+    if (clampedProgress <= 0) {
+      return;
+    }
+
+    final SweepGradient gradient = SweepGradient(
+      startAngle: startAngle,
+      endAngle: startAngle + 2 * math.pi,
+      colors: colors,
+      stops: stops,
+      tileMode: TileMode.clamp,
+    );
+    final Paint ringPaint = Paint()
+      ..shader = gradient.createShader(rect)
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = _strokeWidth
+      ..strokeCap = StrokeCap.round;
+
+    final Color tipColor = _colorAtProgress(clampedProgress);
+    final double glowOpacity =
+        ui.lerpDouble(0.25, 0.55, clampedProgress) ?? 0.4;
+    final Paint glowPaint = Paint()
+      ..color = tipColor.withOpacity(glowOpacity)
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = _strokeWidth
+      ..maskFilter = ui.MaskFilter.blur(ui.BlurStyle.normal, 6);
+
+    canvas.drawArc(rect, startAngle, sweepAngle, false, glowPaint);
+    canvas.drawArc(rect, startAngle, sweepAngle, false, ringPaint);
+
+    final double indicatorAngle = startAngle + sweepAngle;
+    final Offset indicatorPosition = Offset(
+      center.dx + radius * math.cos(indicatorAngle),
+      center.dy + radius * math.sin(indicatorAngle),
+    );
+
+    final Paint indicatorPaint = Paint()
+      ..shader = RadialGradient(
+        colors: <Color>[
+          tipColor.withOpacity(0.95),
+          tipColor.withOpacity(0.2),
+        ],
+      ).createShader(Rect.fromCircle(center: indicatorPosition, radius: 12));
+
+    canvas.drawCircle(indicatorPosition, 6, indicatorPaint);
+  }
+
+  Color _colorAtProgress(double value) {
+    if (colors.isEmpty) {
+      return Colors.white;
+    }
+    if (colors.length == 1 || stops.length != colors.length) {
+      return colors.last;
+    }
+    for (int i = 0; i < stops.length - 1; i++) {
+      final double lower = stops[i];
+      final double upper = stops[i + 1];
+      if (value <= lower) {
+        return colors[i];
+      }
+      if (value < upper) {
+        final double t = ((value - lower) / (upper - lower)).clamp(0.0, 1.0);
+        return Color.lerp(colors[i], colors[i + 1], t) ?? colors[i + 1];
+      }
+    }
+    return colors.last;
+  }
+
+  @override
+  bool shouldRepaint(covariant _SpeedRingPainter oldDelegate) {
+    return oldDelegate.progress != progress ||
+        !listEquals(oldDelegate.colors, colors) ||
+        !listEquals(oldDelegate.stops, stops);
   }
 }
 
