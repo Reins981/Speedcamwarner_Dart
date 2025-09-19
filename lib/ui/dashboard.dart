@@ -1141,6 +1141,7 @@ class _SpeedRingPainter extends CustomPainter {
   final List<double> stops;
 
   static const double _strokeWidth = 12.0;
+  static const double _startCapFraction = 0.007;
 
   @override
   void paint(Canvas canvas, Size size) {
@@ -1190,23 +1191,41 @@ class _SpeedRingPainter extends CustomPainter {
     final Color tipColor = _colorAtProgress(clampedProgress);
     final double glowOpacity =
         ui.lerpDouble(0.25, 0.55, clampedProgress) ?? 0.4;
-    final Paint glowPaint = Paint()
-      ..color = tipColor.withOpacity(glowOpacity)
-      ..style = PaintingStyle.stroke
-      ..strokeWidth = _strokeWidth
-      ..maskFilter = ui.MaskFilter.blur(ui.BlurStyle.normal, 6);
+    final double startCapSweepAngle = math.min(
+      sweepAngle,
+      2 * math.pi * _startCapFraction,
+    );
+    final double glowSweepAngle = sweepAngle - startCapSweepAngle;
 
-    canvas.drawArc(rect, startAngle, sweepAngle, false, glowPaint);
+    if (glowSweepAngle > 0) {
+      final Paint glowPaint = Paint()
+        ..color = tipColor.withOpacity(glowOpacity)
+        ..style = PaintingStyle.stroke
+        ..strokeWidth = _strokeWidth
+        ..maskFilter = ui.MaskFilter.blur(ui.BlurStyle.normal, 6);
+
+      canvas.drawArc(
+        rect,
+        startAngle + startCapSweepAngle,
+        glowSweepAngle,
+        false,
+        glowPaint,
+      );
+    }
+
     canvas.drawArc(rect, startAngle, sweepAngle, false, ringPaint);
 
-    final Offset startPosition = Offset(
-      center.dx + radius * math.cos(startAngle),
-      center.dy + radius * math.sin(startAngle),
-    );
-    final Paint startCapPaint = Paint()
-      ..color = _colorAtProgress(0.0)
-      ..style = PaintingStyle.fill;
-    canvas.drawCircle(startPosition, _strokeWidth / 2, startCapPaint);
+    if (startCapSweepAngle > 0) {
+      final double capProgress =
+          (startCapSweepAngle / (2 * math.pi)).clamp(0.0, clampedProgress);
+      final Paint startCapPaint = Paint()
+        ..color = _colorAtProgress(capProgress)
+        ..style = PaintingStyle.stroke
+        ..strokeWidth = _strokeWidth
+        ..strokeCap = StrokeCap.butt;
+
+      canvas.drawArc(rect, startAngle, startCapSweepAngle, false, startCapPaint);
+    }
 
     final double indicatorAngle = startAngle + sweepAngle;
     final Offset indicatorPosition = Offset(
