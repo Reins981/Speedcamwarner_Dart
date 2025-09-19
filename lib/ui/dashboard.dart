@@ -676,19 +676,19 @@ class _DashboardPageState extends State<DashboardPage> {
       begin: Alignment.centerLeft,
       end: Alignment.centerRight,
       colors: [
-        Color(0xFF010A43),
-        Color(0xFF072E8D),
-        Color(0xFF0053C7),
-        Color(0xFF0088FF),
-        Color(0xFF00C4FF),
-        Color(0xFF00F5B6),
-        Color(0xFF56FF19),
-        Color(0xFFFFF500),
-        Color(0xFFFFC400),
-        Color(0xFFFF9100),
-        Color(0xFFFF4D00),
-        Color(0xFFFF1744),
-        Color(0xFFC4001D),
+        Color(0xFF003300),
+        Color(0xFF005A00),
+        Color(0xFF007500),
+        Color(0xFF009A00),
+        Color(0xFF00C853),
+        Color(0xFF64DD17),
+        Color(0xFFAEEA00),
+        Color(0xFFFFF176),
+        Color(0xFFFFEB3B),
+        Color(0xFFFFC107),
+        Color(0xFFFF9800),
+        Color(0xFFFF5722),
+        Color(0xFFD32F2F),
       ],
       stops: [
         0.0,
@@ -709,12 +709,12 @@ class _DashboardPageState extends State<DashboardPage> {
     final Color glowColor = isHighAcceleration
         ? Colors.redAccent.withOpacity(0.6)
         : isHeavyBraking
-            ? Colors.blueAccent.withOpacity(0.5)
+            ? Colors.deepOrangeAccent.withOpacity(0.5)
             : Colors.white.withOpacity(0.25);
     final Color textColor = isHighAcceleration
         ? Colors.redAccent
         : isHeavyBraking
-            ? Colors.lightBlueAccent
+            ? Colors.deepOrangeAccent
             : Colors.white70;
     return Container(
       decoration: BoxDecoration(
@@ -820,24 +820,57 @@ class _DashboardPageState extends State<DashboardPage> {
           ),
           const SizedBox(height: 8),
           Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
             crossAxisAlignment: CrossAxisAlignment.end,
             children: [
-              Text(
-                '${cappedSpeed.toStringAsFixed(0)} km/h',
-                style: const TextStyle(
-                  color: Colors.white70,
-                  fontWeight: FontWeight.w600,
+              Expanded(
+                child: LayoutBuilder(
+                  builder: (context, constraints) {
+                    final double maxWidth = constraints.maxWidth.isFinite
+                        ? constraints.maxWidth
+                        : 0.0;
+                    final double fontSize =
+                        (maxWidth / 4.5).clamp(18.0, 40.0);
+                    return Align(
+                      alignment: Alignment.centerLeft,
+                      child: Text(
+                        '${cappedSpeed.toStringAsFixed(0)} km/h',
+                        style: TextStyle(
+                          color: Colors.white70,
+                          fontWeight: FontWeight.w600,
+                          fontSize: fontSize,
+                        ),
+                      ),
+                    );
+                  },
                 ),
               ),
-              AnimatedDefaultTextStyle(
-                duration: const Duration(milliseconds: 200),
-                style: TextStyle(
-                  color: textColor,
-                  fontWeight:
-                      isHighAcceleration ? FontWeight.bold : FontWeight.w500,
+              const SizedBox(width: 12),
+              Expanded(
+                child: LayoutBuilder(
+                  builder: (context, constraints) {
+                    final double maxWidth = constraints.maxWidth.isFinite
+                        ? constraints.maxWidth
+                        : 0.0;
+                    final double fontSize =
+                        (maxWidth / 5.5).clamp(18.0, 36.0);
+                    return AnimatedDefaultTextStyle(
+                      duration: const Duration(milliseconds: 200),
+                      style: TextStyle(
+                        color: textColor,
+                        fontWeight: isHighAcceleration
+                            ? FontWeight.bold
+                            : FontWeight.w500,
+                        fontSize: fontSize,
+                      ),
+                      child: Align(
+                        alignment: Alignment.centerRight,
+                        child: Text(
+                          '${clampedAcceleration.toStringAsFixed(2)} m/s²',
+                        ),
+                      ),
+                    );
+                  },
                 ),
-                child: Text('${clampedAcceleration.toStringAsFixed(2)} m/s²'),
               ),
             ],
           ),
