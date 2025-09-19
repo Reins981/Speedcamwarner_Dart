@@ -828,58 +828,29 @@ class _DashboardPageState extends State<DashboardPage> {
             ],
           ),
           const SizedBox(height: 8),
-          Row(
-            crossAxisAlignment: CrossAxisAlignment.end,
-            children: [
-              Expanded(
-                child: LayoutBuilder(
-                  builder: (context, constraints) {
-                    final double maxWidth = constraints.maxWidth.isFinite
-                        ? constraints.maxWidth
-                        : 0.0;
-                    final double fontSize = (maxWidth / 5.5).clamp(15.0, 33.0);
-                    return Align(
-                      alignment: Alignment.centerLeft,
-                      child: Text(
-                        '${cappedSpeed.toStringAsFixed(0)} km/h',
-                        style: TextStyle(
-                          color: Colors.white70,
-                          fontWeight: FontWeight.w600,
-                          fontSize: fontSize,
-                        ),
-                      ),
-                    );
-                  },
+          LayoutBuilder(
+            builder: (context, constraints) {
+              final double maxWidth = constraints.maxWidth.isFinite
+                  ? constraints.maxWidth
+                  : 0.0;
+              final double fontSize = (maxWidth / 5.5).clamp(15.0, 33.0);
+              return AnimatedDefaultTextStyle(
+                duration: const Duration(milliseconds: 200),
+                style: TextStyle(
+                  color: textColor,
+                  fontWeight:
+                      isHighAcceleration ? FontWeight.bold : FontWeight.w500,
+                  fontSize: fontSize,
                 ),
-              ),
-              const SizedBox(width: 12),
-              Expanded(
-                child: LayoutBuilder(
-                  builder: (context, constraints) {
-                    final double maxWidth = constraints.maxWidth.isFinite
-                        ? constraints.maxWidth
-                        : 0.0;
-                    final double fontSize = (maxWidth / 5.5).clamp(15.0, 33.0);
-                    return AnimatedDefaultTextStyle(
-                      duration: const Duration(milliseconds: 200),
-                      style: TextStyle(
-                        color: textColor,
-                        fontWeight: isHighAcceleration
-                            ? FontWeight.bold
-                            : FontWeight.w500,
-                        fontSize: fontSize,
-                      ),
-                      child: Align(
-                        alignment: Alignment.centerRight,
-                        child: Text(
-                          '${clampedAcceleration.toStringAsFixed(2)} m/s²',
-                        ),
-                      ),
-                    );
-                  },
+                child: SizedBox(
+                  width: double.infinity,
+                  child: Text(
+                    '${clampedAcceleration.toStringAsFixed(2)} m/s²',
+                    textAlign: TextAlign.center,
+                  ),
                 ),
-              ),
-            ],
+              );
+            },
           ),
         ],
       ),
