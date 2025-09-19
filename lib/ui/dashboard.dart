@@ -1173,7 +1173,7 @@ class _SpeedRingPainter extends CustomPainter {
       ..shader = gradient.createShader(rect)
       ..style = PaintingStyle.stroke
       ..strokeWidth = _strokeWidth
-      ..strokeCap = StrokeCap.round;
+      ..strokeCap = StrokeCap.butt;
 
     final Color tipColor = _colorAtProgress(clampedProgress);
     final double glowOpacity =
