@@ -851,7 +851,7 @@ class _DashboardPageState extends State<DashboardPage> {
                     final double maxWidth = constraints.maxWidth.isFinite
                         ? constraints.maxWidth
                         : 0.0;
-                    final double fontSize = (maxWidth / 5.5).clamp(18.0, 36.0);
+                    final double fontSize = (maxWidth / 5.5).clamp(16.0, 34.0);
                     return AnimatedDefaultTextStyle(
                       duration: const Duration(milliseconds: 200),
                       style: TextStyle(
