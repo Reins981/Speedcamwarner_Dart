@@ -1187,6 +1187,15 @@ class _SpeedRingPainter extends CustomPainter {
     canvas.drawArc(rect, startAngle, sweepAngle, false, glowPaint);
     canvas.drawArc(rect, startAngle, sweepAngle, false, ringPaint);
 
+    final Offset startPosition = Offset(
+      center.dx + radius * math.cos(startAngle),
+      center.dy + radius * math.sin(startAngle),
+    );
+    final Paint startCapPaint = Paint()
+      ..color = _colorAtProgress(0.0)
+      ..style = PaintingStyle.fill;
+    canvas.drawCircle(startPosition, _strokeWidth / 2, startCapPaint);
+
     final double indicatorAngle = startAngle + sweepAngle;
     final Offset indicatorPosition = Offset(
       center.dx + radius * math.cos(indicatorAngle),
