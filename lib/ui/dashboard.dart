@@ -1158,15 +1158,27 @@ class _SpeedRingPainter extends CustomPainter {
       ..strokeWidth = _strokeWidth;
     canvas.drawArc(rect, startAngle, 2 * math.pi, false, trackPaint);
 
-    if (clampedProgress <= 0) {
+    if (clampedProgress <= 0.0001) {
       return;
     }
 
+    if (colors.isEmpty || stops.isEmpty) {
+      return;
+    }
+
+    final List<Color> gradientColors = <Color>[
+      colors.first.withOpacity(0.0),
+      ...colors,
+    ];
+    final List<double> gradientStops = <double>[
+      0.0,
+      ...stops.map((stop) => stop == 0.0 ? 0.0001 : stop),
+    ];
     final SweepGradient gradient = SweepGradient(
       startAngle: startAngle,
       endAngle: startAngle + 2 * math.pi,
-      colors: colors,
-      stops: stops,
+      colors: gradientColors,
+      stops: gradientStops,
       tileMode: TileMode.clamp,
     );
     final Paint ringPaint = Paint()
