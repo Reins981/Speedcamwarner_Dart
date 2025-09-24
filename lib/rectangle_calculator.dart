@@ -1068,8 +1068,7 @@ class RectangleCalculatorThread {
     // warn the driver when necessary. The GPS thread provides the current
     // speed updates directly.
     final dynamic lms = lastMaxSpeed;
-    final int? limit = (lms is int) ? lms : null;
-    overspeedChecker.updateLimit(limit);
+    overspeedChecker.updateLimit(lms);
 
     // Handle possible look-ahead interrupts.
     if (camerasLookAheadMode) {
