@@ -2355,7 +2355,7 @@ class RectangleCalculatorThread {
 
   Future<void> fetchLufopCameras({http.Client? client}) async {
     final url =
-        'https://api.lufop.net/api?key=$lufopKey&format=json&q=$latitude,$longitude&m=300&nbr=300';
+        'https://api.lufop.net/api?key=$lufopKey&format=json&q=$latitude,$longitude&m=3000&nbr=300';
     logger.printLogLine('Fetching Lufop cameras from $url');
     final httpClient = client ?? http.Client();
     try {
