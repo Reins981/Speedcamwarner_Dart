@@ -13,7 +13,7 @@ import 'overspeed_checker.dart';
 class OverspeedBeeper {
   final OverspeedChecker checker;
   final AudioPlayer _player = AudioPlayer();
-  final AssetSource _beepSource = const AssetSource('sounds/beep.wav');
+  final AssetSource _beepSource = AssetSource('sounds/beep.wav');
   late final VoidCallback _listener;
 
   bool _alerted = false;
@@ -55,4 +55,3 @@ class OverspeedBeeper {
     await _player.dispose();
   }
 }
-
