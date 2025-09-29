@@ -1,6 +1,6 @@
 import 'dart:async';
+import 'package:audioplayers/audioplayers.dart';
 import 'package:flutter/foundation.dart';
-import 'package:flutter/services.dart';
 import 'overspeed_checker.dart';
 
 /// Plays a short beep sequence whenever the current speed exceeds the last
@@ -12,6 +12,8 @@ import 'overspeed_checker.dart';
 /// back below the limit the warning is reset and can trigger again.
 class OverspeedBeeper {
   final OverspeedChecker checker;
+  final AudioPlayer _player = AudioPlayer();
+  final AssetSource _beepSource = const AssetSource('sounds/beep.wav');
   late final VoidCallback _listener;
 
   bool _alerted = false;
@@ -19,6 +21,7 @@ class OverspeedBeeper {
   OverspeedBeeper({required this.checker}) {
     _listener = _handleChange;
     checker.difference.addListener(_listener);
+    unawaited(_player.setReleaseMode(ReleaseMode.stop));
   }
 
   void _handleChange() {
@@ -37,7 +40,8 @@ class OverspeedBeeper {
   Future<void> _beepThreeTimes() async {
     for (var i = 0; i < 3; i++) {
       try {
-        await SystemSound.play(SystemSoundType.alert);
+        await _player.stop();
+        await _player.play(_beepSource);
       } catch (_) {
         // Ignore any audio errors in headless environments.
       }
@@ -48,6 +52,7 @@ class OverspeedBeeper {
 
   Future<void> dispose() async {
     checker.difference.removeListener(_listener);
+    await _player.dispose();
   }
 }
 
