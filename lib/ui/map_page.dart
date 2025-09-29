@@ -54,6 +54,7 @@ class _MapPageState extends State<MapPage> {
   List<Polygon> _rectPolygons = [];
   List<Polygon> _constructionPolygons = [];
   GeoRect? _lastRect;
+  bool _followUser = true;
 
   bool _sameRect(GeoRect a, GeoRect b, [double tol = 1e-6]) {
     return (a.minLat - b.minLat).abs() < tol &&
@@ -101,7 +102,9 @@ class _MapPageState extends State<MapPage> {
     });
     // Recenter the map whenever the GPS position updates while keeping the
     // current zoom level so the user can zoom out if desired.
-    _mapController.move(_center, _mapController.camera.zoom);
+    if (_followUser) {
+      _mapController.move(_center, _mapController.camera.zoom);
+    }
   }
 
   Widget _buildCameraMarker(SpeedCameraEvent cam) {
@@ -491,6 +494,15 @@ class _MapPageState extends State<MapPage> {
     unawaited(widget.calculator.updateSpeedCams([cam]));
   }
 
+  void _toggleFollowUser() {
+    setState(() {
+      _followUser = !_followUser;
+    });
+    if (_followUser) {
+      _mapController.move(_center, _mapController.camera.zoom);
+    }
+  }
+
   @override
   void dispose() {
     widget.calculator.positionNotifier.removeListener(_updatePosition);
@@ -579,6 +591,16 @@ class _MapPageState extends State<MapPage> {
       floatingActionButton: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
+          FloatingActionButton(
+            onPressed: _toggleFollowUser,
+            tooltip: _followUser
+                ? 'Stop following GPS position'
+                : 'Follow GPS position',
+            child: Icon(
+              _followUser ? Icons.gps_fixed : Icons.gps_off,
+            ),
+          ),
+          const SizedBox(height: 16),
           FloatingActionButton(
             onPressed: _addPoliceCamera,
             tooltip: 'Add police camera',
