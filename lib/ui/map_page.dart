@@ -488,7 +488,7 @@ class _MapPageState extends State<MapPage> {
       mobile: true,
       name: 'User camera',
     );
-    unawaited(widget.calculator.updateSpeedCams([cam]));
+    unawaited(widget.calculator.updateSpeedCams([cam], mapUpdate: true));
   }
 
   @override
