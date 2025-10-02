@@ -43,6 +43,7 @@ class AppController {
     gps = GpsThread(
       voicePromptEvents: voicePromptEvents,
       speedCamEventController: calculator.speedCamEventController,
+      overspeedChecker: overspeedChecker,
     );
     // Pipe GPS samples into the calculator and GPS producer and expose
     // direction updates to the UI and other threads. Position updates are
