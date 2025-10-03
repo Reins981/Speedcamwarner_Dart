@@ -172,7 +172,6 @@ class GpsThread extends Logger {
       );
 
       _controller.add(enriched);
-      overspeedChecker?.updateSpeed(enriched.speed.toInt());
       _speedCamEventController?.add(
         Timestamped<Map<String, dynamic>>({
           'bearing': enriched.bearing,
