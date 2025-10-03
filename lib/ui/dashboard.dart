@@ -10,6 +10,7 @@ import '../app_controller.dart';
 import '../rectangle_calculator.dart';
 import '../config.dart';
 import 'overspeed_indicator.dart';
+import '../overspeed_checker.dart';
 
 /// A simple dashboard showing current speed, road name and speed camera
 /// information.
@@ -20,17 +21,18 @@ import 'overspeed_indicator.dart';
 class DashboardPage extends StatefulWidget {
   final AppController? controller;
   final RectangleCalculatorThread? calculator;
+  final OverspeedChecker checker;
   final ValueNotifier<String>? arStatus;
   final ValueNotifier<String>? direction;
   final ValueNotifier<String>? averageBearing;
-  const DashboardPage({
-    super.key,
-    this.controller,
-    this.calculator,
-    this.arStatus,
-    this.direction,
-    this.averageBearing,
-  });
+  DashboardPage(
+      {super.key,
+      this.controller,
+      this.calculator,
+      this.arStatus,
+      this.direction,
+      this.averageBearing,
+      required this.checker});
 
   @override
   State<DashboardPage> createState() => _DashboardPageState();
@@ -55,6 +57,7 @@ class _DashboardPageState extends State<DashboardPage> {
   SpeedCameraEvent? _activeCamera;
   StreamSubscription<SpeedCameraEvent>? _cameraSub;
   RectangleCalculatorThread? _calculator;
+  late OverspeedChecker _checker;
   AppController? _controller;
   String _arStatus = '';
   ValueNotifier<String>? _arNotifier;
@@ -84,7 +87,6 @@ class _DashboardPageState extends State<DashboardPage> {
     Color(0xFFFF3C00),
     Color(0xFFFF0000),
     Color(0xFFFF0050),
-    Color(0xFFFF33A8),
   ];
   static const List<double> _speedRingStops = <double>[
     0.0,
@@ -99,7 +101,6 @@ class _DashboardPageState extends State<DashboardPage> {
     0.72,
     0.82,
     0.9,
-    0.955,
     1.0,
   ];
 
@@ -110,6 +111,7 @@ class _DashboardPageState extends State<DashboardPage> {
     super.initState();
     _calculator = widget.calculator;
     _controller = widget.controller;
+    _checker = widget.checker;
     if (_calculator != null) {
       _speed = _calculator!.currentSpeedNotifier.value;
       _previousSpeed = _speed;
@@ -128,6 +130,7 @@ class _DashboardPageState extends State<DashboardPage> {
       _overspeedDiff = (_maxSpeed != null && _speed > _maxSpeed!)
           ? (_speed - _maxSpeed!).round()
           : null;
+      _checker.difference.value = _overspeedDiff;
       _gpsOn = _calculator!.gpsStatusNotifier.value;
       _online = _calculator!.onlineStatusNotifier.value;
       _calculator!.currentSpeedNotifier.addListener(_updateFromCalculator);
@@ -169,6 +172,7 @@ class _DashboardPageState extends State<DashboardPage> {
       _overspeedDiff = (_maxSpeed != null && _speed > _maxSpeed!)
           ? (_speed - _maxSpeed!).round()
           : null;
+      _checker.difference.value = _overspeedDiff;
       _speedCamWarning = _calculator!.speedCamNotifier.value;
       if (_speedCamWarning == 'FREEFLOW') {
         _clearCameraInfo();
@@ -405,7 +409,7 @@ class _DashboardPageState extends State<DashboardPage> {
   Widget build(BuildContext context) {
     final hasCameraInfo = _speedCamWarning != null || _activeCamera != null;
     return Scaffold(
-      appBar: AppBar(title: const Text('SpeedCamWarner')),
+      appBar: AppBar(title: const Text('MasterWarner')),
       body: Stack(
         children: [
           Container(
@@ -842,9 +846,8 @@ class _DashboardPageState extends State<DashboardPage> {
           const SizedBox(height: 8),
           LayoutBuilder(
             builder: (context, constraints) {
-              final double maxWidth = constraints.maxWidth.isFinite
-                  ? constraints.maxWidth
-                  : 0.0;
+              final double maxWidth =
+                  constraints.maxWidth.isFinite ? constraints.maxWidth : 0.0;
               final double fontSize = (maxWidth / 5.5).clamp(15.0, 33.0);
               return AnimatedDefaultTextStyle(
                 duration: const Duration(milliseconds: 200),
@@ -1224,7 +1227,8 @@ class _SpeedRingPainter extends CustomPainter {
         ..strokeWidth = _strokeWidth
         ..strokeCap = StrokeCap.butt;
 
-      canvas.drawArc(rect, startAngle, startCapSweepAngle, false, startCapPaint);
+      canvas.drawArc(
+          rect, startAngle, startCapSweepAngle, false, startCapPaint);
     }
 
     final double indicatorAngle = startAngle + sweepAngle;
