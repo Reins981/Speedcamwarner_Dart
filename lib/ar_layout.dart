@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:io';
 import 'dart:math' as math;
 import 'dart:typed_data';
@@ -10,6 +11,7 @@ import 'package:flutter/services.dart';
 import 'package:google_mlkit_face_detection/google_mlkit_face_detection.dart';
 import 'package:google_mlkit_object_detection/google_mlkit_object_detection.dart';
 import 'package:google_mlkit_commons/google_mlkit_commons.dart';
+import 'package:google_mlkit_pose_detection/google_mlkit_pose_detection.dart';
 import 'package:path/path.dart' as p;
 import 'package:path_provider/path_provider.dart';
 
@@ -31,6 +33,7 @@ class EdgeDetectState extends State<EdgeDetect> {
   CameraController? _controller;
   FaceDetector? _faceDetector;
   ObjectDetector? _objectDetector;
+  PoseDetector? _poseDetector;
   bool cameraConnected = false;
   String _cameraDirection = 'back';
 
@@ -46,8 +49,15 @@ class EdgeDetectState extends State<EdgeDetect> {
   bool _isProcessingImage = false;
   bool _alertShown = false;
   bool _detectionStarted = false;
+  bool _warnedDetectorsNotReady = false;
 
   static const int _triggerTimeArSoundMax = 3;
+
+  @override
+  void initState() {
+    super.initState();
+    unawaited(initArDetection());
+  }
 
   @override
   void dispose() {
@@ -58,9 +68,16 @@ class EdgeDetectState extends State<EdgeDetect> {
   void _disposeResources() {
     _controller?.dispose();
     _controller = null;
-    _faceDetector?.close();
-    _objectDetector?.close();
+    unawaited(_faceDetector?.close());
+    unawaited(_objectDetector?.close());
+    unawaited(_poseDetector?.close());
+    _faceDetector = null;
+    _objectDetector = null;
+    _poseDetector = null;
     cameraConnected = false;
+    _detectionStarted = false;
+    _isProcessingImage = false;
+    _warnedDetectorsNotReady = false;
   }
 
   void init(
@@ -103,6 +120,9 @@ class EdgeDetectState extends State<EdgeDetect> {
       _controller = null;
     }
     cameraConnected = false;
+    _detectionStarted = false;
+    _isProcessingImage = false;
+    _warnedDetectorsNotReady = false;
     setState(() {
       _faces = <Rect>[];
       _people = <Rect>[];
@@ -110,8 +130,15 @@ class EdgeDetectState extends State<EdgeDetect> {
   }
 
   Future<void> initArDetection() async {
+    await _faceDetector?.close();
+    await _objectDetector?.close();
+    await _poseDetector?.close();
+
     _faceDetector = FaceDetector(
-      options: FaceDetectorOptions(performanceMode: FaceDetectorMode.fast),
+      options: FaceDetectorOptions(
+        performanceMode: FaceDetectorMode.accurate,
+        enableTracking: true,
+      ),
     );
     _objectDetector = ObjectDetector(
       options: ObjectDetectorOptions(
@@ -120,6 +147,14 @@ class EdgeDetectState extends State<EdgeDetect> {
         mode: DetectionMode.stream,
       ),
     );
+    _poseDetector = PoseDetector(
+      options:
+          PoseDetectorOptions(poseDetectionMode: PoseDetectionMode.stream),
+    );
+    _detectionStarted = false;
+    _freeflow = false;
+    _warnedDetectorsNotReady = false;
+    _logViewer?.call('AR detectors initialised');
   }
 
   Future<void> connectCamera({
@@ -127,6 +162,12 @@ class EdgeDetectState extends State<EdgeDetect> {
     bool enableAnalyzePixels = true,
     bool enableVideo = false,
   }) async {
+    if (_faceDetector == null ||
+        _objectDetector == null ||
+        _poseDetector == null) {
+      await initArDetection();
+    }
+
     final List<CameraDescription> cameras = await availableCameras();
     final CameraDescription description = cameras.firstWhere(
       (CameraDescription d) => _cameraDirection == 'front'
@@ -149,7 +190,16 @@ class EdgeDetectState extends State<EdgeDetect> {
   }
 
   Future<void> _processImage(CameraImage image) async {
-    if (_faceDetector == null || _objectDetector == null) return;
+    if (_faceDetector == null ||
+        _objectDetector == null ||
+        _poseDetector == null) {
+      if (!_warnedDetectorsNotReady) {
+        _logViewer?.call('Detectors not ready yet');
+        _warnedDetectorsNotReady = true;
+      }
+      return;
+    }
+    _warnedDetectorsNotReady = false;
     if (_isProcessingImage) return;
     _isProcessingImage = true;
     if (!_detectionStarted) {
@@ -172,14 +222,19 @@ class EdgeDetectState extends State<EdgeDetect> {
       final InputImageFormat format =
           InputImageFormatValue.fromRawValue(image.format.raw) ??
               InputImageFormat.nv21;
-      final int bytesPerRow = image.planes.isNotEmpty
-          ? image.planes.first.bytesPerRow
-          : image.width;
+      final List<InputImagePlaneMetadata> planeData = image.planes
+          .map((Plane plane) => InputImagePlaneMetadata(
+                bytesPerRow: plane.bytesPerRow,
+                height: plane.height,
+                width: plane.width,
+              ))
+          .toList();
       final metadata = InputImageMetadata(
         size: imageSize,
         rotation: rotation,
         format: format,
-        bytesPerRow: bytesPerRow,
+        bytesPerRow: image.planes.first.bytesPerRow,
+        planeData: planeData,
       );
       final InputImage inputImage =
           InputImage.fromBytes(bytes: bytes, metadata: metadata);
@@ -187,6 +242,7 @@ class EdgeDetectState extends State<EdgeDetect> {
       final List<Face> faces = await _faceDetector!.processImage(inputImage);
       final List<DetectedObject> objects =
           await _objectDetector!.processImage(inputImage);
+      final List<Pose> poses = await _poseDetector!.processImage(inputImage);
 
       final List<Rect> people = <Rect>[];
       for (final DetectedObject obj in objects) {
@@ -195,9 +251,20 @@ class EdgeDetectState extends State<EdgeDetect> {
         }
       }
 
+      final List<Rect> poseBounds = poses
+          .map(_poseBoundingBox)
+          .whereType<Rect>()
+          .where((Rect rect) => rect.width > 0 && rect.height > 0)
+          .toList();
+      if (poseBounds.isNotEmpty) {
+        people.addAll(poseBounds);
+      }
+
       final bool resultsFound = faces.isNotEmpty || people.isNotEmpty;
       if (resultsFound) {
         _freeflow = false;
+        _logViewer?.call(
+            'Detections - faces: ${faces.length}, bodies: ${people.length}');
         WidgetsBinding.instance.addPostFrameCallback((_) {
           speedL?.updateAr('!!!');
           widget.statusNotifier?.value = 'HUMAN';
@@ -226,10 +293,12 @@ class EdgeDetectState extends State<EdgeDetect> {
         }
       }
 
-      setState(() {
-        _faces = faces.map((Face f) => f.boundingBox).toList();
-        _people = people;
-      });
+      if (mounted) {
+        setState(() {
+          _faces = faces.map((Face f) => f.boundingBox).toList();
+          _people = people;
+        });
+      }
     } on PlatformException catch (e) {
       _logViewer?.call('Image processing failed: ${e.message}');
     } catch (e) {
@@ -237,6 +306,38 @@ class EdgeDetectState extends State<EdgeDetect> {
     } finally {
       _isProcessingImage = false;
     }
+  }
+
+  Rect? _poseBoundingBox(Pose pose) {
+    if (pose.landmarks.isEmpty) {
+      return null;
+    }
+
+    double minX = double.infinity;
+    double minY = double.infinity;
+    double maxX = -double.infinity;
+    double maxY = -double.infinity;
+
+    for (final PoseLandmark landmark in pose.landmarks.values) {
+      final double x = landmark.x;
+      final double y = landmark.y;
+      if (x.isNaN || y.isNaN) {
+        continue;
+      }
+      minX = math.min(minX, x);
+      minY = math.min(minY, y);
+      maxX = math.max(maxX, x);
+      maxY = math.max(maxY, y);
+    }
+
+    if (minX == double.infinity ||
+        minY == double.infinity ||
+        maxX == -double.infinity ||
+        maxY == -double.infinity) {
+      return null;
+    }
+
+    return Rect.fromLTRB(minX, minY, maxX, maxY);
   }
 
   void _showDetectionAlert() {
