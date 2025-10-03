@@ -57,4 +57,3 @@ class _ArPageState extends State<ArPage> {
     );
   }
 }
-

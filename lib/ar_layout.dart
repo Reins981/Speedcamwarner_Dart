@@ -99,8 +99,8 @@ class EdgeDetectState extends State<EdgeDetect> {
     if (_controller == null || !_controller!.value.isInitialized) return;
     final XFile file = await _controller!.takePicture();
     final Directory dir = await getApplicationDocumentsDirectory();
-    final String path =
-        p.join(dir.path, 'screenshot_${DateTime.now().millisecondsSinceEpoch}.jpg');
+    final String path = p.join(
+        dir.path, 'screenshot_${DateTime.now().millisecondsSinceEpoch}.jpg');
     await file.saveTo(path);
     _logViewer?.call('Screenshot saved to $path');
   }
@@ -170,10 +170,9 @@ class EdgeDetectState extends State<EdgeDetect> {
 
     final List<CameraDescription> cameras = await availableCameras();
     final CameraDescription description = cameras.firstWhere(
-      (CameraDescription d) =>
-          _cameraDirection == 'front'
-              ? d.lensDirection == CameraLensDirection.front
-              : d.lensDirection == CameraLensDirection.back,
+      (CameraDescription d) => _cameraDirection == 'front'
+          ? d.lensDirection == CameraLensDirection.front
+          : d.lensDirection == CameraLensDirection.back,
       orElse: () => cameras.first,
     );
 
@@ -217,10 +216,9 @@ class EdgeDetectState extends State<EdgeDetect> {
 
       final Size imageSize =
           Size(image.width.toDouble(), image.height.toDouble());
-      final InputImageRotation rotation =
-          InputImageRotationValue.fromRawValue(
-                  _controller?.description.sensorOrientation ?? 0) ??
-              InputImageRotation.rotation0deg;
+      final InputImageRotation rotation = InputImageRotationValue.fromRawValue(
+              _controller?.description.sensorOrientation ?? 0) ??
+          InputImageRotation.rotation0deg;
       final InputImageFormat format =
           InputImageFormatValue.fromRawValue(image.format.raw) ??
               InputImageFormat.nv21;
@@ -273,8 +271,7 @@ class EdgeDetectState extends State<EdgeDetect> {
           _showDetectionAlert();
         });
         final int currentTime = DateTime.now().millisecondsSinceEpoch;
-        if (currentTime - _lastArSoundTime >=
-            _triggerTimeArSoundMax * 1000) {
+        if (currentTime - _lastArSoundTime >= _triggerTimeArSoundMax * 1000) {
           _playArSound();
           _logViewer?.call('AR detection successful');
           _lastArSoundTime = currentTime;
@@ -395,9 +392,8 @@ class EdgeDetectState extends State<EdgeDetect> {
               faces: _faces,
               people: _people,
               previewSize: previewSize,
-              isFrontCamera:
-                  _controller!.description.lensDirection ==
-                      CameraLensDirection.front,
+              isFrontCamera: _controller!.description.lensDirection ==
+                  CameraLensDirection.front,
             ),
           ),
         ],
@@ -572,8 +568,7 @@ class ButtonsLayout extends StatelessWidget {
     final bool isPortrait = size.width < size.height;
     late final Widget layout;
     if (isPortrait) {
-      final double buttonSize =
-          math.min(size.width / 4, size.height * 0.2);
+      final double buttonSize = math.min(size.width / 4, size.height * 0.2);
       layout = Align(
         alignment: Alignment.bottomCenter,
         child: SizedBox(
@@ -603,8 +598,7 @@ class ButtonsLayout extends StatelessWidget {
         ),
       );
     } else {
-      final double buttonSize =
-          math.min(size.width * 0.2, size.height / 4);
+      final double buttonSize = math.min(size.width * 0.2, size.height / 4);
       layout = Align(
         alignment: Alignment.centerRight,
         child: SizedBox(
@@ -652,4 +646,3 @@ class ButtonsLayout extends StatelessWidget {
     );
   }
 }
-

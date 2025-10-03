@@ -39,12 +39,13 @@ class _HomePageState extends State<HomePage> {
         arStatus: widget.controller.arStatusNotifier,
         direction: widget.controller.directionNotifier,
         averageBearing: widget.controller.averageBearingValue,
+        checker: widget.controller.overspeedChecker,
       ),
-        MapPage(
-          calculator: widget.controller.calculator,
-          poiStream: widget.controller.poiStream,
-          onPoiLookup: widget.controller.lookupPois,
-        ),
+      MapPage(
+        calculator: widget.controller.calculator,
+        poiStream: widget.controller.poiStream,
+        onPoiLookup: widget.controller.lookupPois,
+      ),
       ArPage(
         controller: widget.controller,
         onReturn: _showMain,
