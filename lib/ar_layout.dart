@@ -174,11 +174,19 @@ class EdgeDetectState extends State<EdgeDetect> {
       final InputImageFormat format =
           InputImageFormatValue.fromRawValue(image.format.raw) ??
               InputImageFormat.nv21;
+      final List<InputImagePlaneMetadata> planeData = image.planes
+          .map((Plane plane) => InputImagePlaneMetadata(
+                bytesPerRow: plane.bytesPerRow,
+                height: plane.height,
+                width: plane.width,
+              ))
+          .toList();
       final metadata = InputImageMetadata(
         size: imageSize,
         rotation: rotation,
         format: format,
         bytesPerRow: image.planes.first.bytesPerRow,
+        planeData: planeData,
       );
       final InputImage inputImage =
           InputImage.fromBytes(bytes: bytes, metadata: metadata);
