@@ -1064,12 +1064,6 @@ class RectangleCalculatorThread {
       }
     }
 
-    // Inform the overspeed checker about the latest speed limit so it can
-    // warn the driver when necessary. The GPS thread provides the current
-    // speed updates directly.
-    final dynamic lms = lastMaxSpeed;
-    overspeedChecker.updateLimit(lms);
-
     // Handle possible look-ahead interrupts.
     if (camerasLookAheadMode) {
       logger.printLogLine('Process look-ahead interrupts');
@@ -1844,7 +1838,6 @@ class RectangleCalculatorThread {
     final online = await internetAvailable();
     updateOnlineStatus(online);
     if (!SpeedCamWarner.camInProgress && online) {
-      updateMaxspeed('');
       lastMaxSpeed = '';
     } else {
       lastMaxSpeed = 'KEEP';
