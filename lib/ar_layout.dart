@@ -221,14 +221,18 @@ class EdgeDetectState extends State<EdgeDetect> {
       final InputImageFormat format =
           InputImageFormatValue.fromRawValue(image.format.raw) ??
               InputImageFormat.nv21;
-      final metadata = InputImageMetadata(
+
+      final InputImageMetadata metadata = InputImageMetadata(
         size: imageSize,
         rotation: rotation,
         format: format,
         bytesPerRow: image.planes.first.bytesPerRow,
       );
-      final InputImage inputImage =
-          InputImage.fromBytes(bytes: bytes, metadata: metadata);
+
+      final InputImage inputImage = InputImage.fromBytes(
+        bytes: bytes,
+        metadata: metadata,
+      );
 
       final List<Face> faces = await _faceDetector!.processImage(inputImage);
       final List<DetectedObject> objects =
