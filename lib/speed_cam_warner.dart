@@ -1138,8 +1138,8 @@ class SpeedCamWarner {
                 calculateDirection(d is int ? d.toDouble() : (d as double)))
             .toList();
         logger.printLogLine("Camera directions are $directions");
-        // Allow a tolerance in direction matching (e.g., ±1 sector)
-        int tolerance = 1;
+        // Allow a tolerance in direction matching (e.g., ±2 sectorsr)
+        int tolerance = 2;
         int directionIndex = directions.indexOf(directionCcp);
         if (directionIndex != -1) {
           return true;

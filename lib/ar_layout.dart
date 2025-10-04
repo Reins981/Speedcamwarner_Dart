@@ -309,11 +309,13 @@ class EdgeDetectState extends State<EdgeDetect> {
       return null;
     }
 
-    final bool hasExpectedFormat = (Platform.isAndroid && format == InputImageFormat.nv21) ||
-        (Platform.isIOS && format == InputImageFormat.bgra8888) ||
-        (!Platform.isAndroid && !Platform.isIOS);
-    if (!hasExpectedFormat) {
-      _logViewer?.call('Unexpected image format: ');
+    if (Platform.isAndroid && format != InputImageFormat.nv21) {
+      _logViewer?.call('Unexpected Android image format: ');
+      return null;
+    }
+
+    if (Platform.isIOS && format != InputImageFormat.bgra8888) {
+      _logViewer?.call('Unexpected iOS image format: ');
       return null;
     }
 
@@ -674,3 +676,4 @@ class ButtonsLayout extends StatelessWidget {
     );
   }
 }
+
