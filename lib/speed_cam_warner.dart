@@ -1122,9 +1122,14 @@ class SpeedCamWarner {
       }
       if (ccpBearing != null && camDirection != null) {
         var directionCcp = calculateDirection(ccpBearing!);
+        print(
+            "DirectionCCP is $directionCcp, Camera direction is $camDirection");
         if (directionCcp == null) return true;
-        var directions =
-            camDirection.map((d) => calculateDirection(d as double)).toList();
+        var directions = camDirection
+            .map((d) =>
+                calculateDirection(d is int ? d.toDouble() : (d as double)))
+            .toList();
+        logger.printLogLine("Camera directions are $directions");
         if (directions.contains(directionCcp)) {
           return true;
         } else {
