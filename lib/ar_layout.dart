@@ -1,4 +1,4 @@
-import 'dart:async';
+﻿import 'dart:async';
 import 'dart:io';
 import 'dart:math' as math;
 import 'dart:typed_data';
@@ -305,23 +305,23 @@ class EdgeDetectState extends State<EdgeDetect> {
     final InputImageFormat? format =
         InputImageFormatValue.fromRawValue(image.format.raw);
     if (format == null) {
-      _logViewer?.call('Unsupported image format: \');
+      _logViewer?.call('Unsupported image format: ${image.format.raw}');
       return null;
     }
 
     if (Platform.isAndroid && format != InputImageFormat.nv21) {
-      _logViewer?.call('Unexpected Android image format: ');
+      _logViewer?.call('Unexpected Android image format: $format');
       return null;
     }
 
     if (Platform.isIOS && format != InputImageFormat.bgra8888) {
-      _logViewer?.call('Unexpected iOS image format: ');
+      _logViewer?.call('Unexpected iOS image format: $format');
       return null;
     }
 
     if (image.planes.length != 1) {
       _logViewer?.call(
-          'Expected single-plane image, found \ planes');
+          'Expected single-plane image, found ${image.planes.length} planes');
       return null;
     }
 

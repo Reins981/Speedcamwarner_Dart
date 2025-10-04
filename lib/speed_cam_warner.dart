@@ -620,6 +620,7 @@ class SpeedCamWarner {
             distance: processNextCam ? nextCamDistanceAsInt : null,
           );
         }
+        calculator.cameraInProgress(camInProgress);
         return null;
       }
     }
