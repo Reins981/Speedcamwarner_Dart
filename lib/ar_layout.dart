@@ -1,8 +1,6 @@
-﻿import 'dart:async';
+import 'dart:async';
 import 'dart:io';
 import 'dart:math' as math;
-import 'dart:typed_data';
-import 'package:flutter/scheduler.dart';
 
 import 'package:camera/camera.dart';
 import 'package:flutter/material.dart';
@@ -10,7 +8,6 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
 import 'package:google_mlkit_face_detection/google_mlkit_face_detection.dart';
 import 'package:google_mlkit_object_detection/google_mlkit_object_detection.dart';
-import 'package:google_mlkit_commons/google_mlkit_commons.dart';
 import 'package:google_mlkit_pose_detection/google_mlkit_pose_detection.dart';
 import 'package:path/path.dart' as p;
 import 'package:path_provider/path_provider.dart';
@@ -294,9 +291,8 @@ class EdgeDetectState extends State<EdgeDetect> {
   }
 
   InputImage? _buildInputImage(CameraImage image) {
-    final InputImageRotation? rotation =
-        InputImageRotationValue.fromRawValue(
-            _controller?.description.sensorOrientation ?? 0);
+    final InputImageRotation? rotation = InputImageRotationValue.fromRawValue(
+        _controller?.description.sensorOrientation ?? 0);
     if (rotation == null) {
       _logViewer?.call('Unsupported camera sensor orientation');
       return null;
@@ -676,4 +672,3 @@ class ButtonsLayout extends StatelessWidget {
     );
   }
 }
-

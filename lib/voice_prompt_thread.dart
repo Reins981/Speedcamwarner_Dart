@@ -258,6 +258,7 @@ class VoicePromptThread {
 
       if (sound != null) {
         await playSound(sound);
+        _lock = false;
       }
     }
   }

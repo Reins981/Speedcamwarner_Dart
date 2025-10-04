@@ -40,7 +40,7 @@ class OverspeedBeeper {
   Future<void> _beepThreeTimes() async {
     for (var i = 0; i < 3; i++) {
       try {
-        await _player.stop();
+        await _player.setSource(_beepSource);
         await _player.play(_beepSource);
       } catch (_) {
         // Ignore any audio errors in headless environments.
