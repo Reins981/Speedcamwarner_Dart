@@ -612,6 +612,14 @@ class SpeedCamWarner {
         angleMismatchVoice: angleMismatchVoice,
       )) {
         itemQueue[cam]?[5] = lastDistance;
+        // We still need to trigger the next camera update in case of angle mismatches
+        if (resume?.isResumed() ?? true) {
+          updateNextCam(
+            process: processNextCam,
+            road: processNextCam ? nextCamRoad : null,
+            distance: processNextCam ? nextCamDistanceAsInt : null,
+          );
+        }
         return null;
       }
     }
