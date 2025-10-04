@@ -182,11 +182,16 @@ class EdgeDetectState extends State<EdgeDetect> {
       orElse: () => cameras.first,
     );
 
+    final ImageFormatGroup imageFormatGroup = Platform.isAndroid
+        ? ImageFormatGroup.nv21
+        : Platform.isIOS
+            ? ImageFormatGroup.bgra8888
+            : ImageFormatGroup.yuv420;
     _controller = CameraController(
       description,
       ResolutionPreset.high,
       enableAudio: false,
-      imageFormatGroup: ImageFormatGroup.yuv420,
+      imageFormatGroup: imageFormatGroup,
     );
     await _controller!.initialize();
     cameraConnected = true;
@@ -214,28 +219,10 @@ class EdgeDetectState extends State<EdgeDetect> {
     }
 
     try {
-      final WriteBuffer allBytes = WriteBuffer();
-      for (final Plane plane in image.planes) {
-        allBytes.putUint8List(plane.bytes);
+      final InputImage? inputImage = _buildInputImage(image);
+      if (inputImage == null) {
+        return;
       }
-      final Uint8List bytes = allBytes.done().buffer.asUint8List();
-
-      final Size imageSize =
-          Size(image.width.toDouble(), image.height.toDouble());
-      final InputImageRotation rotation = InputImageRotationValue.fromRawValue(
-              _controller?.description.sensorOrientation ?? 0) ??
-          InputImageRotation.rotation0deg;
-      final InputImageFormat format =
-          InputImageFormatValue.fromRawValue(image.format.raw) ??
-              InputImageFormat.nv21;
-      final metadata = InputImageMetadata(
-        size: imageSize,
-        rotation: rotation,
-        format: format,
-        bytesPerRow: image.planes.first.bytesPerRow,
-      );
-      final InputImage inputImage =
-          InputImage.fromBytes(bytes: bytes, metadata: metadata);
 
       final List<Face> faces = await _faceDetector!.processImage(inputImage);
       final List<DetectedObject> objects =
@@ -304,6 +291,49 @@ class EdgeDetectState extends State<EdgeDetect> {
     } finally {
       _isProcessingImage = false;
     }
+  }
+
+  InputImage? _buildInputImage(CameraImage image) {
+    final InputImageRotation? rotation =
+        InputImageRotationValue.fromRawValue(
+            _controller?.description.sensorOrientation ?? 0);
+    if (rotation == null) {
+      _logViewer?.call('Unsupported camera sensor orientation');
+      return null;
+    }
+
+    final InputImageFormat? format =
+        InputImageFormatValue.fromRawValue(image.format.raw);
+    if (format == null) {
+      _logViewer?.call('Unsupported image format: \');
+      return null;
+    }
+
+    final bool hasExpectedFormat = (Platform.isAndroid && format == InputImageFormat.nv21) ||
+        (Platform.isIOS && format == InputImageFormat.bgra8888) ||
+        (!Platform.isAndroid && !Platform.isIOS);
+    if (!hasExpectedFormat) {
+      _logViewer?.call('Unexpected image format: ');
+      return null;
+    }
+
+    if (image.planes.length != 1) {
+      _logViewer?.call(
+          'Expected single-plane image, found \ planes');
+      return null;
+    }
+
+    final Plane plane = image.planes.first;
+
+    return InputImage.fromBytes(
+      bytes: plane.bytes,
+      metadata: InputImageMetadata(
+        size: Size(image.width.toDouble(), image.height.toDouble()),
+        rotation: rotation,
+        format: format,
+        bytesPerRow: plane.bytesPerRow,
+      ),
+    );
   }
 
   Rect? _poseBoundingBox(Pose pose) {

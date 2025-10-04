@@ -1138,13 +1138,50 @@ class SpeedCamWarner {
                 calculateDirection(d is int ? d.toDouble() : (d as double)))
             .toList();
         logger.printLogLine("Camera directions are $directions");
-        if (directions.contains(directionCcp)) {
+        // Allow a tolerance in direction matching (e.g., ±1 sector)
+        int tolerance = 1;
+        int directionIndex = directions.indexOf(directionCcp);
+        if (directionIndex != -1) {
           return true;
-        } else {
-          print(
-            "Speed Camera '$camType' ($cam): CCP bearing angle: $ccpBearing, Expected camera angle: $camDirection",
-          );
-          return false;
+        }
+        // Try matching with tolerance
+        for (var dir in directions) {
+          if (dir == null || directionCcp == null) continue;
+          // Use a list of all possible directions in order
+          List<String> allDirections = [
+            'TOP-N',
+            'N',
+            'NNO',
+            'NO',
+            'ONO',
+            'TOP-O',
+            'O',
+            'OSO',
+            'SO',
+            'SSO',
+            'TOP-S',
+            'S',
+            'SSW',
+            'SW',
+            'WSW',
+            'TOP-W',
+            'W',
+            'WNW',
+            'NW',
+            'NNW'
+          ];
+          int idx1 = allDirections.indexOf(dir);
+          int idx2 = allDirections.indexOf(directionCcp);
+          if (idx1 == -1 || idx2 == -1) continue;
+          int diff = (idx1 - idx2).abs();
+          if (diff <= tolerance || diff >= allDirections.length - tolerance) {
+            return true;
+          } else {
+            print(
+              "Speed Camera '$camType' ($cam): CCP bearing angle: $ccpBearing, Expected camera angle: $camDirection",
+            );
+            return false;
+          }
         }
       }
     } catch (_) {
