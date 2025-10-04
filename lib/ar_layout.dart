@@ -168,6 +168,13 @@ class EdgeDetectState extends State<EdgeDetect> {
     }
 
     final List<CameraDescription> cameras = await availableCameras();
+    if (cameras.isEmpty) {
+      const warning = 'connectCamera aborted: no cameras available';
+      _logViewer?.call('No available cameras found');
+      debugPrint(warning);
+      return;
+    }
+
     final CameraDescription description = cameras.firstWhere(
       (CameraDescription d) => _cameraDirection == 'front'
           ? d.lensDirection == CameraLensDirection.front
