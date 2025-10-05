@@ -21,6 +21,7 @@ class LocationManager extends Logger {
   StreamSubscription<Position>? _subscription;
   Timer? _gpxTimer;
   bool _running = false;
+  bool _offline = false;
 
   /// Whether the manager is currently publishing location updates.
   bool get isRunning => _running;
@@ -105,6 +106,7 @@ class LocationManager extends Logger {
     _subscription =
         positionStreamLocal.timeout(Duration(seconds: 8), onTimeout: (sink) {
       printLogLine('Position stream timed out after 8 seconds');
+      _offline = true;
       _notifyGpsOffline();
     }).listen(_onPosition);
   }
@@ -138,6 +140,7 @@ class LocationManager extends Logger {
   }
 
   void _onPosition(Position position) {
+    _offline = false;
     final vector = VectorData(
       longitude: position.longitude,
       latitude: position.latitude,
@@ -153,19 +156,22 @@ class LocationManager extends Logger {
     _controller.add(vector);
   }
 
-  void _notifyGpsOffline() {
+  Future<void> _notifyGpsOffline() async {
     printLogLine('GPS is offline');
-    final vector = VectorData(
-      longitude: 0.0,
-      latitude: 0.0,
-      speed: 1.0,
-      bearing: 0.0,
-      accuracy: 0.0,
-      direction: '',
-      gpsStatus: 'OFFLINE',
-    );
-    printLogLine('Received position update: ${vector.gpsStatus}');
-    _controller.add(vector);
+    while (_offline) {
+      final vector = VectorData(
+        longitude: 0.0,
+        latitude: 0.0,
+        speed: 1.0,
+        bearing: 0.0,
+        accuracy: 0.0,
+        direction: '',
+        gpsStatus: 'OFFLINE',
+      );
+      printLogLine('Received position update: ${vector.gpsStatus}');
+      _controller.add(vector);
+      await Future.delayed(Duration(seconds: 1));
+    }
   }
 
   /// Stop listening to location updates but keep the stream open for restart.
