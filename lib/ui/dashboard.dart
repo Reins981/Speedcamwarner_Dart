@@ -22,14 +22,12 @@ class DashboardPage extends StatefulWidget {
   final AppController? controller;
   final RectangleCalculatorThread? calculator;
   final OverspeedChecker checker;
-  final ValueNotifier<String>? arStatus;
   final ValueNotifier<String>? direction;
   final ValueNotifier<String>? averageBearing;
   DashboardPage(
       {super.key,
       this.controller,
       this.calculator,
-      this.arStatus,
       this.direction,
       this.averageBearing,
       required this.checker});
@@ -59,8 +57,6 @@ class _DashboardPageState extends State<DashboardPage> {
   RectangleCalculatorThread? _calculator;
   late OverspeedChecker _checker;
   AppController? _controller;
-  String _arStatus = '';
-  ValueNotifier<String>? _arNotifier;
   double _acceleration = 0.0;
   String _direction = '-';
   String _averageBearing = '---.-°';
@@ -144,12 +140,6 @@ class _DashboardPageState extends State<DashboardPage> {
       _calculator!.gpsStatusNotifier.addListener(_updateFromCalculator);
       _calculator!.onlineStatusNotifier.addListener(_updateFromCalculator);
       _cameraSub = _calculator!.cameras.listen(_onCamera);
-    }
-
-    _arNotifier = widget.arStatus;
-    if (_arNotifier != null) {
-      _arStatus = _arNotifier!.value;
-      _arNotifier!.addListener(_updateArStatus);
     }
 
     _directionNotifier = widget.direction;
@@ -283,12 +273,6 @@ class _DashboardPageState extends State<DashboardPage> {
     });
   }
 
-  void _updateArStatus() {
-    setState(() {
-      _arStatus = _arNotifier!.value;
-    });
-  }
-
   Future<void> _addCamera() async {
     if (_calculator == null) return;
     final pos = _calculator!.positionNotifier.value;
@@ -399,7 +383,6 @@ class _DashboardPageState extends State<DashboardPage> {
       _calculator!.onlineStatusNotifier.removeListener(_updateFromCalculator);
       _cameraSub?.cancel();
     }
-    _arNotifier?.removeListener(_updateArStatus);
     _directionNotifier?.removeListener(_updateDirectionBearing);
     _averageBearingNotifier?.removeListener(_updateDirectionBearing);
     super.dispose();
@@ -597,24 +580,12 @@ class _DashboardPageState extends State<DashboardPage> {
   }
 
   Widget _buildStatusRow() {
-    final children = <Widget>[
-      Expanded(child: _buildGpsWidget()),
-      const SizedBox(width: 16),
-      Expanded(child: _buildInternetWidget()),
-    ];
-    if (_arStatus.isNotEmpty) {
-      children.add(const SizedBox(width: 16));
-      children.add(Expanded(child: _buildAiWidget()));
-    }
-    return Row(children: children);
-  }
-
-  Widget _buildAiWidget() {
-    final Color color = _arStatus == 'HUMAN' ? Colors.red : Colors.blueGrey;
-    return _statusTile(
-      icon: Icons.smart_toy,
-      text: 'AI: $_arStatus',
-      color: color,
+    return Row(
+      children: [
+        Expanded(child: _buildGpsWidget()),
+        const SizedBox(width: 16),
+        Expanded(child: _buildInternetWidget()),
+      ],
     );
   }
 

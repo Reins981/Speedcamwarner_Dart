@@ -19,6 +19,7 @@ import 'osm_wrapper.dart';
 import 'osm_thread.dart';
 import 'speed_cam_predictor.dart';
 import 'deviation_checker.dart' as deviation;
+import 'drive_history_recorder.dart';
 
 /// Central place that wires up background modules and manages their
 /// lifecycles.  The original Python project spawned numerous threads; in
@@ -38,6 +39,11 @@ class AppController {
       voicePromptEvents: voicePromptEvents,
       overspeedChecker: overspeedChecker,
       deviationCheckerThread: deviationChecker,
+    );
+    driveHistoryRecorder = DriveHistoryRecorder(
+      calculator: calculator,
+      overspeedChecker: overspeedChecker,
+      gpsProducer: gpsProducer,
     );
     gps = GpsThread(
       voicePromptEvents: voicePromptEvents,
@@ -132,6 +138,9 @@ class AppController {
   /// Plays a warning tone when overspeed is detected.
   late final OverspeedBeeper overspeedBeeper;
 
+  /// Records noteworthy events for the drive insights dashboard.
+  late final DriveHistoryRecorder driveHistoryRecorder;
+
   /// Calculates deviation of the current course based on recent bearings.
   late deviation.DeviationCheckerThread deviationChecker;
 
@@ -194,6 +203,7 @@ class AppController {
     Stream<Position>? positionStream,
   }) async {
     if (_running) return;
+    driveHistoryRecorder.startSession();
     await locationManager.start(
       gpxFile: gpxFile,
       positionStream: positionStream,
@@ -214,6 +224,7 @@ class AppController {
   /// Stop all background services and clean up resources.
   Future<void> stop() async {
     if (!_running) return;
+    driveHistoryRecorder.endSession();
     voicePromptEvents.emit('STOP_APPLICATION');
     await gps.stop();
     await locationManager.stop();
@@ -238,6 +249,7 @@ class AppController {
     poiReader.stopTimer();
     await voiceThread.stop();
     await overspeedBeeper.dispose();
+    await driveHistoryRecorder.dispose();
     stopDeviationCheckerThread();
     await _poiController.close();
   }
