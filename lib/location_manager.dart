@@ -188,7 +188,7 @@ class LocationManager extends Logger {
       final vector = VectorData(
         longitude: 0.0,
         latitude: 0.0,
-        speed: 1.0,
+        speed: 50.0,
         bearing: 0.0,
         accuracy: 0.0,
         direction: '',
