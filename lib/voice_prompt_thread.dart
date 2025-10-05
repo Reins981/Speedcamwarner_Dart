@@ -19,6 +19,10 @@ class VoicePromptThread {
   bool _lock = false;
   bool _running = true;
 
+  void setRunning(bool value) {
+    _running = value;
+  }
+
   static const String _basePath = 'sounds';
 
   bool get lock => _lock;

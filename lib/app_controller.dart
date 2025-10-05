@@ -204,6 +204,7 @@ class AppController {
     calculator.run();
     poiReader.startTimer();
     deviationChecker.start();
+    voiceThread.setRunning(true);
     unawaited(voiceThread.run());
     osmThread.cond.terminate = false;
     unawaited(osmThread.run());
