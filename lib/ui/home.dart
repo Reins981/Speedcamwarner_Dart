@@ -2,8 +2,8 @@ import 'package:flutter/material.dart';
 
 import '../app_controller.dart';
 import 'actions_page.dart';
-import 'ar_page.dart';
 import 'dashboard.dart';
+import 'drive_insights_page.dart';
 import 'info_page.dart';
 import 'map_page.dart';
 import 'stats_page.dart';
@@ -36,7 +36,6 @@ class _HomePageState extends State<HomePage> {
       DashboardPage(
         controller: widget.controller,
         calculator: widget.controller.calculator,
-        arStatus: widget.controller.arStatusNotifier,
         direction: widget.controller.directionNotifier,
         averageBearing: widget.controller.averageBearingValue,
         checker: widget.controller.overspeedChecker,
@@ -46,10 +45,7 @@ class _HomePageState extends State<HomePage> {
         poiStream: widget.controller.poiStream,
         onPoiLookup: widget.controller.lookupPois,
       ),
-      ArPage(
-        controller: widget.controller,
-        onReturn: _showMain,
-      ),
+      DriveInsightsPage(controller: widget.controller),
       InfoPage(calculator: widget.controller.calculator),
       StatsPage(calculator: widget.controller.calculator),
     ];
@@ -77,7 +73,8 @@ class _HomePageState extends State<HomePage> {
           BottomNavigationBarItem(
               icon: Icon(Icons.dashboard), label: 'Dashboard'),
           BottomNavigationBarItem(icon: Icon(Icons.map), label: 'Map'),
-          BottomNavigationBarItem(icon: Icon(Icons.camera_alt), label: 'AR'),
+          BottomNavigationBarItem(
+              icon: Icon(Icons.insights), label: 'Insights'),
           BottomNavigationBarItem(
               icon: Icon(Icons.info_outline), label: 'Info'),
           BottomNavigationBarItem(icon: Icon(Icons.list), label: 'Stats'),
