@@ -44,6 +44,9 @@ class OverspeedBeeper {
     while (voicePromptThread.lock) {
       await Future.delayed(const Duration(milliseconds: 50));
     }
+
+    voicePromptThread.setLock(true);
+
     for (var i = 0; i < 3; i++) {
       try {
         await _player.setSource(_beepSource);
@@ -54,6 +57,7 @@ class OverspeedBeeper {
       // Wait a bit before playing the next beep.
       await Future.delayed(const Duration(milliseconds: 200));
     }
+    voicePromptThread.setLock(false);
   }
 
   Future<void> dispose() async {
