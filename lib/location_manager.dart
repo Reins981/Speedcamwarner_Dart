@@ -108,7 +108,33 @@ class LocationManager extends Logger {
       printLogLine('Position stream timed out after 8 seconds');
       _offline = true;
       _notifyGpsOffline();
-    }).listen(_onPosition);
+    }).listen(
+      _onPosition,
+      onError: (Object error, StackTrace stackTrace) {
+        _handlePositionError(error, stackTrace);
+      },
+    );
+  }
+
+  void _handlePositionError(Object error, StackTrace stackTrace) {
+    if (error is LocationServiceDisabledException) {
+      _handleGpsOffline('Location services are disabled', error);
+      return;
+    }
+    _handleGpsOffline('Position stream error', error);
+  }
+
+  void _handleGpsOffline(String message, [Object? error]) {
+    if (error != null) {
+      printLogLine('$message: $error');
+    } else {
+      printLogLine(message);
+    }
+    final wasOffline = _offline;
+    _offline = true;
+    if (!wasOffline) {
+      unawaited(_notifyGpsOffline());
+    }
   }
 
   Future<List<VectorData>> _loadGpxSamples(String gpxFile) async {
