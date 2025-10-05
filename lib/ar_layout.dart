@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'dart:io';
 import 'dart:math' as math;
+import 'dart:typed_data';
 
 import 'package:camera/camera.dart';
 import 'package:flutter/material.dart';
@@ -315,23 +316,67 @@ class EdgeDetectState extends State<EdgeDetect> {
       return null;
     }
 
-    if (image.planes.length != 1) {
-      _logViewer?.call(
-          'Expected single-plane image, found ${image.planes.length} planes');
+    final Uint8List bytes = _imageBytes(image);
+    if (bytes.isEmpty) {
       return null;
     }
 
-    final Plane plane = image.planes.first;
-
     return InputImage.fromBytes(
-      bytes: plane.bytes,
+      bytes: bytes,
       metadata: InputImageMetadata(
         size: Size(image.width.toDouble(), image.height.toDouble()),
         rotation: rotation,
         format: format,
-        bytesPerRow: plane.bytesPerRow,
+        bytesPerRow: image.planes.first.bytesPerRow,
       ),
     );
+  }
+
+  Uint8List _imageBytes(CameraImage image) {
+    if (image.planes.length == 1) {
+      return image.planes.first.bytes;
+    }
+
+    if (image.format.group == ImageFormatGroup.yuv420 &&
+        image.planes.length == 3) {
+      return _convertYuv420ToNv21(image);
+    }
+
+    _logViewer?.call(
+        'Unsupported plane configuration: ${image.planes.length} planes');
+    return Uint8List(0);
+  }
+
+  Uint8List _convertYuv420ToNv21(CameraImage image) {
+    final Plane planeY = image.planes[0];
+    final Plane planeU = image.planes[1];
+    final Plane planeV = image.planes[2];
+
+    final int width = image.width;
+    final int height = image.height;
+
+    final int uvRowStride = planeU.bytesPerRow;
+    final int uvPixelStride = planeU.bytesPerPixel ?? 1;
+    final int uvRowStrideV = planeV.bytesPerRow;
+    final int uvPixelStrideV = planeV.bytesPerPixel ?? 1;
+
+    final int ySize = width * height;
+    final Uint8List nv21 = Uint8List(ySize + (ySize >> 1));
+    nv21.setRange(0, ySize, planeY.bytes);
+
+    int index = ySize;
+    final int halfHeight = height >> 1;
+    final int halfWidth = width >> 1;
+    for (int row = 0; row < halfHeight; row++) {
+      for (int col = 0; col < halfWidth; col++) {
+        final int uIndex = row * uvRowStride + col * uvPixelStride;
+        final int vIndex = row * uvRowStrideV + col * uvPixelStrideV;
+        nv21[index++] = planeV.bytes[vIndex];
+        nv21[index++] = planeU.bytes[uIndex];
+      }
+    }
+
+    return nv21;
   }
 
   Rect? _poseBoundingBox(Pose pose) {
