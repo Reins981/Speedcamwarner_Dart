@@ -202,7 +202,11 @@ class AppController {
     calculator.predictor ??= SpeedCamPredictor();
     calculator.predictor!.init();
     calculator.run();
+    poiReader.startTimer();
     deviationChecker.start();
+    unawaited(voiceThread.run());
+    osmThread.cond.terminate = false;
+    unawaited(osmThread.run());
     _running = true;
   }
 

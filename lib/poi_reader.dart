@@ -112,6 +112,23 @@ class POIReader extends Logger {
     timer3?.cancel();
   }
 
+  void startTimer() {
+    timer1 = Timer.periodic(
+      Duration(seconds: uTimeFromDb),
+      (_) => _updatePoisFromDb(),
+    );
+
+    // Schedule a one-shot update from the cloud and a periodic refresher.
+    timer2 = Timer.periodic(
+      Duration(seconds: uTimeFromCloud),
+      (_) => unawaited(_updatePoisFromCloud()),
+    );
+    timer3 = Timer(
+      Duration(seconds: initTimeFromCloud),
+      () => unawaited(_updatePoisFromCloud()),
+    );
+  }
+
   /// Process initial loading and schedule cyclic tasks.
   void _process() {
     _openConnection();
