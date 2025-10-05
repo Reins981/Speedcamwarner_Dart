@@ -1805,7 +1805,8 @@ class RectangleCalculatorThread {
     // through the [positionNotifier] so consumers always receive the latest
     // coordinates even while offline.
     positionNotifier.value = LatLng(latitudeCached, longitudeCached);
-
+    logger.printLogLine(
+        "Forwarding extrapolated position ($longitudeCached, $latitudeCached) to speed cam warner");
     _speedCamEventController.add(
       Timestamped<Map<String, dynamic>>({
         'bearing': bearing,
