@@ -21,6 +21,11 @@ class VoicePromptThread {
 
   static const String _basePath = 'sounds';
 
+  bool get lock => _lock;
+  void setLock(bool value) {
+    _lock = value;
+  }
+
   VoicePromptThread({
     required this.voicePromptEvents,
     required FutureOr<DialogflowService> dialogflowClient,

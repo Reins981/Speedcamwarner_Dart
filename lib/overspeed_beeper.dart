@@ -1,7 +1,9 @@
 import 'dart:async';
 import 'package:audioplayers/audioplayers.dart';
 import 'package:flutter/foundation.dart';
+import 'package:workspace/voice_prompt_events.dart';
 import 'overspeed_checker.dart';
+import 'voice_prompt_thread.dart';
 
 /// Plays a short beep sequence whenever the current speed exceeds the last
 /// provided speed limit.
@@ -12,13 +14,14 @@ import 'overspeed_checker.dart';
 /// back below the limit the warning is reset and can trigger again.
 class OverspeedBeeper {
   final OverspeedChecker checker;
+  final VoicePromptThread voicePromptThread;
   final AudioPlayer _player = AudioPlayer();
   final AssetSource _beepSource = AssetSource('sounds/beep.wav');
   late final VoidCallback _listener;
 
   bool _alerted = false;
 
-  OverspeedBeeper({required this.checker}) {
+  OverspeedBeeper({required this.checker, required this.voicePromptThread}) {
     _listener = _handleChange;
     checker.difference.addListener(_listener);
     unawaited(_player.setReleaseMode(ReleaseMode.stop));
@@ -38,6 +41,9 @@ class OverspeedBeeper {
   }
 
   Future<void> _beepThreeTimes() async {
+    while (voicePromptThread.lock) {
+      await Future.delayed(const Duration(milliseconds: 50));
+    }
     for (var i = 0; i < 3; i++) {
       try {
         await _player.setSource(_beepSource);

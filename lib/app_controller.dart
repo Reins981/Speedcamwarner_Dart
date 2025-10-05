@@ -29,7 +29,6 @@ class AppController {
       : voicePromptEvents = VoicePromptEvents(),
         locationManager = LocationManager() {
     overspeedChecker = OverspeedChecker();
-    overspeedBeeper = OverspeedBeeper(checker: overspeedChecker);
 
     // Start the deviation checker by default so it can be paused during AR
     // sessions and restarted afterwards.
@@ -105,6 +104,8 @@ class AppController {
               'dialogflow',
     );
     unawaited(voiceThread.run());
+    overspeedBeeper = OverspeedBeeper(
+        checker: overspeedChecker, voicePromptThread: voiceThread);
   }
 
   /// Handles GPS sampling.
