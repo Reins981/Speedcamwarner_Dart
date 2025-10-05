@@ -17,6 +17,56 @@ class DriveInsightsPage extends StatefulWidget {
 class _DriveInsightsPageState extends State<DriveInsightsPage> {
   late final DriveHistoryRecorder _recorder =
       widget.controller.driveHistoryRecorder;
+  final ScrollController _scrollController = ScrollController();
+
+  bool _canScrollUp = false;
+  bool _canScrollDown = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _scrollController.addListener(_handleScrollUpdate);
+    WidgetsBinding.instance.addPostFrameCallback((_) => _handleScrollUpdate());
+  }
+
+  @override
+  void dispose() {
+    _scrollController.removeListener(_handleScrollUpdate);
+    _scrollController.dispose();
+    super.dispose();
+  }
+
+  void _handleScrollUpdate() {
+    if (!_scrollController.hasClients) return;
+    final ScrollPosition position = _scrollController.position;
+    final bool canScrollUp = position.pixels > 72;
+    final bool canScrollDown =
+        position.maxScrollExtent - position.pixels > 72;
+    if (canScrollUp != _canScrollUp || canScrollDown != _canScrollDown) {
+      setState(() {
+        _canScrollUp = canScrollUp;
+        _canScrollDown = canScrollDown;
+      });
+    }
+  }
+
+  Future<void> _scrollToTop() async {
+    if (!_scrollController.hasClients) return;
+    await _scrollController.animateTo(
+      0,
+      duration: const Duration(milliseconds: 450),
+      curve: Curves.easeOutCubic,
+    );
+  }
+
+  Future<void> _scrollToBottom() async {
+    if (!_scrollController.hasClients) return;
+    await _scrollController.animateTo(
+      _scrollController.position.maxScrollExtent,
+      duration: const Duration(milliseconds: 450),
+      curve: Curves.easeOutCubic,
+    );
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -40,54 +90,84 @@ class _DriveInsightsPageState extends State<DriveInsightsPage> {
             return ValueListenableBuilder<List<DriveEvent>>(
               valueListenable: _recorder.events,
               builder: (BuildContext context, List<DriveEvent> events, __) {
-                return CustomScrollView(
-                  physics: const BouncingScrollPhysics(),
-                  slivers: <Widget>[
-                    SliverAppBar(
-                      backgroundColor: Colors.transparent,
-                      elevation: 0,
-                      pinned: true,
-                      title: const Text(
-                        'Drive insights',
-                        style: TextStyle(
-                          fontWeight: FontWeight.w600,
-                          letterSpacing: 0.4,
-                        ),
-                      ),
-                      centerTitle: false,
-                    ),
-                    SliverToBoxAdapter(
-                      child: Padding(
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 20,
-                          vertical: 12,
-                        ),
-                        child: _SummaryHeader(
-                          summary: summary,
-                          eventCount: events.length,
-                        ),
-                      ),
-                    ),
-                    SliverToBoxAdapter(
-                      child: Padding(
-                        padding: const EdgeInsets.symmetric(horizontal: 20),
-                        child: _SummaryGrid(summary: summary),
-                      ),
-                    ),
-                    SliverPadding(
-                      padding: const EdgeInsets.fromLTRB(20, 24, 20, 32),
-                      sliver: events.isEmpty
-                          ? SliverToBoxAdapter(
-                              child: _EmptyState(theme: theme),
-                            )
-                          : SliverList.separated(
-                              itemCount: events.length,
-                              separatorBuilder: (_, __) => const SizedBox(height: 14),
-                              itemBuilder: (BuildContext context, int index) {
-                                final DriveEvent event = events[events.length - 1 - index];
-                                return _TimelineTile(event: event, theme: theme);
-                              },
+                WidgetsBinding.instance
+                    .addPostFrameCallback((_) => _handleScrollUpdate());
+                return Stack(
+                  children: <Widget>[
+                    CustomScrollView(
+                      controller: _scrollController,
+                      physics: const BouncingScrollPhysics(),
+                      slivers: <Widget>[
+                        SliverAppBar(
+                          backgroundColor: Colors.transparent,
+                          elevation: 0,
+                          pinned: true,
+                          title: const Text(
+                            'Drive insights',
+                            style: TextStyle(
+                              fontWeight: FontWeight.w600,
+                              letterSpacing: 0.4,
                             ),
+                          ),
+                          centerTitle: false,
+                        ),
+                        SliverToBoxAdapter(
+                          child: Padding(
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 20,
+                              vertical: 12,
+                            ),
+                            child: _SummaryHeader(
+                              summary: summary,
+                              eventCount: events.length,
+                            ),
+                          ),
+                        ),
+                        SliverToBoxAdapter(
+                          child: Padding(
+                            padding: const EdgeInsets.symmetric(horizontal: 20),
+                            child: _SummaryGrid(summary: summary),
+                          ),
+                        ),
+                        SliverPadding(
+                          padding: const EdgeInsets.fromLTRB(20, 24, 20, 32),
+                          sliver: events.isEmpty
+                              ? SliverToBoxAdapter(
+                                  child: _EmptyState(theme: theme),
+                                )
+                              : SliverList.separated(
+                                  itemCount: events.length,
+                                  separatorBuilder: (_, __) => const SizedBox(height: 14),
+                                  itemBuilder: (BuildContext context, int index) {
+                                    final DriveEvent event =
+                                        events[events.length - 1 - index];
+                                    return _TimelineTile(event: event, theme: theme);
+                                  },
+                                ),
+                        ),
+                      ],
+                    ),
+                    Positioned(
+                      right: 20,
+                      bottom: 24,
+                      child: Column(
+                        mainAxisSize: MainAxisSize.min,
+                        children: <Widget>[
+                          _ScrollFab(
+                            icon: Icons.vertical_align_top,
+                            label: 'Top',
+                            visible: _canScrollUp,
+                            onPressed: _scrollToTop,
+                          ),
+                          const SizedBox(height: 12),
+                          _ScrollFab(
+                            icon: Icons.vertical_align_bottom,
+                            label: 'Bottom',
+                            visible: _canScrollDown,
+                            onPressed: _scrollToBottom,
+                          ),
+                        ],
+                      ),
                     ),
                   ],
                 );
@@ -308,6 +388,77 @@ class _MetricCard extends StatelessWidget {
             ),
           ),
         ],
+      ),
+    );
+  }
+}
+
+class _ScrollFab extends StatelessWidget {
+  const _ScrollFab({
+    required this.icon,
+    required this.label,
+    required this.visible,
+    required this.onPressed,
+  });
+
+  final IconData icon;
+  final String label;
+  final bool visible;
+  final VoidCallback onPressed;
+
+  @override
+  Widget build(BuildContext context) {
+    return AnimatedSlide(
+      duration: const Duration(milliseconds: 220),
+      curve: Curves.easeOutCubic,
+      offset: visible ? Offset.zero : const Offset(0, 0.6),
+      child: AnimatedOpacity(
+        duration: const Duration(milliseconds: 220),
+        curve: Curves.easeOutCubic,
+        opacity: visible ? 1 : 0,
+        child: IgnorePointer(
+          ignoring: !visible,
+          child: DecoratedBox(
+            decoration: BoxDecoration(
+              color: Colors.white.withOpacity(0.12),
+              borderRadius: BorderRadius.circular(28),
+              border: Border.all(color: Colors.white24),
+              boxShadow: <BoxShadow>[
+                BoxShadow(
+                  color: Colors.black.withOpacity(0.25),
+                  blurRadius: 18,
+                  offset: const Offset(0, 12),
+                ),
+              ],
+            ),
+            child: Material(
+              color: Colors.transparent,
+              child: InkWell(
+                borderRadius: BorderRadius.circular(28),
+                onTap: onPressed,
+                child: Padding(
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 18, vertical: 12),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: <Widget>[
+                      Icon(icon, color: Colors.white, size: 22),
+                      const SizedBox(width: 8),
+                      Text(
+                        label,
+                        style: Theme.of(context).textTheme.titleSmall?.copyWith(
+                              color: Colors.white,
+                              fontWeight: FontWeight.w600,
+                              letterSpacing: 0.4,
+                            ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            ),
+          ),
+        ),
       ),
     );
   }
