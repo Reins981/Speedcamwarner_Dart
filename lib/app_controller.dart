@@ -40,12 +40,6 @@ class AppController {
       overspeedChecker: overspeedChecker,
       deviationCheckerThread: deviationChecker,
     );
-    driveHistoryRecorder = DriveHistoryRecorder(
-      calculator: calculator,
-      speedCamWarner: camWarner,
-      overspeedChecker: overspeedChecker,
-      gpsProducer: gpsProducer,
-    );
     gps = GpsThread(
       voicePromptEvents: voicePromptEvents,
       speedCamEventController: calculator.speedCamEventController,
@@ -89,6 +83,13 @@ class AppController {
       calculator: calculator,
     );
     unawaited(camWarner.run());
+
+    driveHistoryRecorder = DriveHistoryRecorder(
+      calculator: calculator,
+      speedCamWarner: camWarner,
+      overspeedChecker: overspeedChecker,
+      gpsProducer: gpsProducer,
+    );
 
     final dialogflow = () async {
       try {
