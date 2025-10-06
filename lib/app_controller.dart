@@ -42,6 +42,7 @@ class AppController {
     );
     driveHistoryRecorder = DriveHistoryRecorder(
       calculator: calculator,
+      speedCamWarner: camWarner,
       overspeedChecker: overspeedChecker,
       gpsProducer: gpsProducer,
     );
@@ -246,6 +247,7 @@ class AppController {
     await gps.dispose();
     await locationManager.dispose();
     await calculator.dispose();
+    await camWarner.dispose();
     poiReader.stopTimer();
     await voiceThread.stop();
     await overspeedBeeper.dispose();

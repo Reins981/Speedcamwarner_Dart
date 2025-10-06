@@ -58,6 +58,12 @@ class SpeedCamWarner {
   void Function()? _positionListener;
   LatLng? _lastPosition;
 
+  final StreamController<SpeedCameraEvent> _passedCameraStreamController =
+      StreamController<SpeedCameraEvent>.broadcast(sync: true);
+
+  Stream<SpeedCameraEvent> get passedCameras =>
+      _passedCameraStreamController.stream;
+
   SpeedCamWarner({
     required this.resume,
     required this.voicePromptEvents,
@@ -66,8 +72,12 @@ class SpeedCamWarner {
   }) {
     setConfigs();
     Timer.periodic(Duration(seconds: traversedCamerasInterval), (_) {
-      deletePassedCameras();
+      deleteObsoleteCameras();
     });
+  }
+
+  Future<void> dispose() async {
+    await _passedCameraStreamController.close();
   }
 
   // ----------------------------------------------------------------------
@@ -849,6 +859,15 @@ class SpeedCamWarner {
           camInProgress = false;
           triggerFreeFlow();
           itemQueue[camCoordinates]?[1] = 'to_be_stored';
+          final camKey = parseCamKey(camCoordinates);
+          final cam = SpeedCameraEvent(
+              latitude: camKey[1],
+              longitude: camKey[0],
+              name: roadName,
+              maxspeed: itemQueue[camCoordinates]?[10],
+              direction: itemQueue[camCoordinates]?[9],
+              predictive: itemQueue[camCoordinates]?[13]);
+          _passedCameraStreamController.add(cam);
         }
       }
       lastDistance = 300;
@@ -890,6 +909,15 @@ class SpeedCamWarner {
           camInProgress = false;
           triggerFreeFlow();
           itemQueue[camCoordinates]?[1] = 'to_be_stored';
+          final camKey = parseCamKey(camCoordinates);
+          final cam = SpeedCameraEvent(
+              latitude: camKey[1],
+              longitude: camKey[0],
+              name: roadName,
+              maxspeed: itemQueue[camCoordinates]?[10],
+              direction: itemQueue[camCoordinates]?[9],
+              predictive: itemQueue[camCoordinates]?[13]);
+          _passedCameraStreamController.add(cam);
         }
       }
       lastDistance = 500;
@@ -931,6 +959,15 @@ class SpeedCamWarner {
           camInProgress = false;
           triggerFreeFlow();
           itemQueue[camCoordinates]?[1] = 'to_be_stored';
+          final camKey = parseCamKey(camCoordinates);
+          final cam = SpeedCameraEvent(
+              latitude: camKey[1],
+              longitude: camKey[0],
+              name: roadName,
+              maxspeed: itemQueue[camCoordinates]?[10],
+              direction: itemQueue[camCoordinates]?[9],
+              predictive: itemQueue[camCoordinates]?[13]);
+          _passedCameraStreamController.add(cam);
         }
       }
       lastDistance = 1000;
@@ -956,6 +993,15 @@ class SpeedCamWarner {
           camInProgress = false;
           triggerFreeFlow();
           itemQueue[camCoordinates]?[1] = 'to_be_stored';
+          final camKey = parseCamKey(camCoordinates);
+          final cam = SpeedCameraEvent(
+              latitude: camKey[1],
+              longitude: camKey[0],
+              name: roadName,
+              maxspeed: itemQueue[camCoordinates]?[10],
+              direction: itemQueue[camCoordinates]?[9],
+              predictive: itemQueue[camCoordinates]?[13]);
+          _passedCameraStreamController.add(cam);
         }
       }
       lastDistance = 1001;
@@ -972,6 +1018,15 @@ class SpeedCamWarner {
       triggerFreeFlow();
       lastDistance = maxAbsoluteDistance;
       itemQueue[camCoordinates]?[1] = 'to_be_stored';
+      final camKey = parseCamKey(camCoordinates);
+      final cam = SpeedCameraEvent(
+          latitude: camKey[1],
+          longitude: camKey[0],
+          name: roadName,
+          maxspeed: itemQueue[camCoordinates]?[10],
+          direction: itemQueue[camCoordinates]?[9],
+          predictive: itemQueue[camCoordinates]?[13]);
+      _passedCameraStreamController.add(cam);
     }
 
     // finally update attributes
@@ -1217,7 +1272,7 @@ class SpeedCamWarner {
     );
   }
 
-  void deletePassedCameras() {
+  void deleteObsoleteCameras() {
     var itemDict = Map.from(itemQueue);
     var cameraItems = [itemDict];
     for (var cameras in cameraItems) {

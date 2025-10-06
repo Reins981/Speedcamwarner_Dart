@@ -2,7 +2,7 @@ import 'dart:async';
 import 'dart:math' as math;
 
 import 'package:flutter/foundation.dart';
-
+import 'package:workspace/speed_cam_warner.dart';
 import 'gps_producer.dart';
 import 'overspeed_checker.dart';
 import 'rectangle_calculator.dart';
@@ -125,11 +125,12 @@ class DriveSessionSummary {
 class DriveHistoryRecorder {
   DriveHistoryRecorder({
     required this.calculator,
+    required this.speedCamWarner,
     required this.overspeedChecker,
     required this.gpsProducer,
   }) {
     _subscriptions
-        .add(calculator.cameras.listen((event) => _onCamera(event)));
+        .add(speedCamWarner.passedCameras.listen((event) => _onCamera(event)));
     _subscriptions.add(
       calculator.constructions.listen((rect) {
         if (rect != null) {
@@ -141,6 +142,7 @@ class DriveHistoryRecorder {
   }
 
   final RectangleCalculatorThread calculator;
+  final SpeedCamWarner speedCamWarner;
   final OverspeedChecker overspeedChecker;
   final GpsProducer gpsProducer;
 
@@ -220,7 +222,8 @@ class DriveHistoryRecorder {
       latitude: latitude,
       longitude: longitude,
       title: 'Road work detected',
-      subtitle: 'Zone ${(rect.maxLat - rect.minLat).abs().toStringAsFixed(3)}° × '
+      subtitle:
+          'Zone ${(rect.maxLat - rect.minLat).abs().toStringAsFixed(3)}° × '
           '${(rect.maxLon - rect.minLon).abs().toStringAsFixed(3)}°',
       details: <String, dynamic>{
         'bounds': rect,
@@ -308,8 +311,7 @@ class DriveHistoryRecorder {
         _activeOverspeed!.copyWith(endTimestamp: now, isOngoing: false);
     _activeOverspeed = completed;
     _replaceEvent(completed);
-    final Duration duration =
-        completed.duration ?? _activeOverspeedDuration;
+    final Duration duration = completed.duration ?? _activeOverspeedDuration;
     _completedOverspeedDuration += duration;
     _activeOverspeedDuration = Duration.zero;
     summary.value = summary.value.copyWith(
@@ -338,8 +340,8 @@ class DriveHistoryRecorder {
   int _nextId() => ++_eventId;
 
   void _startTicker() {
-    _overspeedTicker ??=
-        Timer.periodic(const Duration(seconds: 1), (_) => _refreshActiveOverspeed());
+    _overspeedTicker ??= Timer.periodic(
+        const Duration(seconds: 1), (_) => _refreshActiveOverspeed());
   }
 
   void _cancelTicker() {
