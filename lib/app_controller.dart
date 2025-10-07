@@ -85,11 +85,11 @@ class AppController {
     unawaited(camWarner.run());
 
     driveHistoryRecorder = DriveHistoryRecorder(
-      calculator: calculator,
-      speedCamWarner: camWarner,
-      overspeedChecker: overspeedChecker,
-      gpsProducer: gpsProducer,
-    );
+        calculator: calculator,
+        speedCamWarner: camWarner,
+        overspeedChecker: overspeedChecker,
+        gpsProducer: gpsProducer,
+        gpsThread: gps);
 
     final dialogflow = () async {
       try {

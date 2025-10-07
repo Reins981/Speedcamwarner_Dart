@@ -40,8 +40,7 @@ class _DriveInsightsPageState extends State<DriveInsightsPage> {
     if (!_scrollController.hasClients) return;
     final ScrollPosition position = _scrollController.position;
     final bool canScrollUp = position.pixels > 72;
-    final bool canScrollDown =
-        position.maxScrollExtent - position.pixels > 72;
+    final bool canScrollDown = position.maxScrollExtent - position.pixels > 72;
     if (canScrollUp != _canScrollUp || canScrollDown != _canScrollDown) {
       setState(() {
         _canScrollUp = canScrollUp;
@@ -137,11 +136,14 @@ class _DriveInsightsPageState extends State<DriveInsightsPage> {
                                 )
                               : SliverList.separated(
                                   itemCount: events.length,
-                                  separatorBuilder: (_, __) => const SizedBox(height: 14),
-                                  itemBuilder: (BuildContext context, int index) {
+                                  separatorBuilder: (_, __) =>
+                                      const SizedBox(height: 14),
+                                  itemBuilder:
+                                      (BuildContext context, int index) {
                                     final DriveEvent event =
                                         events[events.length - 1 - index];
-                                    return _TimelineTile(event: event, theme: theme);
+                                    return _TimelineTile(
+                                        event: event, theme: theme);
                                   },
                                 ),
                         ),
@@ -301,9 +303,7 @@ class _SummaryGrid extends StatelessWidget {
           runSpacing: 16,
           children: cards
               .map((card) => SizedBox(
-                    width: isWide
-                        ? (maxWidth - 16) / 2
-                        : maxWidth,
+                    width: isWide ? (maxWidth - 16) / 2 : maxWidth,
                     child: _MetricCard(data: card),
                   ))
               .toList(),
@@ -481,7 +481,8 @@ class _EmptyState extends StatelessWidget {
       child: Column(
         mainAxisSize: MainAxisSize.min,
         children: <Widget>[
-          Icon(Icons.auto_awesome, color: Colors.white.withOpacity(0.6), size: 42),
+          Icon(Icons.auto_awesome,
+              color: Colors.white.withOpacity(0.6), size: 42),
           const SizedBox(height: 18),
           Text(
             'No events yet',
@@ -564,6 +565,12 @@ class _TimelineTile extends StatelessWidget {
     if (event.kind == DriveEventKind.overspeed && event.maxOverspeed != null) {
       chips.add(_EventChip(
         label: '+${event.maxOverspeed} km/h',
+        color: accent,
+      ));
+    }
+    if (event.kind == DriveEventKind.topSpeed && event.topSpeed != null) {
+      chips.add(_EventChip(
+        label: '+${event.topSpeed} km/h',
         color: accent,
       ));
     }
@@ -704,6 +711,8 @@ Color _accentColorForEvent(DriveEventKind kind) {
       return const Color(0xFFFFA726);
     case DriveEventKind.overspeed:
       return const Color(0xFFEF5350);
+    case DriveEventKind.topSpeed:
+      return const Color(0xFFAB47BC);
   }
 }
 
@@ -715,6 +724,8 @@ IconData _iconForEvent(DriveEventKind kind) {
       return Icons.engineering;
     case DriveEventKind.overspeed:
       return Icons.warning_amber_rounded;
+    case DriveEventKind.topSpeed:
+      return Icons.speed_rounded;
   }
 }
 

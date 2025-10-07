@@ -45,6 +45,7 @@ class GpsThread extends Logger {
   final double gpsTreshold;
   bool recording;
   final List<Wpt> _routeData = [];
+  int topSpeed = 0;
 
   final OverspeedChecker? overspeedChecker;
 
@@ -56,6 +57,11 @@ class GpsThread extends Logger {
   // Stream distributing bearing sets for the deviation checker.
   final StreamController<dynamic> _bearingSetController =
       StreamController<dynamic>.broadcast();
+
+  final StreamController<int> _topSpeedController =
+      StreamController<int>.broadcast();
+
+  Stream<int> get topSpeedStream => _topSpeedController.stream;
 
   StreamSubscription<VectorData>? _sourceSub;
   bool _running = false;
@@ -171,6 +177,10 @@ class GpsThread extends Logger {
         accuracy: vector.accuracy,
       );
 
+      if (enriched.speed.toInt() > topSpeed) {
+        topSpeed = enriched.speed.toInt();
+        _topSpeedController.add(topSpeed);
+      }
       _controller.add(enriched);
       _speedCamEventController?.add(
         Timestamped<Map<String, dynamic>>({

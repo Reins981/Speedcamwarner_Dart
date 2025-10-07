@@ -2,13 +2,14 @@ import 'dart:async';
 import 'dart:math' as math;
 
 import 'package:flutter/foundation.dart';
+import 'package:workspace/gps_thread.dart';
 import 'package:workspace/speed_cam_warner.dart';
 import 'gps_producer.dart';
 import 'overspeed_checker.dart';
 import 'rectangle_calculator.dart';
 
 /// Types of events captured during a driving session.
-enum DriveEventKind { speedCamera, construction, overspeed }
+enum DriveEventKind { speedCamera, construction, overspeed, topSpeed }
 
 /// Immutable record describing a notable driving event such as passing a speed
 /// camera, encountering roadworks or driving above the speed limit.
@@ -25,6 +26,7 @@ class DriveEvent {
     this.endTimestamp,
     this.isOngoing = false,
     this.maxOverspeed,
+    this.topSpeed,
   });
 
   final int id;
@@ -38,6 +40,7 @@ class DriveEvent {
   final DateTime? endTimestamp;
   final bool isOngoing;
   final int? maxOverspeed;
+  final int? topSpeed;
 
   /// Returns the duration between [timestamp] and [endTimestamp] (or now if the
   /// event is still ongoing).
@@ -61,6 +64,7 @@ class DriveEvent {
     DateTime? endTimestamp,
     bool? isOngoing,
     int? maxOverspeed,
+    int? topSpeed,
   }) {
     return DriveEvent(
       id: id,
@@ -74,6 +78,7 @@ class DriveEvent {
       endTimestamp: endTimestamp ?? this.endTimestamp,
       isOngoing: isOngoing ?? this.isOngoing,
       maxOverspeed: maxOverspeed ?? this.maxOverspeed,
+      topSpeed: topSpeed ?? this.topSpeed,
     );
   }
 }
@@ -86,6 +91,7 @@ class DriveSessionSummary {
     required this.overspeedCount,
     required this.overspeedDuration,
     required this.maxOverspeed,
+    required this.topSpeed,
   });
 
   factory DriveSessionSummary.empty() => const DriveSessionSummary(
@@ -94,6 +100,7 @@ class DriveSessionSummary {
         overspeedCount: 0,
         overspeedDuration: Duration.zero,
         maxOverspeed: 0,
+        topSpeed: 0,
       );
 
   final int speedCameraCount;
@@ -101,6 +108,7 @@ class DriveSessionSummary {
   final int overspeedCount;
   final Duration overspeedDuration;
   final int maxOverspeed;
+  final int topSpeed;
 
   DriveSessionSummary copyWith({
     int? speedCameraCount,
@@ -108,6 +116,7 @@ class DriveSessionSummary {
     int? overspeedCount,
     Duration? overspeedDuration,
     int? maxOverspeed,
+    int? topSpeed,
   }) {
     return DriveSessionSummary(
       speedCameraCount: speedCameraCount ?? this.speedCameraCount,
@@ -115,6 +124,7 @@ class DriveSessionSummary {
       overspeedCount: overspeedCount ?? this.overspeedCount,
       overspeedDuration: overspeedDuration ?? this.overspeedDuration,
       maxOverspeed: maxOverspeed ?? this.maxOverspeed,
+      topSpeed: topSpeed ?? this.topSpeed,
     );
   }
 }
@@ -128,6 +138,7 @@ class DriveHistoryRecorder {
     required this.speedCamWarner,
     required this.overspeedChecker,
     required this.gpsProducer,
+    required this.gpsThread,
   }) {
     _subscriptions
         .add(speedCamWarner.passedCameras.listen((event) => _onCamera(event)));
@@ -138,6 +149,8 @@ class DriveHistoryRecorder {
         }
       }),
     );
+    _subscriptions
+        .add(gpsThread.topSpeedStream.listen((event) => _onTopSpeed(event)));
     overspeedChecker.difference.addListener(_onOverspeed);
   }
 
@@ -145,6 +158,7 @@ class DriveHistoryRecorder {
   final SpeedCamWarner speedCamWarner;
   final OverspeedChecker overspeedChecker;
   final GpsProducer gpsProducer;
+  final GpsThread gpsThread;
 
   final ValueNotifier<List<DriveEvent>> events =
       ValueNotifier<List<DriveEvent>>(const <DriveEvent>[]);
@@ -209,6 +223,24 @@ class DriveHistoryRecorder {
     final DriveSessionSummary current = summary.value;
     summary.value = current.copyWith(
       speedCameraCount: current.speedCameraCount + 1,
+    );
+  }
+
+  void _onTopSpeed(int event) {
+    final DriveEvent driveEvent = DriveEvent(
+      id: _nextId(),
+      kind: DriveEventKind.topSpeed,
+      timestamp: DateTime.now(),
+      latitude: 0.0,
+      longitude: 0.0,
+      title: "TopSpeed",
+      subtitle: "",
+      topSpeed: event,
+    );
+    _addEvent(driveEvent);
+    final DriveSessionSummary current = summary.value;
+    summary.value = current.copyWith(
+      topSpeed: math.max(current.topSpeed, event),
     );
   }
 
