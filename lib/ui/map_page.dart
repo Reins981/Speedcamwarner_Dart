@@ -232,19 +232,24 @@ class _MapPageState extends State<MapPage> {
 
     if (name != null && name.isNotEmpty) {
       labels.add(
-        Container(
-          margin: const EdgeInsets.only(top: 2),
-          padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-          decoration: BoxDecoration(
-            color: const Color(0xAA000000),
-            borderRadius: BorderRadius.circular(4),
-          ),
-          constraints: const BoxConstraints(maxWidth: 140),
-          child: Text(
-            name,
-            style: const TextStyle(fontSize: 11, color: Color(0xFFFFFFFF)),
-            overflow: TextOverflow.ellipsis,
-            maxLines: 1,
+        Tooltip(
+          message: name, // full zone name
+          triggerMode: TooltipTriggerMode.tap, // show on tap (not long-press)
+          preferBelow: false, // show above the label
+          child: Container(
+            margin: const EdgeInsets.only(top: 2),
+            padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+            decoration: BoxDecoration(
+              color: const Color(0xAA000000),
+              borderRadius: BorderRadius.circular(4),
+            ),
+            constraints: const BoxConstraints(maxWidth: 140),
+            child: Text(
+              name,
+              style: const TextStyle(fontSize: 11, color: Color(0xFFFFFFFF)),
+              overflow: TextOverflow.ellipsis,
+              maxLines: 1,
+            ),
           ),
         ),
       );
