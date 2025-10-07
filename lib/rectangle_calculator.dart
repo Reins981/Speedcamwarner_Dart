@@ -111,7 +111,7 @@ class GeoRect {
 
   @override
   String toString() {
-    return 'GeoRect(minLat: $minLat, minLon: $minLon, maxLat: $maxLat, maxLon: $maxLon)';
+    return 'GeoRect(id: $id,minLat: $minLat, minLon: $minLon, maxLat: $maxLat, maxLon: $maxLon)';
   }
 
   /// Check if a geographic point lies inside [rect].

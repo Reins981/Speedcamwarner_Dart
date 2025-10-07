@@ -399,7 +399,9 @@ class AppController {
       latMax = t;
     }
 
+    final String id = generateRectId(latMin, lonMin, latMax, lonMax, "POI");
     final area = GeoRect(
+      id: id,
       minLat: latMin,
       minLon: lonMin,
       maxLat: latMax,
