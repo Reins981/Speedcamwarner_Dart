@@ -279,7 +279,7 @@ class DriveHistoryRecorder {
     );
   }
 
-  void _onConstruction(GeoRect rect) async {
+  void _onConstruction(GeoRect rect) {
     final double latitude = rect.minLat;
     final double longitude = rect.minLon;
     final DriveEvent driveEvent = DriveEvent(
@@ -289,8 +289,7 @@ class DriveHistoryRecorder {
       latitude: latitude,
       longitude: longitude,
       title: 'Road work detected',
-      subtitle:
-          'Zone ${await RectangleCalculatorThread.getRoadNameViaNominatim(latitude, longitude) ?? "Unknown"}',
+      subtitle: 'Zone ${rect.zone}',
       details: <String, dynamic>{
         'bounds': rect,
       },

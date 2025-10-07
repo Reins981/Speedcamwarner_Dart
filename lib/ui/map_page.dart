@@ -226,6 +226,68 @@ class _MapPageState extends State<MapPage> {
     return width;
   }
 
+  Widget _buildConstructionMarker(GeoRect area) {
+    final name = area.zone;
+    final labels = <Widget>[];
+
+    if (name != null && name.isNotEmpty) {
+      labels.add(
+        Container(
+          margin: const EdgeInsets.only(top: 2),
+          padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+          decoration: BoxDecoration(
+            color: const Color(0xAA000000),
+            borderRadius: BorderRadius.circular(4),
+          ),
+          constraints: const BoxConstraints(maxWidth: 140),
+          child: Text(
+            name,
+            style: const TextStyle(fontSize: 11, color: Color(0xFFFFFFFF)),
+            overflow: TextOverflow.ellipsis,
+            maxLines: 1,
+          ),
+        ),
+      );
+    }
+
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Container(
+          padding: const EdgeInsets.all(4),
+          decoration: BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.circular(8),
+            boxShadow: const [
+              BoxShadow(
+                color: Colors.black26,
+                blurRadius: 4,
+                offset: Offset(0, 2),
+              ),
+            ],
+          ),
+          child: Image.asset('images/construction_marker.png',
+              width: 32, height: 32),
+        ),
+        ...labels,
+      ],
+    );
+  }
+
+  double _markerHeightForConstruction(GeoRect area) {
+    var height = 40.0;
+    if (area.zone != null && area.zone!.isNotEmpty) height += 28;
+    return height;
+  }
+
+  double _markerWidthForConstruction(GeoRect area) {
+    var width = 40.0;
+    if (area.zone != null && area.zone!.isNotEmpty) {
+      width = 160.0;
+    }
+    return width;
+  }
+
   Widget _buildInfoRow(String label, String value) {
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 2),
@@ -429,9 +491,9 @@ class _MapPageState extends State<MapPage> {
           (area.minLat + area.maxLat) / 2,
           (area.minLon + area.maxLon) / 2,
         ),
-        width: 40,
-        height: 40,
-        child: Image.asset('images/construction_marker.png'),
+        width: _markerWidthForConstruction(area),
+        height: _markerHeightForConstruction(area),
+        child: _buildConstructionMarker(area),
       );
 
       final points = [

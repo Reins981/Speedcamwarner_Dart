@@ -586,6 +586,19 @@ class _TimelineTile extends StatelessWidget {
         color: accent,
       ));
     }
+    if (event.kind == DriveEventKind.topSpeed && event.topSpeed != null) {
+      chips.add(_EventChip(
+        label: '+${event.topSpeed} km/h',
+        color: accent,
+      ));
+    }
+    if (event.kind == DriveEventKind.maxAcceleration &&
+        event.maxAcceleration != null) {
+      chips.add(_EventChip(
+        label: '+${event.maxAcceleration} m/s²',
+        color: accent,
+      ));
+    }
     final Duration? duration = event.duration;
     if (duration != null && duration.inSeconds > 0) {
       chips.add(_EventChip(

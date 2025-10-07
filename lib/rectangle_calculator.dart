@@ -77,12 +77,14 @@ class GeoRect {
   final double minLon;
   final double maxLat;
   final double maxLon;
+  final String? zone;
 
   const GeoRect({
     required this.minLat,
     required this.minLon,
     required this.maxLat,
     required this.maxLon,
+    this.zone,
   });
 
   /// Maximum distance (in degrees) used by [pointsCloseToBorderLatLon] when
@@ -2154,7 +2156,7 @@ class RectangleCalculatorThread {
     final processedNodeIds = <int>{};
 
     // Helper to add a node if coordinates are known.
-    void addNode(double? lat, double? lon, int nodeId) {
+    Future<void> addNode(double? lat, double? lon, int nodeId) async {
       if (lat == null || lon == null) {
         logger.printLogLine(
           'Failed to resolve node id $nodeId',
@@ -2163,8 +2165,11 @@ class RectangleCalculatorThread {
         return;
       }
       if (!processedNodeIds.add(nodeId)) return;
-      final rect = GeoRect(minLat: lat, minLon: lon, maxLat: lat, maxLon: lon);
-      logger.printLogLine('Adding construction area at ($lat, $lon)');
+      final String zone = await getRoadNameViaNominatim(lat, lon) ?? "Unknown";
+      final rect = GeoRect(
+          minLat: lat, minLon: lon, maxLat: lat, maxLon: lon, zone: zone);
+      logger.printLogLine(
+          'Adding construction area at ($lat, $lon) -> ${rect.zone}');
       newAreas.add(rect);
     }
 
@@ -2184,7 +2189,7 @@ class RectangleCalculatorThread {
             logger.printLogLine('Found node $n in lookup results');
             lat = (resultNode['lat'] as num?)?.toDouble();
             lon = (resultNode['lon'] as num?)?.toDouble();
-            addNode(lat, lon, n);
+            await addNode(lat, lon, n);
           } else {
             logger.printLogLine('Node $n not found in lookup results');
             final result = await triggerOsmLookup(
@@ -2200,7 +2205,7 @@ class RectangleCalculatorThread {
               final firstEl = result.elements!.first;
               final lat = (firstEl['lat'] as num?)?.toDouble();
               final lon = (firstEl['lon'] as num?)?.toDouble();
-              addNode(lat, lon, n);
+              await addNode(lat, lon, n);
             }
           }
 
