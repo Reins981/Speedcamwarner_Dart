@@ -5,6 +5,7 @@ class GpsProducer {
   String? _direction;
   double? _longitude;
   double? _latitude;
+  double? _bearing;
 
   final StreamController<double> _maxAccelController =
       StreamController<double>.broadcast();
@@ -15,6 +16,7 @@ class GpsProducer {
     _direction = vector.direction;
     _longitude = vector.longitude;
     _latitude = vector.latitude;
+    _bearing = vector.bearing.toDouble();
   }
 
   void setMaxAccelerationStream(Stream<double> stream) {
@@ -24,6 +26,8 @@ class GpsProducer {
   }
 
   String? get_direction() => _direction;
+
+  double? get_bearing() => _bearing?.toDouble();
 
   List<double> get_lon_lat() => [_longitude ?? 0.0, _latitude ?? 0.0];
 }

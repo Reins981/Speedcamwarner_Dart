@@ -282,23 +282,39 @@ class DriveHistoryRecorder {
   void _onConstruction(GeoRect rect) {
     final double latitude = rect.minLat;
     final double longitude = rect.minLon;
-    final DriveEvent driveEvent = DriveEvent(
-      id: _nextId(),
-      kind: DriveEventKind.construction,
-      timestamp: DateTime.now(),
-      latitude: latitude,
-      longitude: longitude,
-      title: 'Road work detected',
-      subtitle: 'Zone ${rect.zone}',
-      details: <String, dynamic>{
-        'bounds': rect,
-      },
+    List<double> ccpLngLat = gpsProducer.get_lon_lat();
+    final double ccpLon = ccpLngLat[0];
+    final double ccpLat = ccpLngLat[1];
+    final double headingDeg = gpsProducer.get_bearing() ?? 0.0;
+
+    final isAhead = rect.isConstructionAhead(
+      cppLat: ccpLat,
+      cppLon: ccpLon,
+      headingDeg: headingDeg,
+      maxDistanceMeters: 5000, // tune
+      maxLateralOffsetMeters: 120, // tune (lane + shoulder)
+      fovDeg: 120, // tune (wider/narrower)
     );
-    _addEvent(driveEvent);
-    final DriveSessionSummary current = summary.value;
-    summary.value = current.copyWith(
-      constructionCount: current.constructionCount + 1,
-    );
+
+    if (isAhead) {
+      final DriveEvent driveEvent = DriveEvent(
+        id: _nextId(),
+        kind: DriveEventKind.construction,
+        timestamp: DateTime.now(),
+        latitude: latitude,
+        longitude: longitude,
+        title: 'Road work ahead detected',
+        subtitle: 'Zone ${rect.zone}',
+        details: <String, dynamic>{
+          'bounds': rect,
+        },
+      );
+      _addEvent(driveEvent);
+      final DriveSessionSummary current = summary.value;
+      summary.value = current.copyWith(
+        constructionCount: current.constructionCount + 1,
+      );
+    }
   }
 
   void _onOverspeed() {

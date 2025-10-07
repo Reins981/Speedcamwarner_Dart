@@ -144,6 +144,70 @@ class GeoRect {
 
     return false;
   }
+
+  double _deg2rad(double d) => d * math.pi / 180.0;
+
+  // meters per degree at latitude (approx)
+  double _metersPerDegLat(double latDeg) => 111_132.0; // ~constant
+  double _metersPerDegLon(double latDeg) =>
+      111_320.0 * math.cos(_deg2rad(latDeg));
+
+  double _wrapAngle180(double d) {
+    var x = (d + 180.0) % 360.0;
+    if (x < 0) x += 360.0;
+    return x - 180.0;
+  }
+
+  /// Returns (isAhead, distanceMeters, lateralOffsetMeters, angleDiffDeg)
+  bool isConstructionAhead({
+    required double cppLat,
+    required double cppLon,
+    required double headingDeg, // 0 = North, 90 = East
+    double maxDistanceMeters = 2000.0, // ignore very far rectangles
+    double maxLateralOffsetMeters = 120.0, // e.g. ~ road + buffer
+    double fovDeg = 120.0, // ±60° in front
+  }) {
+    // 1) Closest point on rectangle to current position
+    final clampedLat = cppLat.clamp(minLat, maxLat) as double;
+    final clampedLon = cppLon.clamp(minLon, maxLon) as double;
+
+    // 2) Convert CPP->closest to meters in local ENU frame
+    final latMid = (cppLat + clampedLat) * 0.5;
+    final mPerLat = _metersPerDegLat(latMid);
+    final mPerLon = _metersPerDegLon(latMid);
+
+    final dLat = clampedLat - cppLat;
+    final dLon = clampedLon - cppLon;
+    final dy = dLat * mPerLat; // north
+    final dx = dLon * mPerLon; // east
+
+    // Straight-line distance
+    final dist = math.sqrt(dx * dx + dy * dy);
+    if (dist > maxDistanceMeters) return false;
+
+    // 3) Heading unit vector (0°=north, 90°=east)
+    final h = _deg2rad(headingDeg);
+    final hx = math.sin(h); // east component
+    final hy = math.cos(h); // north component
+
+    // Forward/lateral decomposition
+    final forward = dx * hx + dy * hy; // projection along heading
+    final lateral = dx * hy - dy * hx; // +left / -right (perp)
+
+    // 4) Angle between heading and target vector (for FOV check)
+    final bearingRad = math.atan2(dx, dy); // atan2(east, north)
+    final bearingDeg = bearingRad * 180.0 / math.pi;
+    final angleDiff = (bearingDeg - headingDeg);
+    final angleDiffAbs = _wrapAngle180(angleDiff).abs();
+
+    // Criteria:
+    final inFront = forward > 0.0; // ahead (not behind)
+    final withinFov = angleDiffAbs <= (fovDeg * 0.5);
+    final lateralOk = lateral.abs() <= maxLateralOffsetMeters;
+
+    final isAhead = inFront && withinFov && lateralOk;
+    return isAhead;
+  }
 }
 
 class LatLon {
