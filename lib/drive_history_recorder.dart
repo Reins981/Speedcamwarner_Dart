@@ -7,6 +7,7 @@ import 'package:workspace/speed_cam_warner.dart';
 import 'gps_producer.dart';
 import 'overspeed_checker.dart';
 import 'rectangle_calculator.dart';
+import 'logger.dart';
 
 /// Types of events captured during a driving session.
 enum DriveEventKind {
@@ -168,9 +169,12 @@ class DriveHistoryRecorder {
         .add(gpsThread.topSpeedStream.listen((event) => _onTopSpeed(event)));
     _subscriptions.add(gpsProducer.maxAccelStream
         .listen((event) => _onMaxAcceleration(event)));
+    _subscriptions.add(
+        gpsProducer.currentCCPStream.listen((event) => _onCCPUpdate(event)));
     overspeedChecker.difference.addListener(_onOverspeed);
   }
 
+  final Logger logger = Logger('DriveHistoryRecorder');
   final RectangleCalculatorThread calculator;
   final SpeedCamWarner speedCamWarner;
   final OverspeedChecker overspeedChecker;
@@ -189,6 +193,8 @@ class DriveHistoryRecorder {
   Duration _completedOverspeedDuration = Duration.zero;
   Duration _activeOverspeedDuration = Duration.zero;
   int _eventId = 0;
+  final GeoRectCache cache =
+      GeoRectCache(maxSize: 1000, ttl: Duration(minutes: 30));
 
   /// Reset the recorder, clearing all events and metrics.
   void reset() {
@@ -208,6 +214,47 @@ class DriveHistoryRecorder {
   /// Finalises ongoing events (if any) at the end of a session.
   void endSession() {
     _finaliseActiveOverspeed();
+  }
+
+  void _onCCPUpdate(List<double> event) {
+    double ccpLon = event[0];
+    double ccpLat = event[1];
+    final double headingDeg = gpsProducer.get_bearing() ?? 0.0;
+
+    for (GeoRect rect in cache.all) {
+      final double latitude = rect.minLat;
+      final double longitude = rect.minLon;
+      final isAhead = rect.isConstructionAhead(
+        cppLat: ccpLat,
+        cppLon: ccpLon,
+        headingDeg: headingDeg,
+        maxDistanceMeters: 5000, // tune
+        maxLateralOffsetMeters: 120, // tune (lane + shoulder)
+        fovDeg: 120, // tune (wider/narrower)
+      );
+
+      if (isAhead) {
+        logger.printLogLine(
+            "Add construction event ${rect.zone}, (${latitude}, $longitude)");
+        final DriveEvent driveEvent = DriveEvent(
+          id: _nextId(),
+          kind: DriveEventKind.construction,
+          timestamp: DateTime.now(),
+          latitude: latitude,
+          longitude: longitude,
+          title: 'Road work ahead detected',
+          subtitle: 'Zone ${rect.zone}',
+          details: <String, dynamic>{
+            'bounds': rect,
+          },
+        );
+        _addEvent(driveEvent);
+        final DriveSessionSummary current = summary.value;
+        summary.value = current.copyWith(
+          constructionCount: current.constructionCount + 1,
+        );
+      }
+    }
   }
 
   void _onCamera(SpeedCameraEvent event) {
@@ -297,6 +344,8 @@ class DriveHistoryRecorder {
     );
 
     if (isAhead) {
+      logger.printLogLine(
+          "Add construction event ${rect.zone}, (${latitude}, $longitude)");
       final DriveEvent driveEvent = DriveEvent(
         id: _nextId(),
         kind: DriveEventKind.construction,
@@ -315,6 +364,7 @@ class DriveHistoryRecorder {
         constructionCount: current.constructionCount + 1,
       );
     }
+    cache.add(rect);
   }
 
   void _onOverspeed() {

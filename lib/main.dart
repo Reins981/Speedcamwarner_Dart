@@ -14,7 +14,7 @@ import 'ui/home.dart';
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
   final androidConfig = FlutterBackgroundAndroidConfig(
-    notificationTitle: 'SpeedCamWarner',
+    notificationTitle: 'MasterWarner',
     notificationText: 'Background service running',
     notificationImportance: AndroidNotificationImportance.high,
     enableWifiLock: true,

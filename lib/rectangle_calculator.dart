@@ -42,6 +42,15 @@ import 'service_account.dart';
 import 'config.dart';
 import 'speed_cam_predictor.dart';
 import 'package:flutter/widgets.dart';
+import 'dart:collection';
+import 'package:crypto/crypto.dart';
+
+String generateRectId(
+    double minLat, double minLon, double maxLat, double maxLon, String? zone) {
+  final key = '$minLat,$minLon,$maxLat,$maxLon,${zone ?? ""}';
+  final bytes = utf8.encode(key);
+  return sha1.convert(bytes).toString(); // 40-char unique hash
+}
 
 /// Data class representing a single GPS/vector sample.  It contains the
 /// current longitude/latitude, current speed (in km/h), a bearing angle
@@ -73,19 +82,22 @@ class VectorData {
 /// southern/northern boundaries and ``minLon``/``maxLon`` refer to the
 /// western/eastern boundaries.
 class GeoRect {
+  final String id;
   final double minLat;
   final double minLon;
   final double maxLat;
   final double maxLon;
   final String? zone;
+  final DateTime createdAt;
 
-  const GeoRect({
+  GeoRect({
+    required this.id,
     required this.minLat,
     required this.minLon,
     required this.maxLat,
     required this.maxLon,
     this.zone,
-  });
+  }) : createdAt = DateTime.now();
 
   /// Maximum distance (in degrees) used by [pointsCloseToBorderLatLon] when
   /// checking if a lat/lon pair lies close to the rectangle boundary.
@@ -214,6 +226,41 @@ class LatLon {
   final double lat;
   final double lon;
   LatLon({required this.lat, required this.lon});
+}
+
+class GeoRectCache {
+  final int maxSize;
+  final Duration ttl;
+  final Queue<GeoRect> _queue = Queue<GeoRect>();
+  final Map<String, DateTime> _lastSeen = {};
+
+  GeoRectCache({this.maxSize = 1000, this.ttl = const Duration(minutes: 10)});
+
+  void add(GeoRect rect) {
+    final now = DateTime.now();
+
+    // Skip if recently added (avoid duplicates)
+    if (_lastSeen.containsKey(rect.id) &&
+        now.difference(_lastSeen[rect.id]!) < ttl) {
+      return;
+    }
+
+    _lastSeen[rect.id] = now;
+    _queue.add(rect);
+
+    _evictExpired(now);
+  }
+
+  void _evictExpired(DateTime now) {
+    while (_queue.isNotEmpty &&
+        (_queue.length > maxSize ||
+            now.difference(_lastSeen[_queue.first.id] ?? now) > ttl)) {
+      final old = _queue.removeFirst();
+      _lastSeen.remove(old.id);
+    }
+  }
+
+  List<GeoRect> get all => _queue.toList();
 }
 
 /// Data class representing a speed camera event.  The fields describe the
@@ -1184,12 +1231,14 @@ class RectangleCalculatorThread {
     GeoRect geoRect;
     Rect rect;
     GeoRect? finalRect;
+    final id = generateRectId(minLat, minLon, maxLat, maxLon, "Default");
     if (rectType == 'camera') {
       rect = Rect(
         pt1: Point(minTile.x, minTile.y),
         pt2: Point(maxTile.x, maxTile.y),
       );
       geoRect = GeoRect(
+        id: id,
         minLat: minLat,
         minLon: minLon,
         maxLat: maxLat,
@@ -1204,6 +1253,7 @@ class RectangleCalculatorThread {
         pt2: Point(maxTile.x, maxTile.y),
       );
       geoRect = GeoRect(
+        id: id,
         minLat: minLat,
         minLon: minLon,
         maxLat: maxLat,
@@ -1247,6 +1297,7 @@ class RectangleCalculatorThread {
     double maxLat = poly[0].y;
     double minLon = poly[0].x;
     double maxLon = poly[0].x;
+    final id = generateRectId(minLat, minLon, maxLat, maxLon, "Default");
     for (final p in poly) {
       if (p.y < minLat) minLat = p.y;
       if (p.y > maxLat) maxLat = p.y;
@@ -1254,6 +1305,7 @@ class RectangleCalculatorThread {
       if (p.x > maxLon) maxLon = p.x;
     }
     final geoRect = GeoRect(
+      id: id,
       minLat: minLat,
       minLon: minLon,
       maxLat: maxLat,
@@ -2230,8 +2282,15 @@ class RectangleCalculatorThread {
       }
       if (!processedNodeIds.add(nodeId)) return;
       final String zone = await getRoadNameViaNominatim(lat, lon) ?? "Unknown";
+      final id = generateRectId(lat, lon, lat, lon, zone);
       final rect = GeoRect(
-          minLat: lat, minLon: lon, maxLat: lat, maxLon: lon, zone: zone);
+        id: id,
+        minLat: lat,
+        minLon: lon,
+        maxLat: lat,
+        maxLon: lon,
+        zone: zone,
+      );
       logger.printLogLine(
           'Adding construction area at ($lat, $lon) -> ${rect.zone}');
       newAreas.add(rect);
