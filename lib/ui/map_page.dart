@@ -644,12 +644,23 @@ class _MapPageState extends State<MapPage> {
                 ),
               ),
             ),
-            PopupMarkerLayer(
-              options: PopupMarkerLayerOptions(
-                popupController: _popupController,
+            MarkerClusterLayerWidget(
+              options: MarkerClusterLayerOptions(
                 markers: _constructionMarkers,
-                popupDisplayOptions: PopupDisplayOptions(
-                  builder: (context, marker) => _buildMarkerPopup(marker),
+                maxClusterRadius: 45,
+                disableClusteringAtZoom: 16,
+                size: const Size(40, 40),
+                alignment: Alignment.center,
+                builder: (context, markers) => CircleAvatar(
+                  backgroundColor: Colors.orange,
+                  child: Text(
+                    markers.length.toString(),
+                    style: const TextStyle(color: Colors.white),
+                  ),
+                ),
+                popupOptions: PopupOptions(
+                  popupController: _popupController,
+                  popupBuilder: (context, marker) => _buildMarkerPopup(marker),
                 ),
               ),
             ),
