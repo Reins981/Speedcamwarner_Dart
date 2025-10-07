@@ -11,6 +11,7 @@ import '../rectangle_calculator.dart';
 import '../config.dart';
 import 'overspeed_indicator.dart';
 import '../overspeed_checker.dart';
+import '../gps_producer.dart';
 
 /// A simple dashboard showing current speed, road name and speed camera
 /// information.
@@ -24,13 +25,16 @@ class DashboardPage extends StatefulWidget {
   final OverspeedChecker checker;
   final ValueNotifier<String>? direction;
   final ValueNotifier<String>? averageBearing;
-  DashboardPage(
-      {super.key,
-      this.controller,
-      this.calculator,
-      this.direction,
-      this.averageBearing,
-      required this.checker});
+  final GpsProducer gpsProducer;
+  DashboardPage({
+    super.key,
+    this.controller,
+    this.calculator,
+    this.direction,
+    this.averageBearing,
+    required this.checker,
+    required this.gpsProducer,
+  });
 
   @override
   State<DashboardPage> createState() => _DashboardPageState();
@@ -56,12 +60,17 @@ class _DashboardPageState extends State<DashboardPage> {
   StreamSubscription<SpeedCameraEvent>? _cameraSub;
   RectangleCalculatorThread? _calculator;
   late OverspeedChecker _checker;
+  GpsProducer? _gpsProducer;
   AppController? _controller;
   double _acceleration = 0.0;
   String _direction = '-';
   String _averageBearing = '---.-°';
   ValueNotifier<String>? _directionNotifier;
   ValueNotifier<String>? _averageBearingNotifier;
+  final StreamController<double> _maxAccelerationController =
+      StreamController<double>.broadcast();
+
+  Stream<double> get maxAccelerationStream => _maxAccelerationController.stream;
 
   static const double _accelerationDisplayClamp = 5.0;
   static const double _accelerationHighlightThreshold = 2.5;
@@ -108,6 +117,7 @@ class _DashboardPageState extends State<DashboardPage> {
     _calculator = widget.calculator;
     _controller = widget.controller;
     _checker = widget.checker;
+    _gpsProducer = widget.gpsProducer;
     if (_calculator != null) {
       _speed = _calculator!.currentSpeedNotifier.value;
       _previousSpeed = _speed;
@@ -202,6 +212,11 @@ class _DashboardPageState extends State<DashboardPage> {
           ui.lerpDouble(_acceleration, destination, responseStrength)!;
       const double maxOvershoot = _accelerationDisplayClamp * 1.1;
       _acceleration = nextAcceleration.clamp(-maxOvershoot, maxOvershoot);
+      final clampedAcceleration = _acceleration
+          .clamp(-_accelerationDisplayClamp, _accelerationDisplayClamp)
+          .toDouble();
+      _gpsProducer!.setMaxAccelerationStream(maxAccelerationStream);
+      _maxAccelerationController.add(clampedAcceleration);
     });
   }
 

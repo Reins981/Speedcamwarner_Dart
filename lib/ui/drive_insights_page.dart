@@ -142,8 +142,14 @@ class _DriveInsightsPageState extends State<DriveInsightsPage> {
                                       (BuildContext context, int index) {
                                     final DriveEvent event =
                                         events[events.length - 1 - index];
-                                    return _TimelineTile(
-                                        event: event, theme: theme);
+                                    return (event.kind !=
+                                                DriveEventKind
+                                                    .maxAcceleration &&
+                                            event.kind !=
+                                                DriveEventKind.topSpeed)
+                                        ? _TimelineTile(
+                                            event: event, theme: theme)
+                                        : const SizedBox.shrink();
                                   },
                                 ),
                         ),
@@ -268,6 +274,24 @@ class _SummaryGrid extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final List<_MetricCardData> cards = <_MetricCardData>[
+      _MetricCardData(
+        icon: Icons.speed_sharp,
+        label: 'Top speed',
+        value: "${summary.topSpeed}km/h",
+        gradient: const [
+          Color.fromARGB(255, 215, 99, 136),
+          Color.fromARGB(255, 189, 40, 155)
+        ],
+      ),
+      _MetricCardData(
+        icon: Icons.speed_outlined,
+        label: 'Max acceleration',
+        value: "${summary.maxAcceleration.toStringAsFixed(2)}m/s²",
+        gradient: const [
+          Color.fromARGB(117, 161, 227, 39),
+          Color.fromARGB(226, 127, 201, 16)
+        ],
+      ),
       _MetricCardData(
         icon: Icons.my_location,
         label: 'Cameras passed',
@@ -568,12 +592,6 @@ class _TimelineTile extends StatelessWidget {
         color: accent,
       ));
     }
-    if (event.kind == DriveEventKind.topSpeed && event.topSpeed != null) {
-      chips.add(_EventChip(
-        label: '+${event.topSpeed} km/h',
-        color: accent,
-      ));
-    }
     final Duration? duration = event.duration;
     if (duration != null && duration.inSeconds > 0) {
       chips.add(_EventChip(
@@ -713,6 +731,8 @@ Color _accentColorForEvent(DriveEventKind kind) {
       return const Color(0xFFEF5350);
     case DriveEventKind.topSpeed:
       return const Color(0xFFAB47BC);
+    case DriveEventKind.maxAcceleration:
+      return const Color.fromARGB(255, 130, 184, 23);
   }
 }
 
@@ -726,6 +746,8 @@ IconData _iconForEvent(DriveEventKind kind) {
       return Icons.warning_amber_rounded;
     case DriveEventKind.topSpeed:
       return Icons.speed_rounded;
+    case DriveEventKind.maxAcceleration:
+      return Icons.speed_outlined;
   }
 }
 

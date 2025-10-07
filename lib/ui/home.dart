@@ -39,6 +39,7 @@ class _HomePageState extends State<HomePage> {
         direction: widget.controller.directionNotifier,
         averageBearing: widget.controller.averageBearingValue,
         checker: widget.controller.overspeedChecker,
+        gpsProducer: widget.controller.gpsProducer,
       ),
       MapPage(
         calculator: widget.controller.calculator,

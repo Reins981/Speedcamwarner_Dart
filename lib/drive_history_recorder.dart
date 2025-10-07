@@ -9,7 +9,13 @@ import 'overspeed_checker.dart';
 import 'rectangle_calculator.dart';
 
 /// Types of events captured during a driving session.
-enum DriveEventKind { speedCamera, construction, overspeed, topSpeed }
+enum DriveEventKind {
+  speedCamera,
+  construction,
+  overspeed,
+  topSpeed,
+  maxAcceleration
+}
 
 /// Immutable record describing a notable driving event such as passing a speed
 /// camera, encountering roadworks or driving above the speed limit.
@@ -27,6 +33,7 @@ class DriveEvent {
     this.isOngoing = false,
     this.maxOverspeed,
     this.topSpeed,
+    this.maxAcceleration,
   });
 
   final int id;
@@ -41,6 +48,7 @@ class DriveEvent {
   final bool isOngoing;
   final int? maxOverspeed;
   final int? topSpeed;
+  final double? maxAcceleration;
 
   /// Returns the duration between [timestamp] and [endTimestamp] (or now if the
   /// event is still ongoing).
@@ -65,6 +73,7 @@ class DriveEvent {
     bool? isOngoing,
     int? maxOverspeed,
     int? topSpeed,
+    double? maxAcceleration,
   }) {
     return DriveEvent(
       id: id,
@@ -79,6 +88,7 @@ class DriveEvent {
       isOngoing: isOngoing ?? this.isOngoing,
       maxOverspeed: maxOverspeed ?? this.maxOverspeed,
       topSpeed: topSpeed ?? this.topSpeed,
+      maxAcceleration: maxAcceleration ?? this.maxAcceleration,
     );
   }
 }
@@ -92,6 +102,7 @@ class DriveSessionSummary {
     required this.overspeedDuration,
     required this.maxOverspeed,
     required this.topSpeed,
+    required this.maxAcceleration,
   });
 
   factory DriveSessionSummary.empty() => const DriveSessionSummary(
@@ -101,6 +112,7 @@ class DriveSessionSummary {
         overspeedDuration: Duration.zero,
         maxOverspeed: 0,
         topSpeed: 0,
+        maxAcceleration: 0.0,
       );
 
   final int speedCameraCount;
@@ -109,6 +121,7 @@ class DriveSessionSummary {
   final Duration overspeedDuration;
   final int maxOverspeed;
   final int topSpeed;
+  final double maxAcceleration;
 
   DriveSessionSummary copyWith({
     int? speedCameraCount,
@@ -117,6 +130,7 @@ class DriveSessionSummary {
     Duration? overspeedDuration,
     int? maxOverspeed,
     int? topSpeed,
+    double? maxAcceleration,
   }) {
     return DriveSessionSummary(
       speedCameraCount: speedCameraCount ?? this.speedCameraCount,
@@ -125,6 +139,7 @@ class DriveSessionSummary {
       overspeedDuration: overspeedDuration ?? this.overspeedDuration,
       maxOverspeed: maxOverspeed ?? this.maxOverspeed,
       topSpeed: topSpeed ?? this.topSpeed,
+      maxAcceleration: maxAcceleration ?? this.maxAcceleration,
     );
   }
 }
@@ -151,6 +166,8 @@ class DriveHistoryRecorder {
     );
     _subscriptions
         .add(gpsThread.topSpeedStream.listen((event) => _onTopSpeed(event)));
+    _subscriptions.add(gpsProducer.maxAccelStream
+        .listen((event) => _onMaxAcceleration(event)));
     overspeedChecker.difference.addListener(_onOverspeed);
   }
 
@@ -244,9 +261,27 @@ class DriveHistoryRecorder {
     );
   }
 
-  void _onConstruction(GeoRect rect) {
-    final double latitude = (rect.minLat + rect.maxLat) / 2.0;
-    final double longitude = (rect.minLon + rect.maxLon) / 2.0;
+  void _onMaxAcceleration(double event) {
+    final DriveEvent driveEvent = DriveEvent(
+      id: _nextId(),
+      kind: DriveEventKind.maxAcceleration,
+      timestamp: DateTime.now(),
+      latitude: 0.0,
+      longitude: 0.0,
+      title: "MaxAcceleration",
+      subtitle: "",
+      maxAcceleration: event,
+    );
+    _addEvent(driveEvent);
+    final DriveSessionSummary current = summary.value;
+    summary.value = current.copyWith(
+      maxAcceleration: math.max(current.maxAcceleration, event),
+    );
+  }
+
+  void _onConstruction(GeoRect rect) async {
+    final double latitude = rect.minLat;
+    final double longitude = rect.minLon;
     final DriveEvent driveEvent = DriveEvent(
       id: _nextId(),
       kind: DriveEventKind.construction,
@@ -259,6 +294,8 @@ class DriveHistoryRecorder {
           '${(rect.maxLon - rect.minLon).abs().toStringAsFixed(3)}°',
       details: <String, dynamic>{
         'bounds': rect,
+        'area': await RectangleCalculatorThread.getRoadNearestRoadName(
+            latitude, longitude),
       },
     );
     _addEvent(driveEvent);
