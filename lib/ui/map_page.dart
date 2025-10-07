@@ -236,6 +236,7 @@ class _MapPageState extends State<MapPage> {
           message: name, // full zone name
           triggerMode: TooltipTriggerMode.tap, // show on tap (not long-press)
           preferBelow: false, // show above the label
+          showDuration: const Duration(seconds: 5),
           child: Container(
             margin: const EdgeInsets.only(top: 2),
             padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
