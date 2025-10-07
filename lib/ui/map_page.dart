@@ -237,6 +237,14 @@ class _MapPageState extends State<MapPage> {
           triggerMode: TooltipTriggerMode.tap, // show on tap (not long-press)
           preferBelow: false, // show above the label
           showDuration: const Duration(seconds: 5),
+          decoration: BoxDecoration(
+            color: Colors.black, // tooltip background color
+            borderRadius: BorderRadius.circular(6),
+          ),
+          textStyle: const TextStyle(
+            color: Colors.white, // tooltip text color
+            fontSize: 13,
+          ),
           child: Container(
             margin: const EdgeInsets.only(top: 2),
             padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
