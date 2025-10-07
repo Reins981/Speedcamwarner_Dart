@@ -71,6 +71,7 @@ class _DashboardPageState extends State<DashboardPage> {
       StreamController<double>.broadcast();
 
   Stream<double> get maxAccelerationStream => _maxAccelerationController.stream;
+  double maxAcceleration = 0.0;
 
   static const double _accelerationDisplayClamp = 5.0;
   static const double _accelerationHighlightThreshold = 2.5;
@@ -216,7 +217,10 @@ class _DashboardPageState extends State<DashboardPage> {
           .clamp(-_accelerationDisplayClamp, _accelerationDisplayClamp)
           .toDouble();
       _gpsProducer!.setMaxAccelerationStream(maxAccelerationStream);
-      _maxAccelerationController.add(clampedAcceleration);
+      if (clampedAcceleration > maxAcceleration) {
+        maxAcceleration = clampedAcceleration;
+        _maxAccelerationController.add(maxAcceleration);
+      }
     });
   }
 

@@ -141,9 +141,9 @@ class _DriveInsightsPageState extends State<DriveInsightsPage> {
                                   itemBuilder:
                                       (BuildContext context, int index) {
                                     return _TimelineTile(
-                                        event:
-                                            events[events.length - 1 - index],
-                                        theme: theme);
+                                      event: events[events.length - 1 - index],
+                                      theme: theme,
+                                    );
                                   },
                                 ),
                         ),
