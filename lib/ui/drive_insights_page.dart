@@ -91,6 +91,17 @@ class _DriveInsightsPageState extends State<DriveInsightsPage> {
               builder: (BuildContext context, List<DriveEvent> events, __) {
                 WidgetsBinding.instance
                     .addPostFrameCallback((_) => _handleScrollUpdate());
+                final List<DriveEvent> visibleElements = <DriveEvent>[];
+                if (events.isNotEmpty) {
+                  final int maxIndex = events.length - 1;
+                  for (int i = 0; i < events.length; i++) {
+                    if (events[maxIndex - i].kind !=
+                            DriveEventKind.maxAcceleration &&
+                        events[maxIndex - i].kind != DriveEventKind.topSpeed) {
+                      visibleElements.add(events[maxIndex - i]);
+                    }
+                  }
+                }
                 return Stack(
                   children: <Widget>[
                     CustomScrollView(
@@ -135,21 +146,14 @@ class _DriveInsightsPageState extends State<DriveInsightsPage> {
                                   child: _EmptyState(theme: theme),
                                 )
                               : SliverList.separated(
-                                  itemCount: events.length,
+                                  itemCount: visibleElements.length,
                                   separatorBuilder: (_, __) =>
                                       const SizedBox(height: 14),
                                   itemBuilder:
                                       (BuildContext context, int index) {
-                                    final DriveEvent event =
-                                        events[events.length - 1 - index];
-                                    return (event.kind !=
-                                                DriveEventKind
-                                                    .maxAcceleration &&
-                                            event.kind !=
-                                                DriveEventKind.topSpeed)
-                                        ? _TimelineTile(
-                                            event: event, theme: theme)
-                                        : const SizedBox.shrink();
+                                    return _TimelineTile(
+                                        event: visibleElements[index],
+                                        theme: theme);
                                   },
                                 ),
                         ),

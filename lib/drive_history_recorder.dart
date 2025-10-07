@@ -290,12 +290,9 @@ class DriveHistoryRecorder {
       longitude: longitude,
       title: 'Road work detected',
       subtitle:
-          'Zone ${(rect.maxLat - rect.minLat).abs().toStringAsFixed(3)}° × '
-          '${(rect.maxLon - rect.minLon).abs().toStringAsFixed(3)}°',
+          'Zone ${await RectangleCalculatorThread.getRoadNearestRoadName(latitude, longitude) ?? "Unknown"}',
       details: <String, dynamic>{
         'bounds': rect,
-        'area': await RectangleCalculatorThread.getRoadNearestRoadName(
-            latitude, longitude),
       },
     );
     _addEvent(driveEvent);
