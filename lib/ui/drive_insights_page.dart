@@ -294,7 +294,7 @@ class _SummaryGrid extends StatelessWidget {
       ),
       _MetricCardData(
         icon: Icons.engineering,
-        label: 'Work zones 5000m max ahead',
+        label: 'Work zones 100km max ahead',
         value: summary.constructionCount.toString(),
         gradient: const [Color(0xFFF7971E), Color(0xFFFF512F)],
       ),
