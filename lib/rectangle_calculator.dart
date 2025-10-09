@@ -684,7 +684,7 @@ class RectangleCalculatorThread {
   double constructionAreaLookaheadDistance = 0.0;
 
   /// Maximum distance in kilometres for construction area look‑ahead.
-  double maxConstructionAreaLookaheadDistance = 10.0;
+  double maxConstructionAreaLookaheadDistance = 100.0;
 
   /// Minimum interval between network lookups to avoid excessive
   /// requests for speed cameras only.
@@ -1187,7 +1187,7 @@ class RectangleCalculatorThread {
 
   /// Compute a lookahead distance in kilometres based on [speedKmH].  The
   /// distance grows linearly with speed and is clamped to [maxDistanceKm].  A
-  /// baseline of three kilometres ensures a reasonable search radius even at
+  /// baseline of thirty kilometres ensures a reasonable search radius even at
   /// low speeds.
   double _computeLookAheadDistance(double speedKmH, double maxDistanceKm) {
     const double base = 30.0;
