@@ -595,7 +595,7 @@ class _TimelineTile extends StatelessWidget {
     if (event.kind == DriveEventKind.maxAcceleration &&
         event.maxAcceleration != null) {
       chips.add(_EventChip(
-        label: '+${event.maxAcceleration} m/s²',
+        label: '+${event.maxAcceleration!.toStringAsFixed(2)} m/s²',
         color: accent,
       ));
     }

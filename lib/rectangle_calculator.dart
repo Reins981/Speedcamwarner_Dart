@@ -495,6 +495,7 @@ class RectangleCalculatorThread {
   /// stop processing samples.
   bool _running = true;
   bool get isRunning => _running;
+  bool lookAheadSuccess = false;
 
   /// Whether a camera lookup is in progress.
   bool _camLookupInProgress = false;
@@ -2020,7 +2021,7 @@ class RectangleCalculatorThread {
     );
     speedCamLookAheadDistance = camLookAheadKm;
 
-    if (calculateNewRect) {
+    if (calculateNewRect || !lookAheadSuccess) {
       final GeoRect? rect = _computeBoundingRect_simple(
         latitude,
         longitude,
@@ -2081,12 +2082,12 @@ class RectangleCalculatorThread {
             lookAhead: true,
             lookAheadMode: msg,
           );
-          if (inside && !close) {
+          if (inside && !close && lookAheadSuccess) {
             logger.printLogLine('Skipping $msg - inside existing lookahead');
             calculateNewRect = false;
             continue;
           }
-          logger.printLogLine('Need to calculate new $rectType rectangle!!!');
+          logger.printLogLine('Lookahead cameras from $rectType rectangle!!!');
           calculateNewRect = true;
         }
       } else {
@@ -2374,6 +2375,16 @@ class RectangleCalculatorThread {
     if (distRes.success && distRes.elements != null) {
       await processSpeedCamLookupAheadResults(
           distRes.elements!, 'distance_cam');
+    }
+
+    if (!camRes.success || !distRes.success) {
+      logger.printLogLine(
+        'One or more speed camera lookahead lookups failed, skipping Lufop processing',
+      );
+      lookAheadSuccess = false;
+      return;
+    } else {
+      lookAheadSuccess = true;
     }
 
     await lufopFuture;

@@ -178,6 +178,10 @@ class GpsThread extends Logger {
       );
 
       if (enriched.speed.toInt() > topSpeed) {
+        if (enriched.gpsStatus != 'ONLINE') {
+          // Do not update top speed if GPS is not reliable.
+          return;
+        }
         topSpeed = enriched.speed.toInt();
         _topSpeedController.add(topSpeed);
       }
